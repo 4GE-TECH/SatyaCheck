@@ -17,13 +17,13 @@ interface BackgroundCirclesProps {
 
 const COLOR_VARIANTS = {
   primary: {
-    border: "border-cyan-500/40 dark:border-cyan-400/50",
+    border: "border-cyan-500/40",
     glow: "rgba(6, 182, 212, 0.35)",
     text: "text-cyan-600 dark:text-cyan-400",
     dot: "bg-cyan-500 dark:bg-cyan-400",
   },
   quinary: {
-    border: "border-red-500/40 dark:border-red-400/50",
+    border: "border-red-500/40",
     glow: "rgba(239, 68, 68, 0.35)",
     text: "text-red-600 dark:text-red-400",
     dot: "bg-red-500 dark:bg-red-400",
@@ -42,7 +42,7 @@ const AnimatedGrid = () => (
       ease: "linear",
     }}
   >
-    <div className="h-full w-full [background-image:repeating-linear-gradient(100deg,#64748B_0%,#64748B_1px,transparent_1px,transparent_4%)] opacity-10 dark:opacity-15" />
+    <div className="h-full w-full [background-image:repeating-linear-gradient(100deg,#64748B_0%,#64748B_1px,transparent_1px,transparent_4%)] opacity-10" />
   </motion.div>
 );
 
@@ -80,7 +80,7 @@ export function BackgroundCircles({
   return (
     <div
       className={clsx(
-        "relative flex flex-col items-center justify-center overflow-hidden py-10 px-4 select-none w-full",
+        "relative flex flex-col items-center justify-center overflow-hidden py-8 px-4 select-none w-full",
         className
       )}
       aria-label="SatyaCheck voice analysis"
@@ -93,13 +93,13 @@ export function BackgroundCircles({
           className="absolute inset-0 transition-opacity duration-700 blur-[120px]"
           style={{
             background: `radial-gradient(ellipse at center, ${variantStyles.glow}, transparent 70%)`,
-            opacity: isSpeaking ? 0.7 : 0.25,
+            opacity: isSpeaking ? 0.6 : 0.2,
           }}
         />
       </div>
 
       {/* ── CENTRAL MICROPHONE & EXPANDING AUDIO WAVES ── */}
-      <div className="relative flex items-center justify-center my-6 h-56 w-56 sm:h-64 sm:w-64">
+      <div className="relative flex items-center justify-center my-4 h-52 w-52 sm:h-60 sm:w-60">
         {/* 4 Expanding Circular Audio Waves (Active when isSpeaking) */}
         {!reducedMotion &&
           isSpeaking &&
@@ -156,10 +156,8 @@ export function BackgroundCircles({
           className={clsx(
             "relative z-20 flex items-center justify-center rounded-3xl transition-all cursor-pointer",
             "w-28 h-28 sm:w-32 sm:h-32 shadow-2xl border",
-            "bg-[#0A0D14]/90 dark:bg-[#07080B]/95 text-white backdrop-blur-md",
-            isSpeaking
-              ? "border-cyan-400 dark:border-cyan-400 shadow-[0_0_40px_-5px_rgba(6,182,212,0.6)]"
-              : "border-slate-300 dark:border-slate-800/90 hover:border-cyan-500/50 hover:shadow-[0_0_30px_-8px_rgba(6,182,212,0.4)]"
+            "bg-[var(--bg-secondary)] text-[var(--text-primary)] border-[var(--border-default)] hover:border-[var(--accent)]",
+            isSpeaking && "border-cyan-400 shadow-[0_0_40px_-5px_rgba(6,182,212,0.6)]"
           )}
           animate={
             reducedMotion
@@ -174,14 +172,14 @@ export function BackgroundCircles({
           }}
         >
           {/* Subtle Top Glass Rim */}
-          <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
 
           <Mic
             className={clsx(
               "w-12 h-12 sm:w-16 sm:h-16 transition-colors drop-shadow-md",
               isSpeaking
                 ? variantStyles.text
-                : "text-slate-700 dark:text-slate-200"
+                : "text-[var(--text-primary)]"
             )}
             strokeWidth={1.75}
           />
@@ -190,12 +188,12 @@ export function BackgroundCircles({
 
       {/* ── REAL-TIME STATUS INDICATOR (Below Microphone) ── */}
       <motion.div
-        className="relative z-10 flex flex-col items-center gap-1.5 text-center mt-2 mb-6"
+        className="relative z-10 flex flex-col items-center gap-1.5 text-center mt-2 mb-5"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-100 dark:bg-[#0E121B] border border-slate-300 dark:border-slate-800 text-xs font-mono font-bold tracking-wider uppercase shadow-sm">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-default)] text-xs font-mono font-bold tracking-wider uppercase shadow-sm">
           <span
             className={clsx(
               "w-2 h-2 rounded-full",
@@ -203,29 +201,29 @@ export function BackgroundCircles({
               isSpeaking && "animate-ping"
             )}
           />
-          <span className={clsx(isSpeaking ? variantStyles.text : "text-slate-700 dark:text-slate-300")}>
+          <span className={clsx(isSpeaking ? variantStyles.text : "text-[var(--text-primary)]")}>
             {isSpeaking ? "LISTENING & ANALYZING" : "READY"}
           </span>
         </div>
 
-        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+        <span className="text-xs font-mono text-[var(--text-muted)] font-medium">
           {isSpeaking ? "Analyzing speech in real time..." : "Waiting for caller voice input..."}
         </span>
       </motion.div>
 
-      {/* ── HERO TITLE & DESCRIPTION ── */}
+      {/* ── HERO TITLE & DESCRIPTION (Theme-Aware Contrast) ── */}
       <motion.div
         className="relative z-10 text-center max-w-2xl mx-auto space-y-3"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
       >
-        <h1 className="text-3xl sm:text-5xl font-black tracking-tight font-mono text-slate-900 dark:text-white leading-tight">
+        <h1 className="text-3xl sm:text-5xl font-black tracking-tight font-mono text-[var(--text-primary)] leading-tight">
           {title}
         </h1>
 
         <motion.p
-          className="text-base sm:text-lg text-slate-600 dark:text-slate-300 font-sans leading-relaxed"
+          className="text-base sm:text-lg text-[var(--text-secondary)] font-sans leading-relaxed font-normal"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
