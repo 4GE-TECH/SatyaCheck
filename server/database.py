@@ -182,6 +182,46 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def get_person_by_id(person_id: str):
+    """Resolve an enrolled person contract by person_id for challenge questions."""
+    from contracts import AcousticCondition, EnrolledPerson, SharedSecret as ContractSecret, VoiceprintRecord
+    with SessionLocal() as db:
+        person = db.query(Person).filter(Person.person_id == person_id).first()
+        if not person:
+            return None
+        voiceprints = [
+            VoiceprintRecord(
+                voiceprint_id=vp.voiceprint_id,
+                person_id=vp.person_id,
+                condition=AcousticCondition(vp.condition),
+                embedding=vp.get_embedding(),
+                duration_s=vp.duration_s,
+                snr_db=vp.snr_db,
+                created_at=str(vp.created_at),
+            )
+            for vp in person.voiceprints
+        ]
+        secrets = [
+            ContractSecret(
+                secret_id=s.secret_id,
+                question=s.question,
+                answer_hash=s.answer_hash,
+                category=s.category or "personal",
+            )
+            for s in person.shared_secrets
+        ]
+        return EnrolledPerson(
+            person_id=person.person_id,
+            name=person.name,
+            relation=person.relation,
+            phone_number=person.phone_number,
+            avatar_url=person.avatar_url,
+            voiceprints=voiceprints,
+            shared_secrets=secrets,
+            created_at=str(person.created_at),
+        )
+
+
 # ── Smoke test ────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

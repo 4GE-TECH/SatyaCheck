@@ -48,9 +48,17 @@ async def lifespan(app: FastAPI):
 
     # Initialise DB when database.py is ready (Block 1)
     try:
-        from server.database import init_db
+        from server.database import init_db, get_person_by_id
         init_db()
         log.info("  DB init: OK")
+        
+        # Configure nlp_rag with person_lookup for challenge questions
+        try:
+            from nlp_rag.api import configure as configure_nlp
+            configure_nlp(person_lookup=get_person_by_id)
+            log.info("  nlp_rag person_lookup configured: OK")
+        except Exception as nlp_err:
+            log.warning(f"  nlp_rag configuration skipped: {nlp_err}")
     except ImportError:
         log.warning("  server.database not yet available — skipping DB init (Block 0 mode)")
 

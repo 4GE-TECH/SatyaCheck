@@ -199,7 +199,8 @@ def _compute_fusion(
     if verdict in (SpeakerVerdict.MISMATCH, SpeakerVerdict.UNKNOWN) and r_text > 0.3:
         try:
             from nlp_rag.api import challenge_question as cq_fn
-            challenge_question = cq_fn(speaker.matched_person_id)
+            target_id = speaker.matched_person_id or speaker.claimed_person_id
+            challenge_question = cq_fn(target_id, band=band)
         except Exception:
             pass
 
@@ -301,37 +302,44 @@ def _build_reason_codes(
         ))
 
     # ── Intent / Script ───────────────────────────────────────────────
-    for marker in script.incriminating_markers[:3]:  # top 3
-        codes.append(ReasonCode(
-            code=f"RC_{marker.marker_id}",
-            signal=SignalType.INTENT,
-            value=f'"{marker.matched_text[:60]}"',
-            threshold=f"Category: {marker.category}",
-            explanation=marker.description,
-            severity=SeverityLevel.HIGH if marker.weight > 0.7 else SeverityLevel.MEDIUM,
-        ))
+    try:
+        from nlp_rag.api import build_reason_codes as nlp_build_rc
+        nlp_codes = nlp_build_rc(script)
+        if nlp_codes:
+            codes.extend(nlp_codes)
+    except Exception:
+        # Fallback to direct marker/playbook iteration if nlp_rag.api fails
+        for marker in script.incriminating_markers[:3]:  # top 3
+            codes.append(ReasonCode(
+                code=f"RC_{marker.marker_id}",
+                signal=SignalType.INTENT,
+                value=f'"{marker.matched_text[:60]}"',
+                threshold=f"Category: {marker.category}",
+                explanation=marker.description,
+                severity=SeverityLevel.HIGH if marker.weight > 0.7 else SeverityLevel.MEDIUM,
+            ))
 
-    for marker in script.exculpatory_markers[:2]:  # top 2
-        codes.append(ReasonCode(
-            code=f"RC_{marker.marker_id}",
-            signal=SignalType.INTENT,
-            value=f'"{marker.matched_text[:60]}"',
-            threshold=f"Category: {marker.category}",
-            explanation=marker.description,
-            severity=SeverityLevel.INFO,
-        ))
+        for marker in script.exculpatory_markers[:2]:  # top 2
+            codes.append(ReasonCode(
+                code=f"RC_{marker.marker_id}",
+                signal=SignalType.INTENT,
+                value=f'"{marker.matched_text[:60]}"',
+                threshold=f"Category: {marker.category}",
+                explanation=marker.description,
+                severity=SeverityLevel.INFO,
+            ))
 
-    for pb in script.playbooks[:2]:  # top 2 citations
-        codes.append(ReasonCode(
-            code=f"RC_PLAYBOOK_{pb.playbook_id}",
-            signal=SignalType.INTENT,
-            value=f"RAG similarity {pb.similarity_score:.0%}",
-            threshold=f"> {config.RAG_SIMILARITY_THRESHOLD:.0%}",
-            explanation=f"Matches known fraud pattern: {pb.title}",
-            citation_title=pb.title,
-            citation_url=pb.source_url,
-            severity=SeverityLevel.HIGH if pb.similarity_score > 0.80 else SeverityLevel.MEDIUM,
-        ))
+        for pb in script.playbooks[:2]:  # top 2 citations
+            codes.append(ReasonCode(
+                code=f"RC_PLAYBOOK_{pb.playbook_id}",
+                signal=SignalType.INTENT,
+                value=f"RAG similarity {pb.similarity_score:.0%}",
+                threshold=f"> {config.RAG_SIMILARITY_THRESHOLD:.0%}",
+                explanation=f"Matches known fraud pattern: {pb.title}",
+                citation_title=pb.title,
+                citation_url=pb.source_url,
+                severity=SeverityLevel.HIGH if pb.similarity_score > 0.80 else SeverityLevel.MEDIUM,
+            ))
 
     return codes
 
