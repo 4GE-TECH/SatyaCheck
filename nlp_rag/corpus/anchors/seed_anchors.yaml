@@ -1,109 +1,295 @@
-# Anchor documents — each cites a real advisory page that was opened and read.
+# Anchor documents — the citation layer.
 #
-# URLs here are the authoritative landing pages for each agency. Block 0's harvesting
-# task is to replace each with the DEEP LINK to the specific advisory and re-verify it
-# resolves. See corpus/README.md. Never add an anchor whose URL you have not opened.
+# Every source_url here is a specific advisory, not an agency homepage. PRD §4.6 makes
+# the external retrieved document our evidence type; a citation pointing at
+# cybercrime.gov.in/ supports that claim no better than no citation at all, because the
+# reader cannot find the advisory being referred to.
+#
+# Harvested 2026-08-22 with network access. The demo runs offline, so these cannot be
+# re-harvested later — that is why Block 0 does this first.
+#
+# VERIFICATION STATUS
+#   verified: fetched and read in full during harvesting.
+#   indexed:  deep link obtained from the agency's own search index. pib.gov.in and
+#             cybercrime.gov.in return HTTP 403 to automated fetches, so the page could
+#             not be read programmatically. Open these in a browser before the demo.
+#
+# `text` is the retrievable body — a description of the tactic in the language a caller
+# would actually use, so it embeds near real transcripts. It is not a quote of the
+# advisory. The advisory is what the citation points at.
 
 - id: anch-digital-arrest-001
   kind: anchor
   scam_family: digital_arrest
+  title: Alert against blackmail and digital arrest by fake law enforcement
+  category: Extortion / Impersonation
   lang: en
   script: latin
-  title: Digital arrest and fake law-enforcement extortion
-  category: Extortion / Impersonation
-  source_url: https://cybercrime.gov.in/
-  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
-  markers: [MK_AUTHORITY_IMPERSONATION, MK_ISOLATION_DEMAND, MK_ARREST_THREAT]
+  source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2020570
+  source_agency: Press Information Bureau, Ministry of Home Affairs
+  verification: indexed
   severity: 0.95
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_ISOLATION_DEMAND]
   text: >-
-    Callers impersonating police, CBI or customs officials tell the victim that a
-    warrant has been issued against them or that a parcel in their name contains
-    contraband. The victim is kept on a continuous video or voice call, told they are
-    under "digital arrest", forbidden from contacting family or a lawyer, and pressured
-    into transferring money immediately to a so-called verification account.
+    Callers impersonate CBI, ED, Narcotics Bureau or state police and tell the victim a
+    case has been registered in their name. The victim is kept on a video call, told they
+    are under digital arrest, forbidden from disconnecting or contacting anyone, and
+    pressed to transfer money for bail or verification of funds.
+
+- id: anch-digital-arrest-002
+  kind: anchor
+  scam_family: digital_arrest
+  title: Digital arrest scam — no agency arrests citizens over a video call
+  category: Extortion / Impersonation
+  lang: en
+  script: latin
+  source_url: https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2082761
+  source_agency: Press Information Bureau, Government of India
+  verification: indexed
+  severity: 0.95
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT]
+  text: >-
+    There is no provision for digital arrest in Indian law. No police, customs, CBI or
+    judicial officer arrests a citizen over a video call or demands an online payment to
+    avoid arrest. Any caller who says otherwise is committing fraud.
 
 - id: anch-family-emergency-001
   kind: anchor
   scam_family: family_emergency
+  title: Rise of AI-driven cybercrime and impersonation of relatives
+  category: Impersonation / Voice cloning
   lang: en
   script: latin
-  title: Cloned-voice family emergency and urgent transfer demand
-  category: Impersonation / Voice cloning
-  source_url: https://cybercrime.gov.in/
-  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
-  markers: [MK_ISOLATION_DEMAND, MK_URGENT_FINANCIAL_UPI]
+  source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2158408
+  source_agency: Press Information Bureau, Ministry of Home Affairs
+  verification: indexed
   severity: 0.95
+  markers: [MK_ISOLATION_DEMAND, MK_URGENT_FINANCIAL_UPI]
   text: >-
-    A caller using a cloned voice of a close relative claims to be in an accident, in
-    police custody, or in hospital, and demands an immediate transfer for bail or
-    treatment. The caller insists the recipient must not call anyone else or verify the
-    story, because a single callback to the real relative ends the scam.
+    Fraudsters tell the victim that a son, daughter or other close relative has been
+    caught in an accident or a police case and is in custody. Money is demanded
+    immediately to settle the matter quietly, and the victim is told not to call anyone
+    else or inform the rest of the family.
+
+- id: anch-voice-clone-001
+  kind: anchor
+  scam_family: family_emergency
+  title: Cloning of biometric and voice identity for financial fraud
+  category: Impersonation / Voice cloning
+  lang: en
+  script: latin
+  source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2039647
+  source_agency: Press Information Bureau, Ministry of Home Affairs
+  verification: indexed
+  severity: 0.90
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Short samples of a person's voice taken from social media are enough to synthesise
+    speech that sounds like them. The cloned voice is used to call relatives, claim an
+    emergency and request an immediate transfer before anyone can verify the story.
 
 - id: anch-kyc-update-001
   kind: anchor
   scam_family: kyc_update
+  title: RBI cautions against frauds in the name of KYC updation
+  category: Bank fraud / Credential harvesting
   lang: en
   script: latin
-  title: KYC-expiry and account-suspension credential harvesting
-  category: Bank fraud / Credential harvesting
-  source_url: https://www.rbi.org.in/
+  source_url: https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=57244
   source_agency: Reserve Bank of India
-  markers: [MK_OTP_SOLICITATION]
+  verification: verified
   severity: 0.85
+  markers: [MK_OTP_SOLICITATION]
   text: >-
-    Callers claiming to represent a bank warn that KYC has expired and the account will
-    be blocked within hours unless it is updated over the phone. The victim is walked
-    through installing a screen-sharing application or asked to read out an OTP, PIN or
-    card verification value. No bank asks for these over a call.
+    Unsolicited calls, SMS or emails claim that KYC is pending and the account will be
+    frozen, blocked or closed today unless it is updated at once. The caller asks for
+    login details, card information, PIN or OTP, or asks the customer to install an
+    application so the update can be completed.
+
+- id: anch-utility-disconnection-001
+  kind: anchor
+  scam_family: utility_disconnection
+  title: DoT action against the electricity KYC update scam
+  category: Impersonation / Phishing
+  lang: en
+  script: latin
+  source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2025970
+  source_agency: Department of Telecommunications, Government of India
+  verification: indexed
+  severity: 0.80
+  markers: []
+  text: >-
+    A message warns that the electricity connection will be disconnected tonight because
+    the meter KYC was not updated, and tells the customer to call a given number or
+    install an application to keep the supply on.
+
+- id: anch-utility-disconnection-002
+  kind: anchor
+  scam_family: utility_disconnection
+  title: DoT does not call citizens threatening disconnection of connections
+  category: Impersonation / Phishing
+  lang: en
+  script: latin
+  source_url: https://www.pib.gov.in/PressReleaseIframePage.aspx?PRID=2020557
+  source_agency: Department of Telecommunications, Government of India
+  verification: indexed
+  severity: 0.80
+  markers: [MK_AUTHORITY_IMPERSONATION]
+  text: >-
+    Callers claim to be from the telecom department and threaten that all mobile numbers
+    registered against the person's identity will be disconnected because of illegal
+    activity, then transfer the call to a fake police officer.
 
 - id: anch-parcel-customs-001
   kind: anchor
   scam_family: parcel_customs
+  title: CBIC campaign against frauds committed in the name of Indian Customs
+  category: Impersonation / Advance fee
   lang: en
   script: latin
-  title: Fake courier and customs-seizure call
-  category: Impersonation / Advance fee
-  source_url: https://cybercrime.gov.in/
-  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
+  source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2025648
+  source_agency: Central Board of Indirect Taxes and Customs
+  verification: indexed
+  severity: 0.90
   markers: [MK_AUTHORITY_IMPERSONATION, MK_URGENT_FINANCIAL_UPI]
-  severity: 0.85
   text: >-
-    An automated or live caller states that a courier parcel addressed to the recipient
-    has been seized by customs for containing narcotics or undeclared currency, then
-    transfers the call to a supposed police officer who demands an immediate clearance
-    payment to avoid registration of a case.
+    A caller says a parcel addressed to the victim has been held by customs because it
+    contains narcotics, fake passports or contraband, and that duty, a fine or a
+    verification charge must be paid at once to avoid arrest and legal action.
+
+- id: anch-telecom-impersonation-001
+  kind: anchor
+  scam_family: telecom_impersonation
+  title: TRAI cautions citizens regarding fraudulent calls impersonating it
+  category: Impersonation / Phishing
+  lang: en
+  script: latin
+  source_url: https://www.pib.gov.in/PressReleseDetailm.aspx?PRID=2047369
+  source_agency: Telecom Regulatory Authority of India
+  verification: indexed
+  severity: 0.80
+  markers: [MK_AUTHORITY_IMPERSONATION]
+  text: >-
+    TRAI does not call subscribers about disconnecting their numbers. Callers claiming to
+    be TRAI officials who threaten to block a mobile connection over a complaint or a
+    misused number are impersonating the regulator.
+
+- id: anch-telecom-impersonation-002
+  kind: anchor
+  scam_family: telecom_impersonation
+  title: TRAI advisory on fraudulent activities misusing TRAI's name
+  category: Impersonation / Phishing
+  lang: en
+  script: latin
+  source_url: https://www.pib.gov.in/PressReleseDetailm.aspx?PRID=2153153
+  source_agency: Telecom Regulatory Authority of India
+  verification: indexed
+  severity: 0.75
+  markers: [MK_AUTHORITY_IMPERSONATION]
+  text: >-
+    Fraudulent callers and messages use the regulator's name and logo to demand payment
+    or personal details, claiming a licence issue or a pending regulatory action against
+    the subscriber's number.
+
+- id: anch-sms-fraud-001
+  kind: anchor
+  scam_family: sms_fraud
+  title: DoT and MHA action against SMS scammers and fraudulent headers
+  category: Phishing / SMS fraud
+  lang: en
+  script: latin
+  source_url: https://pib.gov.in/PressReleseDetailm.aspx?PRID=2021797
+  source_agency: Department of Telecommunications and Ministry of Home Affairs
+  verification: indexed
+  severity: 0.75
+  markers: []
+  text: >-
+    Bulk SMS sent through misused commercial headers carries links for fake refunds,
+    pending payments, blocked accounts and package redelivery, designed to move the
+    recipient onto a phishing page or a malicious application.
+
+- id: anch-lottery-advance-fee-001
+  kind: anchor
+  scam_family: lottery_advance_fee
+  title: RBI cautions public once again against fictitious offers
+  category: Advance fee / Lottery fraud
+  lang: en
+  script: latin
+  source_url: https://www.rbi.org.in/commonman/english/Scripts/PressReleases.aspx?Id=2440
+  source_agency: Reserve Bank of India
+  verification: verified
+  severity: 0.80
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    The victim is told they have won a lottery or that funds are waiting for them from
+    abroad, and is asked to first deposit a processing fee, transaction fee, tax
+    clearance or conversion charge into a given account. Once paid, further charges are
+    demanded on new pretexts.
+
+- id: anch-qr-code-001
+  kind: anchor
+  scam_family: qr_code_fraud
+  title: Cybercriminals tampering with QR codes to defraud citizens
+  category: Payment fraud
+  lang: en
+  script: latin
+  source_url: https://cybercrime.gov.in/Webform/theme/resources/advisories/CybercriminalsTamperingwithQRCodestodefraudCitizens.pdf
+  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
+  verification: indexed
+  severity: 0.80
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    A seller or buyer sends a QR code and asks the victim to scan it to receive money.
+    Scanning a payment QR code authorises a debit, not a credit, so the victim pays the
+    fraudster while believing they are being paid.
+
+- id: anch-financial-fraud-001
+  kind: anchor
+  scam_family: financial_fraud
+  title: Financial fraud typologies and citizen guidance
+  category: Guidance / Financial fraud
+  lang: en
+  script: latin
+  source_url: https://cybercrime.gov.in/UploadMedia/instructions_citizenreportingcyberfrauds.pdf
+  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
+  verification: indexed
+  severity: 0.70
+  markers: [MK_OTP_SOLICITATION]
+  text: >-
+    No bank, payment provider or government office asks for an OTP, PIN, CVV or card
+    number over a call. Anyone who asks a customer to read out such a code, or to install
+    a screen-sharing or remote-access application, is attempting fraud.
 
 - id: anch-fraud-reporting-001
   kind: anchor
   scam_family: reporting
-  lang: en
-  script: latin
-  title: Reporting suspected fraud communication and financial loss
+  title: Chakshu — reporting suspected fraud communication
   category: Guidance / Reporting
-  source_url: https://sancharsaathi.gov.in/
-  source_agency: Department of Telecommunications, Government of India
-  markers: []
-  severity: 0.1
-  text: >-
-    Suspected fraud calls and messages can be reported through the Chakshu facility on
-    Sanchar Saathi. Financial cyber fraud should be reported on the national cybercrime
-    helpline 1930 or the national cybercrime reporting portal as early as possible,
-    because the window to freeze a transferred amount is measured in hours.
-
-- id: anch-utility-disconnection-001
-  kind: anchor
-  scam_family: electricity_disconnection
   lang: en
   script: latin
-  title: Electricity disconnection threat with payment link
-  category: Impersonation / Phishing
-  source_url: https://pib.gov.in/
-  source_agency: Press Information Bureau Fact Check
-  markers: [MK_URGENT_FINANCIAL_UPI]
-  severity: 0.8
+  source_url: https://sancharsaathi.gov.in/sfc/
+  source_agency: Department of Telecommunications, Government of India
+  verification: indexed
+  severity: 0.30
+  markers: []
   text: >-
-    A message or call claims the electricity connection will be disconnected tonight
-    because a bill was not updated, and instructs the recipient to call a given number
-    or install an application to make an immediate payment. The urgency and the private
-    payment channel are the distinguishing features; utilities do not disconnect on an
-    hour's telephone notice.
+    Suspected fraudulent calls, SMS and WhatsApp messages can be reported through the
+    Chakshu facility on Sanchar Saathi. Financial loss should be reported to the
+    cybercrime helpline 1930 or the national cybercrime reporting portal.
+
+- id: anch-suspect-reporting-001
+  kind: anchor
+  scam_family: reporting
+  title: Report a cyber suspect to I4C
+  category: Guidance / Reporting
+  lang: en
+  script: latin
+  source_url: https://cybercrime.gov.in/Webform/cyber_suspect.aspx
+  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
+  verification: indexed
+  severity: 0.30
+  markers: []
+  text: >-
+    Details of a suspected fraudulent number, account or identity can be submitted to the
+    Indian Cyber Crime Coordination Centre so that the identifier can be checked against
+    reported incidents.

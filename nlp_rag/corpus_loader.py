@@ -61,6 +61,8 @@ class CorpusDoc:
     derived: bool = False
     markers: list[str] = field(default_factory=list)
     severity: float = 0.5
+    #: heldout only — the anchor this excerpt should retrieve. Ground truth for P@3.
+    expected_anchor: str | None = None
 
 
 class Corpus:
@@ -158,6 +160,11 @@ def _coerce(raw: dict[str, Any], origin: Path) -> CorpusDoc:
         )
     if kind == "variant" and not raw.get("anchor_id"):
         raise CorpusError(f"{raw['id']}: variant has no anchor_id, so it can carry no citation")
+    if kind == "heldout" and not raw.get("expected_anchor"):
+        raise CorpusError(
+            f"{raw['id']}: held-out document has no expected_anchor. Without a ground-truth "
+            f"label it cannot be scored, and P@3 measures nothing."
+        )
 
     return CorpusDoc(
         id=raw["id"],
@@ -174,6 +181,7 @@ def _coerce(raw: dict[str, Any], origin: Path) -> CorpusDoc:
         derived=bool(raw.get("derived", False)),
         markers=list(raw.get("markers", []) or []),
         severity=float(raw.get("severity", 0.5)),
+        expected_anchor=raw.get("expected_anchor"),
     )
 
 

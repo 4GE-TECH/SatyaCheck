@@ -1,0 +1,204 @@
+# Held-out evaluation transcripts — the ground truth M4 is scored against.
+#
+# These are NEVER indexed. `Corpus.retrievable` and `Corpus.benign` both exclude
+# kind: heldout, so retrieval cannot return them and P@3 is not scored against itself.
+#
+# Each is written as a caller would actually speak — mid-call, code-switched, with the
+# hesitation and repetition of real speech — rather than as a description of a tactic.
+# That matters: the corpus documents describe scams in advisory register, and if the
+# held-out set were written the same way P@3 would measure register matching rather
+# than retrieval. Phrasing is drawn from the tactics named in the harvested advisories,
+# not copied from any indexed document.
+#
+# `expected_anchor` is the anchor the query should retrieve. `script` is tracked
+# because Whisper's output script is unstable on code-switched audio, and retrieval has
+# to survive both.
+
+# --- digital arrest ----------------------------------------------------------
+
+- id: held-digital-arrest-001
+  kind: heldout
+  scam_family: digital_arrest
+  expected_anchor: anch-digital-arrest-001
+  lang: en
+  script: latin
+  text: >-
+    Sir, this is Inspector Deshmukh from the Cyber Crime branch, Colaba. A case has been
+    registered against your Aadhaar number in a money laundering matter. You are now
+    under digital arrest. Do not disconnect this video call and do not leave the room.
+    You cannot inform anybody, not even your family, till the verification is complete.
+
+- id: held-digital-arrest-002
+  kind: heldout
+  scam_family: digital_arrest
+  expected_anchor: anch-digital-arrest-002
+  lang: hi
+  script: devanagari
+  text: >-
+    आपके नाम से एक गिरफ़्तारी वारंट निकला है। हम अभी आपको वीडियो कॉल पर डिजिटल अरेस्ट कर
+    रहे हैं। कैमरा बंद मत कीजिए और किसी को फ़ोन मत कीजिए। जाँच पूरी होने तक पैसा एक सरकारी
+    खाते में जमा करना होगा।
+
+- id: held-digital-arrest-003
+  kind: heldout
+  scam_family: digital_arrest
+  expected_anchor: anch-digital-arrest-001
+  lang: hi
+  script: latin
+  text: >-
+    Main CBI se bol raha hoon. Aapke naam par ek parcel aur ek bank account mila hai
+    jisme illegal transaction hua hai. Abhi ye call kaatna mat, aur ghar mein kisi ko mat
+    batao. Verification ke liye paisa transfer karna padega warna arrest ho jayega.
+
+# --- family emergency and voice cloning --------------------------------------
+
+- id: held-family-emergency-001
+  kind: heldout
+  scam_family: family_emergency
+  expected_anchor: anch-family-emergency-001
+  lang: hi
+  script: latin
+  text: >-
+    Papa, mera accident ho gaya hai, main hospital mein hoon. Police case ban gaya hai
+    aur wo log settlement maang rahe hain. Please mummy ko mat batana, wo tension le
+    legi. Abhi turant is number pe pachas hazaar bhej do, main baad mein sab samjha
+    dunga.
+
+- id: held-family-emergency-002
+  kind: heldout
+  scam_family: family_emergency
+  expected_anchor: anch-family-emergency-001
+  lang: en
+  script: latin
+  text: >-
+    Ma, it's me. I'm in trouble, my friend was driving and there was an accident. The
+    police are asking for money to not file a report. Please don't tell Papa, he'll be
+    angry. Just send it now to the number I'm sending you, I can't talk long.
+
+- id: held-family-emergency-003
+  kind: heldout
+  scam_family: family_emergency
+  expected_anchor: anch-voice-clone-001
+  lang: hi
+  script: devanagari
+  text: >-
+    माँ, मेरी आवाज़ पहचान रही हो ना? मैं बहुत मुश्किल में हूँ। अभी पैसे चाहिए, वरना बहुत
+    बड़ी दिक्कत हो जाएगी। किसी और को फ़ोन मत करना, बस मेरी बात सुनो और पैसे भेज दो।
+
+# --- KYC and credentials ------------------------------------------------------
+
+- id: held-kyc-update-001
+  kind: heldout
+  scam_family: kyc_update
+  expected_anchor: anch-kyc-update-001
+  lang: en
+  script: latin
+  text: >-
+    Madam, I'm calling from your bank's KYC department. Your account KYC has expired and
+    the account will be frozen by midnight today. I'm sending you an OTP right now, just
+    read it back to me and I'll complete the update from my side.
+
+- id: held-kyc-update-002
+  kind: heldout
+  scam_family: kyc_update
+  expected_anchor: anch-kyc-update-001
+  lang: hi
+  script: latin
+  text: >-
+    Aapka bank account KYC pending hai, aaj raat tak block ho jayega. Ek application
+    download kar lijiye aur usme apna card number aur PIN daal dijiye, KYC update ho
+    jayegi. Ye call disconnect mat kijiye jab tak process complete na ho.
+
+- id: held-credential-001
+  kind: heldout
+  scam_family: financial_fraud
+  expected_anchor: anch-financial-fraud-001
+  lang: en
+  script: latin
+  text: >-
+    To reverse the wrong transaction I need you to install AnyDesk so I can see your
+    screen. Then tell me the six digit code that came on your phone. Don't cancel it,
+    the refund window closes in five minutes.
+
+# --- utility and telecom impersonation ---------------------------------------
+
+- id: held-utility-001
+  kind: heldout
+  scam_family: utility_disconnection
+  expected_anchor: anch-utility-disconnection-001
+  lang: en
+  script: latin
+  text: >-
+    Dear customer, your electricity will be disconnected tonight at nine thirty because
+    your previous meter KYC was not updated. Please call this number immediately or your
+    supply will be cut.
+
+- id: held-utility-002
+  kind: heldout
+  scam_family: telecom_impersonation
+  expected_anchor: anch-utility-disconnection-002
+  lang: hi
+  script: latin
+  text: >-
+    Ye call telecom department se hai. Aapke Aadhaar par jo mobile numbers registered
+    hain, un sab par illegal activity ki complaint aayi hai. Do ghante mein sab
+    disconnect ho jayenge. Main aapki call cyber cell officer ko transfer kar raha hoon.
+
+- id: held-telecom-001
+  kind: heldout
+  scam_family: telecom_impersonation
+  expected_anchor: anch-telecom-impersonation-001
+  lang: en
+  script: latin
+  text: >-
+    This is a call from TRAI. A complaint has been registered against your mobile number
+    for sending fraudulent messages and it will be blocked within two hours. Press one to
+    speak to an officer about resolving this.
+
+# --- parcel and customs -------------------------------------------------------
+
+- id: held-parcel-customs-001
+  kind: heldout
+  scam_family: parcel_customs
+  expected_anchor: anch-parcel-customs-001
+  lang: en
+  script: latin
+  text: >-
+    Sir, this is from the courier company. A parcel booked in your name to Taiwan has
+    been stopped by customs at the airport. It contains four passports and some
+    narcotics. Customs has referred it to the Narcotics Control Bureau. You need to pay
+    the verification charge now or a case will be filed.
+
+- id: held-parcel-customs-002
+  kind: heldout
+  scam_family: parcel_customs
+  expected_anchor: anch-parcel-customs-001
+  lang: hi
+  script: devanagari
+  text: >-
+    आपके नाम से एक कूरियर पकड़ा गया है जिसमें प्रतिबंधित सामान है। कस्टम ड्यूटी और जुर्माना
+    अभी जमा नहीं किया तो गिरफ़्तारी हो सकती है। यह नंबर किसी को मत दीजिए।
+
+# --- advance fee and payment fraud -------------------------------------------
+
+- id: held-lottery-001
+  kind: heldout
+  scam_family: lottery_advance_fee
+  expected_anchor: anch-lottery-advance-fee-001
+  lang: en
+  script: latin
+  text: >-
+    Congratulations, your number has been selected in our lucky draw for twenty five
+    lakhs. To release the amount you only need to deposit the tax clearance charge of
+    eighteen thousand into this account first, then the full prize will be transferred.
+
+- id: held-qr-code-001
+  kind: heldout
+  scam_family: qr_code_fraud
+  expected_anchor: anch-qr-code-001
+  lang: hi
+  script: latin
+  text: >-
+    Main aapka furniture kharidna chahta hoon, advance bhej raha hoon. Ye QR code scan
+    kar lijiye, isse paisa aapke account mein aa jayega. Scan karke apna UPI PIN daal
+    dijiye, tabhi credit hoga.

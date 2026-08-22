@@ -58,6 +58,7 @@ HELDOUT = """\
 id: heldout-real-case-001
 kind: heldout
 scam_family: digital_arrest
+expected_anchor: anch-test-001
 lang: en
 script: latin
 title: Reported case excerpt
