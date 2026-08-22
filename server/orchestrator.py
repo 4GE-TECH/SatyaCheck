@@ -216,7 +216,7 @@ def _compute_fusion(
         reason_codes=reason_codes,
         recommended_actions=recommended_actions,
         challenge_question=challenge_question,
-        vernacular_warning=_get_vernacular_warning(band),
+        vernacular_warning=_get_vernacular_warning(band, script),
     )
 
 
@@ -360,13 +360,38 @@ def _build_actions(band: TrustBand, verdict: SpeakerVerdict, script: ScriptAnaly
     return actions.get(band, ["Use caution."])
 
 
-def _get_vernacular_warning(band: TrustBand) -> Optional[str]:
-    warnings = {
-        TrustBand.HIGH_RISK: "सावधान! यह कॉल एक क्लोन की हुई नकली आवाज़ हो सकती है। कोई भी पैसा ट्रांसफर न करें।",
-        TrustBand.SUSPICIOUS: "सतर्क रहें। इस कॉल में संदिग्ध संकेत हैं। कोई भी कार्रवाई करने से पहले सत्यापित करें।",
-        TrustBand.CAUTION: "कृपया सावधानी बरतें। पैसे भेजने से पहले व्यक्ति की पहचान सुनिश्चित करें।",
+def _get_vernacular_warning(
+    band: TrustBand,
+    script: ScriptAnalysisResult,
+) -> Optional[str]:
+    """Select the vernacular warning for the *fused* band, not the intent-only band.
+
+    Priority:
+      1. B's details['vernacular_warnings'] dict — keyed by band value string.
+         B emits all templates so C picks the right one after fusion.
+         Until B ships the full table, this key won't be present and we fall
+         through to C's own hardcoded strings below.
+      2. C's own hardcoded fallback dict — always correct because it uses the
+         fused band argument, never the provisional intent-only band.
+
+    This is the E3 fix: analyze_script's provisional band (intent alone) must
+    never determine what the protected person hears. Fusion owns the band;
+    fusion owns the warning selection.
+    """
+    # ── Prefer B's full table if already present ──────────────────────
+    b_table: dict = script.details.get("vernacular_warnings", {})
+    if b_table and isinstance(b_table, dict):
+        b_warning = b_table.get(band.value)
+        if b_warning:
+            return b_warning
+
+    # ── C's own fallback dict (fused band, always safe) ───────────────
+    c_warnings = {
+        TrustBand.HIGH_RISK:   "सावधान! यह कॉल एक क्लोन की हुई नकली आवाज़ हो सकती है। कोई भी पैसा ट्रांसफर न करें।",
+        TrustBand.SUSPICIOUS:  "सतर्क रहें। इस कॉल में संदिग्ध संकेत हैं। कोई भी कार्रवाई करने से पहले सत्यापित करें।",
+        TrustBand.CAUTION:     "कृपया सावधानी बरतें। पैसे भेजने से पहले व्यक्ति की पहचान सुनिश्चित करें।",
     }
-    return warnings.get(band)
+    return c_warnings.get(band)
 
 
 # ── Main orchestration entry point ────────────────────────────────────

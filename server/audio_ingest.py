@@ -25,7 +25,6 @@ from contracts import QualityGateResult
 
 log = logging.getLogger("satyacheck.ingest")
 
-
 @dataclass
 class AudioChunk:
     """A single VAD-bounded audio window ready for ML branches."""
@@ -38,7 +37,6 @@ class AudioChunk:
     @property
     def duration_s(self) -> float:
         return self.end_s - self.start_s
-
 
 @dataclass
 class IngestedAudio:
@@ -55,7 +53,6 @@ class IngestedAudio:
 
 def _compute_sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
 
 def _ffmpeg_normalize(input_path: str, output_path: str) -> bool:
     """Normalise audio to 16kHz mono WAV using ffmpeg. Returns success."""
