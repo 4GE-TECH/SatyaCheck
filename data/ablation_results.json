@@ -1,0 +1,55 @@
+{
+  "genuine_file": "data/demo_clips/friend_test.wav",
+  "impostor_files": [
+    "data/eval_set/raw/person1.wav",
+    "data/eval_set/raw/person2.wav",
+    "data/eval_set/raw/person3.wav"
+  ],
+  "by_condition": {
+    "wideband": {
+      "genuine_mean": 0.9588,
+      "genuine_scores": [
+        0.9588
+      ],
+      "impostor_mean": 0.3601,
+      "impostor_scores": [
+        0.4141,
+        0.1739,
+        0.4924
+      ],
+      "separation": 0.5987,
+      "n_genuine": 1,
+      "n_impostors": 3
+    },
+    "naive_nb8k": {
+      "genuine_mean": 0.7365,
+      "genuine_scores": [
+        0.7365
+      ],
+      "impostor_mean": 0.3009,
+      "impostor_scores": [
+        0.2924,
+        0.1987,
+        0.4116
+      ],
+      "separation": 0.4356,
+      "n_genuine": 1,
+      "n_impostors": 3
+    },
+    "condition_matched_nb8k": {
+      "genuine_mean": 0.9658,
+      "genuine_scores": [
+        0.9658
+      ],
+      "impostor_mean": 0.5188,
+      "impostor_scores": [
+        0.5606,
+        0.3356,
+        0.6602
+      ],
+      "separation": 0.447,
+      "n_genuine": 1,
+      "n_impostors": 3
+    }
+  }
+}

@@ -1,0 +1,51 @@
+# SatyaCheck .gitignore
+# Large models, datasets, and generated embeddings
+
+# Models and pre-trained checkpoints (~3GB+)
+models/
+LibriSpeech/
+dev-clean.tar.gz
+
+# Generated embedding spaces (per-condition voiceprints)
+data/cohort/bg/
+data/enrollments/*.npy
+data/enrollments/*_metadata.json
+
+# Flagged voice storage (negative voiceprints for fraud detection)
+data/flagged/
+
+# Temporary evaluation artifacts
+data/edge_cases/
+data/ablation_tmp/
+
+# Python environment and cache
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+
+# Audio files (raw or temporary)
+*.wav
+*.flac
+*.m4a
+*.mp3
+
+# Temporary/test files
+test_tone.wav
+setup.ps1
+*.tmp
+*.log
+
+# IDE/editor cache
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# IDE - Claude Code specifics
+.claude/workspace.json
