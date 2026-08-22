@@ -4,10 +4,10 @@ import ThemeToggle from "./ThemeToggle";
 export default function Navbar() {
   return (
     <header className="border-b border-[var(--border-default)] bg-[var(--bg-primary)] px-4 sm:px-8 py-3 select-none transition-colors">
-      <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+      <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
         {/* Brand */}
         <NavLink to="/" className="flex items-center gap-3 text-inherit no-underline">
-          <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center font-bold text-base text-[var(--accent-text)] shadow-sm">
+          <div className="w-8 h-8 rounded bg-[var(--accent)] flex items-center justify-center font-bold text-base text-[var(--accent-text)] shadow-sm">
             S
           </div>
           <div>
@@ -27,7 +27,7 @@ export default function Navbar() {
             className={({ isActive }) =>
               `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-[var(--accent)] text-[var(--accent-text)]"
+                  ? "bg-[var(--accent)] text-[var(--accent-text)] font-mono"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }
@@ -40,7 +40,7 @@ export default function Navbar() {
             className={({ isActive }) =>
               `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-[var(--accent)] text-[var(--accent-text)]"
+                  ? "bg-[var(--accent)] text-[var(--accent-text)] font-mono"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }
@@ -53,7 +53,7 @@ export default function Navbar() {
             className={({ isActive }) =>
               `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-[var(--accent)] text-[var(--accent-text)]"
+                  ? "bg-[var(--accent)] text-[var(--accent-text)] font-mono"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }

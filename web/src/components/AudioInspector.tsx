@@ -43,7 +43,7 @@ export default function AudioInspector({ data }: AudioInspectorProps) {
 
       {/* Audio Waveform Player */}
       <div className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border-default)]">
-        <div className="flex items-center gap-3.5 mb-2">
+        <div className="flex items-center gap-3.5 mb-3">
           <button
             onClick={() => setIsPlaying(!isPlaying)}
             className="w-8 h-8 rounded bg-[var(--text-primary)] text-[var(--bg-primary)] flex items-center justify-center font-bold text-xs transition-opacity hover:opacity-90 cursor-pointer shrink-0"
@@ -98,24 +98,47 @@ export default function AudioInspector({ data }: AudioInspectorProps) {
         </div>
 
         {/* Telephony Specs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-secondary)]">
           <div>
-            <span>CODEC: </span>
-            <span className="text-[var(--text-primary)] font-bold">PCM 16-bit / Opus</span>
+            <div className="flex justify-between">
+              <span>CODEC:</span>
+              <span className="text-[var(--text-primary)] font-bold">PCM 16-bit / Opus</span>
+            </div>
+            <div className="text-[9px] text-[var(--text-muted)] mt-0.5">
+              ⓘ Audio compression type used by caller's telephone network.
+            </div>
           </div>
+
           <div>
-            <span>ACTIVE SPEECH: </span>
-            <span className="text-[var(--text-primary)] font-bold">{data.quality.speech_duration_s.toFixed(2)}s</span>
+            <div className="flex justify-between">
+              <span>ACTIVE SPEECH:</span>
+              <span className="text-[var(--text-primary)] font-bold">{data.quality.speech_duration_s.toFixed(2)}s</span>
+            </div>
+            <div className="text-[9px] text-[var(--text-muted)] mt-0.5">
+              ⓘ Total duration of active human speech (excluding silence).
+            </div>
           </div>
+
           <div>
-            <span>SNR ESTIMATE: </span>
-            <span className="text-[var(--text-primary)] font-bold">+{data.quality.snr_db.toFixed(1)} dB</span>
+            <div className="flex justify-between">
+              <span>SNR ESTIMATE:</span>
+              <span className="text-[var(--text-primary)] font-bold">+{data.quality.snr_db.toFixed(1)} dB</span>
+            </div>
+            <div className="text-[9px] text-[var(--text-muted)] mt-0.5">
+              ⓘ Signal-to-Noise Ratio (higher SNR means cleaner audio for checks).
+            </div>
           </div>
+
           <div>
-            <span>QUALITY GATE: </span>
-            <span className={data.quality.passed ? "text-[var(--success-text)] font-bold" : "text-[var(--warning-text)] font-bold"}>
-              {data.quality.passed ? "PASSED" : "FAILED"}
-            </span>
+            <div className="flex justify-between">
+              <span>QUALITY GATE:</span>
+              <span className={data.quality.passed ? "text-[var(--success-text)] font-bold" : "text-[var(--warning-text)] font-bold"}>
+                {data.quality.passed ? "PASSED" : "FAILED"}
+              </span>
+            </div>
+            <div className="text-[9px] text-[var(--text-muted)] mt-0.5">
+              ⓘ Audio check verification quality gate status.
+            </div>
           </div>
         </div>
       </div>

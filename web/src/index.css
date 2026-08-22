@@ -1,5 +1,5 @@
 /* ── Google Fonts ────────────────────────────────────────────── */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 
 @import "tailwindcss";
 
@@ -9,20 +9,20 @@
   color-scheme: light;
 
   /* Light Theme Tokens */
-  --bg-root: #F6F8FA;
+  --bg-root: #F4F6F8;
   --bg-primary: #FFFFFF;
-  --bg-secondary: #F0F2F5;
+  --bg-secondary: #EDF0F2;
   --bg-card: #FFFFFF;
-  --bg-surface: #E5E8EC;
-  --bg-hover: #D8DCE2;
+  --bg-surface: #E1E5EB;
+  --bg-hover: #D1D6DE;
 
   --border-subtle: #E1E4E8;
-  --border-default: #D0D7DE;
-  --border-strong: #8C959F;
+  --border-default: #CFD5DB;
+  --border-strong: #8A939E;
 
-  --text-primary: #1F2328;
-  --text-secondary: #424A53;
-  --text-muted: #57606A;
+  --text-primary: #1B1E22;
+  --text-secondary: #484F56;
+  --text-muted: #626A73;
 
   /* Status Tokens - Light Mode */
   --danger: #CF222E;
@@ -48,48 +48,49 @@
 html.dark {
   color-scheme: dark;
 
-  /* Dark Theme Tokens (Near-black, not harsh #000) */
-  --bg-root: #0D1117;
-  --bg-primary: #161B22;
-  --bg-secondary: #21262D;
-  --bg-card: #161B22;
-  --bg-surface: #30363D;
-  --bg-hover: #3C444D;
+  /* Dark Theme Tokens (Deep black background, not generic gray) */
+  --bg-root: #0A0C10;
+  --bg-primary: #12151C;
+  --bg-secondary: #191E29;
+  --bg-card: #12151C;
+  --bg-surface: #242B38;
+  --bg-hover: #2E3747;
 
-  --border-subtle: #21262D;
-  --border-default: #30363D;
-  --border-strong: #6E7681;
+  --border-subtle: #191E29;
+  --border-default: #2E3747;
+  --border-strong: #5F6B7E;
 
-  --text-primary: #F0F6FC;
-  --text-secondary: #C9D1D9;
-  --text-muted: #8B949E;
+  /* Warm-tinted accessible slate-gray text */
+  --text-primary: #F0F4F8;
+  --text-secondary: #BAC3D0;
+  --text-muted: #7E8A9C;
 
   /* Status Tokens - Dark Mode */
   --danger: #F85149;
-  --danger-bg: #3E1014;
-  --danger-border: #B62324;
+  --danger-bg: #2C0F12;
+  --danger-border: #801C20;
   --danger-text: #FF7B72;
 
   --success: #3FB950;
-  --success-bg: #12261A;
-  --success-border: #238636;
+  --success-bg: #0D1F14;
+  --success-border: #1B652C;
   --success-text: #7EE787;
 
   --warning: #D29922;
-  --warning-bg: #341F0A;
-  --warning-border: #9E6A03;
+  --warning-bg: #2B1C0B;
+  --warning-border: #7B5206;
   --warning-text: #F2CC60;
 
-  --accent: #2F81F7;
-  --accent-hover: #1F6FEB;
+  --accent: #3B82F6;
+  --accent-hover: #2563EB;
   --accent-text: #FFFFFF;
 }
 
 /* ── Typography & Base Styles ────────────────────────────────── */
 
 @theme {
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: "Inter", "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
 }
 
 *,
@@ -126,14 +127,14 @@ body {
 .sec-card {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: 6px;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .sec-card-subtle {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 /* Accessible tap targets */

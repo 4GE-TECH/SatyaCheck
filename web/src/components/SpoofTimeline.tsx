@@ -52,14 +52,19 @@ export default function SpoofTimeline({
   const tooltipText = isDark ? "#F0F6FC" : "#1F2328";
 
   return (
-    <div className="sec-card-subtle p-4 font-mono text-xs">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
-          SEGMENT-LEVEL SYNTHETIC PROBABILITY TIMELINE (AASIST-CM)
-        </h3>
-        <span className="text-[10px] text-[var(--text-muted)]">
-          THRESHOLD: {(threshold * 100).toFixed(0)}%
-        </span>
+    <div className="sec-card-subtle p-4 font-mono text-xs space-y-2">
+      <div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+            SEGMENT-LEVEL SYNTHETIC PROBABILITY TIMELINE (AASIST-CM)
+          </h3>
+          <span className="text-[10px] text-[var(--text-muted)]">
+            THRESHOLD: {(threshold * 100).toFixed(0)}%
+          </span>
+        </div>
+        <p className="text-[10px] text-[var(--text-secondary)] font-sans mt-0.5 leading-normal">
+          ⓘ Shows likelihood of synthetic speech detected second-by-second (red bars indicate parts that sound artificially generated).
+        </p>
       </div>
 
       <ResponsiveContainer width="100%" height={110}>
