@@ -8,9 +8,6 @@ export default function Navbar() {
       <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
         {/* Brand */}
         <NavLink to="/" className="flex items-center gap-3 text-inherit no-underline">
-          <div className="w-8 h-8 rounded bg-[var(--accent)] flex items-center justify-center font-bold text-base text-[var(--accent-text)] shadow-sm">
-            S
-          </div>
           <div>
             <span className="font-bold text-base tracking-tight text-[var(--text-primary)] block leading-tight">
               SatyaCheck
