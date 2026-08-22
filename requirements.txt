@@ -1,0 +1,37 @@
+# SatyaCheck — Python Dependencies
+# Install: pip install -r requirements.txt
+# Python 3.11+, CPU-only works
+
+# ── Server ────────────────────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn==0.34.2
+python-multipart==0.0.32
+aiofiles==25.1.0
+
+# ── Data contracts ────────────────────────────────────────────────────
+pydantic==2.12.5
+
+# ── Database ──────────────────────────────────────────────────────────
+SQLAlchemy==2.0.52
+
+# ── Reports ───────────────────────────────────────────────────────────
+reportlab==5.0.1
+
+# ── HTTP client (for testing / integrations) ──────────────────────────
+httpx==0.28.1
+
+# ── Audio ML (audio_ml/) ─────────────────────────────────────────────
+# speechbrain           # ECAPA-TDNN speaker embeddings — installed by A
+# torch                 # Required by speechbrain + Silero VAD — installed by A
+# torchaudio            # Audio IO for torch — installed by A
+
+# ── ASR + NLP (nlp_rag/) ─────────────────────────────────────────────
+# faster-whisper        # ASR — installed by B
+# faiss-cpu             # FAISS vector index — installed by B
+
+# ── Audio processing ──────────────────────────────────────────────────
+# ffmpeg must be on PATH (not a pip package — install via system package manager)
+# silero-vad loaded from models/ via torch.hub
+
+# ── Download models BEFORE running ───────────────────────────────────
+# python scripts/download_models.py
