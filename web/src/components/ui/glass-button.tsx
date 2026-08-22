@@ -6,25 +6,20 @@ function cn(...inputs: (string | undefined | null | false)[]): string {
 }
 
 const glassButtonVariants = cva(
-  "relative isolate all-unset cursor-pointer rounded-full transition-all duration-200 border backdrop-blur-md inline-flex items-center justify-center font-medium font-mono select-none disabled:opacity-50 disabled:cursor-not-allowed",
+  "glass-btn-base relative cursor-pointer rounded-full transition-all duration-200 border inline-flex items-center justify-center font-mono font-semibold select-none disabled:opacity-50 disabled:cursor-not-allowed",
   {
     variants: {
       variant: {
-        default:
-          "glass-btn-default bg-white/80 dark:bg-white/[0.07] text-slate-900 dark:text-white border-slate-300 dark:border-white/20 hover:bg-white/95 dark:hover:bg-white/[0.12] hover:border-slate-400 dark:hover:border-white/30 shadow-sm",
-        danger:
-          "glass-btn-danger bg-red-50/90 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/40 hover:bg-red-100 dark:hover:bg-red-900/50 hover:border-red-400 dark:hover:border-red-500/60 shadow-sm",
-        success:
-          "glass-btn-success bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 hover:border-emerald-400 dark:hover:border-emerald-500/60 shadow-sm",
-        warning:
-          "glass-btn-warning bg-amber-50/90 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:border-amber-400 dark:hover:border-amber-500/60 shadow-sm",
-        secondary:
-          "glass-btn-secondary bg-slate-100/80 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-200/90 dark:hover:bg-slate-800/70 hover:border-slate-400 dark:hover:border-slate-600 shadow-sm",
+        default: "glass-btn-default",
+        danger: "glass-btn-danger",
+        success: "glass-btn-success",
+        warning: "glass-btn-warning",
+        secondary: "glass-btn-secondary",
       },
       size: {
-        default: "text-sm font-semibold",
-        sm: "text-xs font-semibold",
-        lg: "text-base font-bold",
+        default: "text-sm",
+        sm: "text-xs",
+        lg: "text-base",
         icon: "h-10 w-10 p-0 flex items-center justify-center",
       },
     },
@@ -36,7 +31,7 @@ const glassButtonVariants = cva(
 );
 
 const glassButtonTextVariants = cva(
-  "glass-button-text relative flex items-center justify-center gap-2 select-none tracking-tight w-full",
+  "glass-btn-text relative flex items-center justify-center gap-2 select-none tracking-tight w-full",
   {
     variants: {
       size: {
@@ -77,49 +72,161 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
     return (
       <>
         <style>{`
-          .glass-button-wrap {
+          .glass-btn-wrap {
             position: relative;
             display: inline-flex;
             border-radius: 9999px;
             transition: transform 0.15s ease, filter 0.15s ease;
           }
-          .glass-button-wrap:hover {
+          .glass-btn-wrap:hover {
             transform: translateY(-1px);
           }
-          .glass-button-wrap:active {
+          .glass-btn-wrap:active {
             transform: translateY(1px);
           }
-          .glass-button {
+
+          /* ── Default / Neutral Glass ── */
+          .glass-btn-default {
+            background-color: #FFFFFF;
+            color: #0F172A;
+            border: 1.5px solid #CBD5E1;
             box-shadow:
-              inset 0 1px 1px 0 rgba(255, 255, 255, 0.45),
-              0 4px 12px -2px rgba(0, 0, 0, 0.12);
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+              0 3px 10px -2px rgba(0, 0, 0, 0.1);
           }
-          html.dark .glass-button {
+          html.dark .glass-btn-default {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: #FFFFFF;
+            border: 1.5px solid rgba(255, 255, 255, 0.22);
+            box-shadow:
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+              0 4px 14px -2px rgba(0, 0, 0, 0.6);
+          }
+          .glass-btn-default:hover {
+            background-color: #F8FAFC;
+            border-color: #94A3B8;
+          }
+          html.dark .glass-btn-default:hover {
+            background-color: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.35);
+          }
+
+          /* ── Danger Glass (Red) ── */
+          .glass-btn-danger {
+            background-color: #FEF2F2;
+            color: #991B1B;
+            border: 1.5px solid #FCA5A5;
+            box-shadow:
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+              0 3px 10px -2px rgba(220, 38, 38, 0.12);
+          }
+          html.dark .glass-btn-danger {
+            background-color: rgba(255, 59, 48, 0.12);
+            color: #FFA3A8;
+            border: 1.5px solid rgba(255, 59, 48, 0.4);
             box-shadow:
               inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
-              0 6px 16px -2px rgba(0, 0, 0, 0.6);
+              0 4px 14px -2px rgba(255, 59, 48, 0.3);
           }
-          .glass-button-shadow {
-            position: absolute;
-            inset: 0;
-            border-radius: 9999px;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease;
+          .glass-btn-danger:hover {
+            background-color: #FEE2E2;
+            border-color: #F87171;
           }
-          .glass-button-wrap:hover .glass-button-shadow {
-            opacity: 1;
+          html.dark .glass-btn-danger:hover {
+            background-color: rgba(255, 59, 48, 0.2);
+            border-color: rgba(255, 59, 48, 0.6);
+          }
+
+          /* ── Success Glass (Emerald) ── */
+          .glass-btn-success {
+            background-color: #F0FDF4;
+            color: #166534;
+            border: 1.5px solid #86EFAC;
+            box-shadow:
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+              0 3px 10px -2px rgba(22, 163, 74, 0.12);
+          }
+          html.dark .glass-btn-success {
+            background-color: rgba(48, 209, 88, 0.12);
+            color: #86EFAC;
+            border: 1.5px solid rgba(48, 209, 88, 0.4);
+            box-shadow:
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
+              0 4px 14px -2px rgba(48, 209, 88, 0.25);
+          }
+          .glass-btn-success:hover {
+            background-color: #DCFCE7;
+            border-color: #4ADE80;
+          }
+          html.dark .glass-btn-success:hover {
+            background-color: rgba(48, 209, 88, 0.2);
+            border-color: rgba(48, 209, 88, 0.6);
+          }
+
+          /* ── Warning Glass (Amber) ── */
+          .glass-btn-warning {
+            background-color: #FFFBEB;
+            color: #92400E;
+            border: 1.5px solid #FDE68A;
+            box-shadow:
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+              0 3px 10px -2px rgba(217, 119, 6, 0.12);
+          }
+          html.dark .glass-btn-warning {
+            background-color: rgba(255, 159, 10, 0.12);
+            color: #FDE68A;
+            border: 1.5px solid rgba(255, 159, 10, 0.4);
+            box-shadow:
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
+              0 4px 14px -2px rgba(255, 159, 10, 0.25);
+          }
+          .glass-btn-warning:hover {
+            background-color: #FEF3C7;
+            border-color: #FCD34D;
+          }
+          html.dark .glass-btn-warning:hover {
+            background-color: rgba(255, 159, 10, 0.2);
+            border-color: rgba(255, 159, 10, 0.6);
+          }
+
+          /* ── Secondary Glass (Slate) ── */
+          .glass-btn-secondary {
+            background-color: #F1F5F9;
+            color: #475569;
+            border: 1.5px solid #CBD5E1;
+            box-shadow:
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+              0 2px 8px -2px rgba(0, 0, 0, 0.08);
+          }
+          html.dark .glass-btn-secondary {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #D1D5DB;
+            border: 1.5px solid rgba(255, 255, 255, 0.14);
+            box-shadow:
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.15),
+              0 4px 12px -2px rgba(0, 0, 0, 0.5);
+          }
+          .glass-btn-secondary:hover {
+            background-color: #E2E8F0;
+            border-color: #94A3B8;
+          }
+          html.dark .glass-btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.25);
           }
         `}</style>
 
         <div
           className={cn(
-            "glass-button-wrap cursor-pointer rounded-full",
+            "glass-btn-wrap cursor-pointer rounded-full",
             className
           )}
         >
           <button
-            className={cn("glass-button", glassButtonVariants({ variant, size }))}
+            className={cn(
+              "glass-button",
+              glassButtonVariants({ variant, size })
+            )}
             ref={ref}
             {...props}
           >
@@ -133,7 +240,6 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
               {children || label}
             </span>
           </button>
-          <div className="glass-button-shadow rounded-full"></div>
         </div>
       </>
     );

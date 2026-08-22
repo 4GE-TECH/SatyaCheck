@@ -3,6 +3,8 @@
 
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Centralized Dual-Theme Token System (WCAG AA Compliant) ── */
 
 :root {
