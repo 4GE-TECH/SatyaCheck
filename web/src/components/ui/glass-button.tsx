@@ -6,7 +6,7 @@ function cn(...inputs: (string | undefined | null | false)[]): string {
 }
 
 const glassButtonVariants = cva(
-  "glass-btn-base relative cursor-pointer rounded-full transition-all duration-200 border inline-flex items-center justify-center font-mono font-semibold select-none disabled:opacity-50 disabled:cursor-not-allowed",
+  "glass-btn-base relative cursor-pointer rounded-full transition-all duration-150 border inline-flex items-center justify-center font-mono font-semibold select-none disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]",
   {
     variants: {
       variant: {
@@ -72,16 +72,14 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
     return (
       <>
         <style>{`
-          .glass-btn-wrap {
-            position: relative;
-            display: inline-flex;
-            border-radius: 9999px;
-            transition: transform 0.15s ease, filter 0.15s ease;
+          .glass-btn-base {
+            outline: none;
+            text-decoration: none;
           }
-          .glass-btn-wrap:hover {
+          .glass-btn-base:hover {
             transform: translateY(-1px);
           }
-          .glass-btn-wrap:active {
+          .glass-btn-base:active {
             transform: translateY(1px);
           }
 
@@ -92,7 +90,7 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
             border: 1.5px solid #CBD5E1;
             box-shadow:
               inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-              0 3px 10px -2px rgba(0, 0, 0, 0.1);
+              0 3px 10px -2px rgba(0, 0, 0, 0.08);
           }
           html.dark .glass-btn-default {
             background-color: rgba(255, 255, 255, 0.08);
@@ -118,7 +116,7 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
             border: 1.5px solid #FCA5A5;
             box-shadow:
               inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-              0 3px 10px -2px rgba(220, 38, 38, 0.12);
+              0 3px 10px -2px rgba(220, 38, 38, 0.1);
           }
           html.dark .glass-btn-danger {
             background-color: rgba(255, 59, 48, 0.12);
@@ -144,7 +142,7 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
             border: 1.5px solid #86EFAC;
             box-shadow:
               inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-              0 3px 10px -2px rgba(22, 163, 74, 0.12);
+              0 3px 10px -2px rgba(22, 163, 74, 0.1);
           }
           html.dark .glass-btn-success {
             background-color: rgba(48, 209, 88, 0.12);
@@ -170,7 +168,7 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
             border: 1.5px solid #FDE68A;
             box-shadow:
               inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-              0 3px 10px -2px rgba(217, 119, 6, 0.12);
+              0 3px 10px -2px rgba(217, 119, 6, 0.1);
           }
           html.dark .glass-btn-warning {
             background-color: rgba(255, 159, 10, 0.12);
@@ -196,7 +194,7 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
             border: 1.5px solid #CBD5E1;
             box-shadow:
               inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-              0 2px 8px -2px rgba(0, 0, 0, 0.08);
+              0 2px 6px -2px rgba(0, 0, 0, 0.06);
           }
           html.dark .glass-btn-secondary {
             background-color: rgba(255, 255, 255, 0.05);
@@ -216,31 +214,24 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
           }
         `}</style>
 
-        <div
+        <button
+          ref={ref}
           className={cn(
-            "glass-btn-wrap cursor-pointer rounded-full",
+            glassButtonVariants({ variant, size }),
             className
           )}
+          {...props}
         >
-          <button
+          <span
             className={cn(
-              "glass-button",
-              glassButtonVariants({ variant, size })
+              glassButtonTextVariants({ size }),
+              contentClassName
             )}
-            ref={ref}
-            {...props}
           >
-            <span
-              className={cn(
-                glassButtonTextVariants({ size }),
-                contentClassName
-              )}
-            >
-              {icon && <span className="shrink-0">{icon}</span>}
-              {children || label}
-            </span>
-          </button>
-        </div>
+            {icon && <span className="shrink-0">{icon}</span>}
+            {children || label}
+          </span>
+        </button>
       </>
     );
   }
