@@ -18,3 +18,5 @@ data/faiss_docstore.pkl
 node_modules/
 web/dist/
 web/.vite/
+.agents/
+.claude/
