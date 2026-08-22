@@ -44,8 +44,9 @@ MARKERS: list[MarkerDef] = [
         weight=0.85,
         description="Caller strictly demands isolation and forbids consulting family members",
         patterns=[
-            r"don'?t tell (?:anyone|anybody|any ?one|a soul)",
-            r"do not tell (?:anyone|anybody|any ?one)",
+            r"(?:don'?t|do not|never) tell\s+(?:anyone|anybody|any ?one|a soul"
+            r"|papa|pappa|mummy|mumma|mum|mom|mama|maa|ma\b|dad|daddy|father|mother"
+            r"|bhai|didi|your (?:father|mother|husband|wife|son|daughter|family))",
             r"(?:stay|remain) on the line",
             r"kisi ko (?:mat|nahi|nahin) (?:bata|bola|de|kaho|batana)\w*",
             r"phone (?:mat|nahi|nahin) (?:kaat|kat|rakh)\w*",
@@ -71,6 +72,9 @@ MARKERS: list[MarkerDef] = [
             r"\b(?:transfer|send|pay|deposit|need)\b[^.!?]{0,60}?"
             r"\b(?:immediately|right now|urgently|as soon as possible|asap)\b",
             r"\b(?:transfer|send|pay)\b[^.!?]{0,40}?\b(?:upi|qr code|gift card)\b",
+            r"\b(?:transfer|send|pay|deposit)\b[^.!?]{0,30}?"
+            r"\b(?:\d{3,}|rupees|rs\.?|lakh|lakhs|thousand|hazaar|hazar)\b"
+            r"[^.!?]{0,20}?\bnow\b",
             r"(?:तुरंत|अभी|जल्दी)[^।!?]{0,60}?(?:भेज|ट्रांसफर|पैसे)\w*",
         ],
     ),
@@ -172,6 +176,53 @@ MARKERS: list[MarkerDef] = [
             r"[^.!?]{0,60}?is ready",
             r"(?:your (?:order|parcel|package)) [^.!?]{0,40}?"
             r"(?:has been|will be) (?:delivered|dispatched|shipped)",
+        ],
+    ),
+    MarkerDef(
+        marker_id="MK_EXCULPATORY_NO_URGENCY",
+        marker_type=MarkerType.EXCULPATORY,
+        category="tolerates_delay",
+        weight=-0.30,
+        description="Caller explicitly removes time pressure and invites the recipient to take their time",
+        patterns=[
+            # Time pressure is structurally load-bearing for fraud: every family in the
+            # corpus compresses the victim's decision window, because a scam does not
+            # survive "think about it overnight". A caller who widens that window is
+            # doing the opposite of the thing the scam requires.
+            r"take your time",
+            r"(?:there'?s |there is )?no (?:hurry|rush|urgency)",
+            r"whenever (?:you|it) (?:can|like|suit|are|is|want)\w*",
+            r"no need to (?:hurry|rush|decide) (?:now|today|immediately)",
+            r"koi jaldi nahi",
+            r"jaldi nahi hai",
+            r"aaram se (?:dekh|soch|bata|kar)\w*",
+            r"कोई जल्दी नहीं",
+            r"आराम से (?:देख|सोच|बता)\w*",
+        ],
+        veto=[
+            # A transcript claiming both haste and patience is scoring noise. Urgency is
+            # the incriminating claim, so it wins and this marker stands down.
+            r"\b(?:turant|abhi|jaldi karo|foran)\b",
+            r"\b(?:immediately|right now|urgently|as soon as possible|asap)\b",
+            r"(?:तुरंत|अभी)",
+        ],
+    ),
+    MarkerDef(
+        marker_id="MK_EXCULPATORY_CHECKABLE_PLACE",
+        marker_type=MarkerType.EXCULPATORY,
+        category="checkable_place",
+        weight=-0.25,
+        description="Caller names a physical place the recipient can go to and verify",
+        patterns=[
+            # A caller running a script cannot offer somewhere to turn up in person.
+            # Deliberately requires a movement verb: merely mentioning a hospital is what
+            # the family-emergency scam does, while inviting you to come to one is not.
+            r"(?:come|come down|come over|reach|visit)\s+(?:to\s+)?(?:the\s+)?"
+            r"(?:hospital|clinic|branch|station|office|counter|ward|reception)",
+            r"i(?:'| a)?m (?:at|in) the (?:hospital|clinic|branch|station|office|counter|ward)",
+            r"(?:aap )?(?:hospital|branch|station|office|counter)\s+(?:aa|aaiye|aa jaiye|pahunch)\w*",
+            r"main (?:yahin|yahan) (?:counter|branch|hospital|station)",
+            r"(?:अस्पताल|शाखा|थाने|दफ़्तर|काउंटर)\s*(?:पर|में)?\s*(?:आ|आइए|आ जाइए)\w*",
         ],
     ),
     MarkerDef(
