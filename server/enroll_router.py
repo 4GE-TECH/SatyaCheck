@@ -85,9 +85,16 @@ async def enroll_person_endpoint(
 
     try:
         from audio_ml.api import enroll_person as ml_enroll
-        result = ml_enroll(ingested)
-        wideband_embedding = result.get("wideband", [])
-        narrowband_embedding = result.get("narrowband_8k", [])
+        result = ml_enroll(
+            person_id=person_id,
+            name=name,
+            relationship=relation,
+            wav_paths=[ingested.normalized_wav_path]
+        )
+        if result:
+            # We don't strictly need these for ML (A reads from disk), but we store them for DB constraints/UI
+            wideband_embedding = result.get("wb", [])
+            narrowband_embedding = result.get("nb8k_sim", [])
     except ImportError:
         log.warning("audio_ml.api not available — storing placeholder embeddings (Block 0/1 mode)")
         # Placeholder 192-dim zero embedding
@@ -96,6 +103,12 @@ async def enroll_person_endpoint(
     except Exception as e:
         log.error(f"enroll_person ML call failed: {e}")
         raise HTTPException(status_code=500, detail=f"Enrollment ML step failed: {str(e)}")
+
+    if not wideband_embedding:
+        wideband_embedding = [0.0] * 192
+    if not narrowband_embedding:
+        narrowband_embedding = [0.0] * 192
+
 
     # ── Store voiceprints (wideband + narrowband) ─────────────────────
     for condition, embedding in [

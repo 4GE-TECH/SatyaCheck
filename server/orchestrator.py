@@ -45,14 +45,13 @@ log = logging.getLogger("satyacheck.orchestrator")
 # ── Branch stubs (active until USE_REAL_* flags are True) ────────────
 
 def _mock_speaker_branch(
-    chunks: list[AudioChunk],
-    enrolled_embeddings: dict,
+    wav_path: str,
 ) -> SpeakerVerificationResult:
     """Mock speaker branch — returns neutral UNKNOWN result."""
     return SpeakerVerificationResult.neutral()
 
 
-def _mock_spoof_branch(chunks: list[AudioChunk]) -> AntiSpoofResult:
+def _mock_spoof_branch(wav_path: str) -> AntiSpoofResult:
     """Mock spoof branch — returns neutral (bonafide) result."""
     return AntiSpoofResult.neutral()
 
@@ -74,21 +73,24 @@ def _mock_nlp_branch(
 # ── Real branch wrappers (activated in Block 2) ──────────────────────
 
 def _real_speaker_branch(
-    chunks: list[AudioChunk],
-    enrolled_embeddings: dict,
+    wav_path: str,
 ) -> SpeakerVerificationResult:
     try:
         from audio_ml.api import verify_speaker
-        return verify_speaker(chunks, enrolled_embeddings)
+        from server.audio_adapter import to_speaker_result
+        signal = verify_speaker(wav_path)
+        return to_speaker_result(signal)
     except Exception as e:
         log.error(f"[speaker] Real branch failed, falling back to neutral: {e}")
         return SpeakerVerificationResult.neutral()
 
 
-def _real_spoof_branch(chunks: list[AudioChunk]) -> AntiSpoofResult:
+def _real_spoof_branch(wav_path: str) -> AntiSpoofResult:
     try:
         from audio_ml.api import detect_spoof
-        return detect_spoof(chunks)
+        from server.audio_adapter import to_spoof_result
+        signal = detect_spoof(wav_path)
+        return to_spoof_result(signal)
     except Exception as e:
         log.error(f"[spoof] Real branch failed, falling back to neutral: {e}")
         return AntiSpoofResult.neutral()
@@ -443,10 +445,10 @@ async def screen_audio(
     loop = asyncio.get_event_loop()
     try:
         speaker_task = loop.run_in_executor(
-            None, run_speaker, audio.chunks, enrolled_embeddings
+            None, run_speaker, audio.normalized_wav_path
         )
         spoof_task = loop.run_in_executor(
-            None, run_spoof, audio.chunks
+            None, run_spoof, audio.normalized_wav_path
         )
         nlp_task = loop.run_in_executor(
             None, run_nlp, audio.normalized_wav_path, audio.waveform
