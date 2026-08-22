@@ -55,7 +55,8 @@ def load_voiceprint(person_id: str) -> Optional[dict]:
 
         voiceprint = {
             "wb": np.array(data["wb"], dtype=np.float32),
-            "nb8k": np.array(data["nb8k"], dtype=np.float32),
+            "nb8k_sim": np.array(data["nb8k"], dtype=np.float32),  # Simulated (ffmpeg-degraded)
+            "nb8k_real": np.array(data.get("nb8k_real"), dtype=np.float32) if "nb8k_real" in data.files else None,
             "name": str(data["name"]),
             "relationship": str(data["relationship"]),
             "n_samples": int(data["n_samples"]),
@@ -111,7 +112,8 @@ def enroll_person(
     person_id: str,
     name: str,
     relationship: str,
-    wav_paths: list[str]
+    wav_paths: list[str],
+    nb8k_real_paths: Optional[list[str]] = None
 ) -> Optional[dict]:
     """
     Enroll a speaker by extracting and storing condition-matched voiceprints.
@@ -120,19 +122,22 @@ def enroll_person(
         person_id: Unique identifier for the person (e.g., "alice_001")
         name: Display name
         relationship: Relationship type (e.g., "family", "friend", "colleague")
-        wav_paths: List of paths to WAV files to enroll
+        wav_paths: List of paths to WAV files to enroll (wideband source)
+        nb8k_real_paths: Optional list of paths to genuinely narrowband audio
+                        (e.g., phone calls). Used to create nb8k_real centroid.
 
     Returns:
         Dict matching Person contract: {person_id, name, relationship, enrolled_at, n_samples, conditions}
         Returns None on failure (logged internally; function never raises).
 
     Process:
-        1. Load and concatenate all wav_paths
+        1. Load and concatenate all wav_paths (wideband)
         2. Extract VAD segments
         3. Chunk and embed the concatenated audio → wb_centroid
         4. Degrade audio to 8 kHz (nb8k mode) via ffmpeg
-        5. Chunk and embed degraded audio → nb8k_centroid
-        6. Save both centroids to data/enrollments/{person_id}.npz
+        5. Chunk and embed degraded audio → nb8k_sim_centroid
+        6. If nb8k_real_paths provided: extract embeddings from narrowband audio → nb8k_real_centroid
+        7. Save centroids to data/enrollments/{person_id}.npz
     """
     try:
         if not wav_paths:
@@ -235,31 +240,65 @@ def enroll_person(
             if os.path.exists(temp_degraded_path):
                 os.remove(temp_degraded_path)
 
-        # Step 5: Save to .npz
+        # Step 5 (optional): Extract nb8k_real from genuinely narrowband audio
+        nb8k_real_centroid = None
+        if nb8k_real_paths:
+            logger.info(f"enroll_person({person_id}): extracting genuinely narrowband centroid")
+            nb8k_real_audio = []
+            for nb_path in nb8k_real_paths:
+                audio, _ = embed.load_audio(nb_path)
+                if len(audio) == 0:
+                    logger.warning(f"  Skipping {nb_path} (load failed)")
+                    continue
+                nb8k_real_audio.append(audio)
+
+            if nb8k_real_audio:
+                full_nb8k_real = np.concatenate(nb8k_real_audio, dtype=np.float32)
+                segments_real = embed.vad_segments(full_nb8k_real, sr)
+                try:
+                    nb8k_real_embeddings = embed.embed_chunks(full_nb8k_real, sr, segments_real)
+                    nb8k_real_centroid = np.mean(nb8k_real_embeddings, axis=0).astype(np.float32)
+                    nb8k_real_norm = np.linalg.norm(nb8k_real_centroid)
+                    if nb8k_real_norm > 0:
+                        nb8k_real_centroid = nb8k_real_centroid / nb8k_real_norm
+                    logger.info(f"  NB8K_REAL centroid: L2 norm = {np.linalg.norm(nb8k_real_centroid):.6f}")
+                except Exception as e:
+                    logger.error(f"enroll_person({person_id}): failed to extract narrowband embeddings: {e}")
+                    nb8k_real_centroid = None
+
+        # Step 6: Save to .npz
         npz_path = ENROLLMENTS_DIR / f"{person_id}.npz"
         enrolled_at = datetime.now(timezone.utc).isoformat()
 
-        np.savez(
-            npz_path,
-            wb=wb_centroid,
-            nb8k=nb8k_centroid,
-            name=name,
-            relationship=relationship,
-            n_samples=len(full_audio),
-            enrolled_at=enrolled_at,
-        )
+        save_dict = {
+            "wb": wb_centroid,
+            "nb8k": nb8k_centroid,
+            "name": name,
+            "relationship": relationship,
+            "n_samples": len(full_audio),
+            "enrolled_at": enrolled_at,
+        }
+
+        if nb8k_real_centroid is not None:
+            save_dict["nb8k_real"] = nb8k_real_centroid
+
+        np.savez(npz_path, **save_dict)
         logger.info(f"enroll_person({person_id}): saved to {npz_path}")
 
-        # Step 6: Return Person contract
+        # Step 7: Return Person contract
+        conditions = ["wb", "nb8k_sim"]
+        if nb8k_real_centroid is not None:
+            conditions.append("nb8k_real")
+
         result = Person(
             person_id=person_id,
             name=name,
             relationship=relationship,
             enrolled_at=enrolled_at,
             n_samples=len(full_audio),
-            conditions=["wb", "nb8k"],
+            conditions=conditions,
         )
-        logger.info(f"✓ Enrollment complete: {person_id} ({name})")
+        logger.info(f"Enrollment complete: {person_id} ({name})")
         return result.model_dump()
 
     except Exception as e:
