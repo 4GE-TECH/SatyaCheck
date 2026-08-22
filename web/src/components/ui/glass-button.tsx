@@ -6,7 +6,7 @@ function cn(...inputs: (string | undefined | null | false)[]): string {
 }
 
 const glassButtonVariants = cva(
-  "glass-btn-base relative cursor-pointer rounded-full transition-all duration-150 border inline-flex items-center justify-center font-mono font-semibold select-none disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]",
+  "glass-btn-base relative cursor-pointer rounded-full transition-all duration-150 border inline-flex items-center justify-center font-semibold select-none disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]",
   {
     variants: {
       variant: {
@@ -75,6 +75,8 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
           .glass-btn-base {
             outline: none;
             text-decoration: none;
+            font-family: "Montserrat", "Plus Jakarta Sans", -apple-system, sans-serif;
+            letter-spacing: -0.01em;
           }
           .glass-btn-base:hover {
             transform: translateY(-1px);

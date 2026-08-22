@@ -191,7 +191,7 @@ export default function EnrollPage() {
                 type="submit"
                 variant="default"
                 size="lg"
-                className="w-full font-mono font-bold mt-2"
+                className="w-full font-bold mt-2"
                 label="Save to Family Vault →"
               />
             </form>

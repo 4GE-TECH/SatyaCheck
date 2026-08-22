@@ -95,7 +95,7 @@ export default function IdleCheckScreen({
             disabled={isLoading}
             variant={isListening ? "danger" : "default"}
             size="lg"
-            className="w-full flex items-center justify-center font-mono shadow-lg"
+            className="w-full flex items-center justify-center shadow-lg"
             label={
               isListening
                 ? `Listening on Speakerphone (${listenTimer}s)...`
@@ -115,7 +115,7 @@ export default function IdleCheckScreen({
             disabled={isLoading}
             variant="secondary"
             size="default"
-            className="w-full font-mono"
+            className="w-full"
             label="Upload WhatsApp Audio or Recording"
             icon={<UploadCloud className="w-4 h-4 mr-1.5" />}
           />

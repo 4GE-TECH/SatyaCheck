@@ -164,7 +164,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
               onClick={handlePlayVoiceWarning}
               variant="danger"
               size="lg"
-              className="w-full flex items-center justify-center font-mono shadow-2xl"
+              className="w-full flex items-center justify-center shadow-2xl"
               label={isSpeaking ? "Stop Hindi Warning" : "Listen to Warning in Hindi (चेतावनी सुनिए)"}
               icon={
                 isSpeaking ? (
@@ -253,7 +253,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                 onClick={() => setCurrentStep(2)}
                 variant="default"
                 size="lg"
-                className="w-full font-mono font-bold"
+                className="w-full font-bold"
                 label={isCaution ? "I Paused Payment → Next Step" : "I Have Hung Up → Next Step"}
               />
             </div>
@@ -279,14 +279,14 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                   onClick={() => setCurrentStep(1)}
                   variant="secondary"
                   size="default"
-                  className="w-1/3 font-mono font-semibold"
+                  className="w-1/3 font-semibold"
                   label="← Back"
                 />
                 <GlassButton
                   onClick={() => setCurrentStep(3)}
                   variant="default"
                   size="default"
-                  className="w-2/3 font-mono font-bold"
+                  className="w-2/3 font-bold"
                   label="Next: Challenge Question →"
                 />
               </div>
@@ -316,14 +316,14 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                   onClick={() => setCurrentStep(2)}
                   variant="secondary"
                   size="default"
-                  className="w-1/3 font-mono font-semibold"
+                  className="w-1/3 font-semibold"
                   label="← Back"
                 />
                 <Link to="/report" className="w-2/3 no-underline">
                   <GlassButton
                     variant={isCaution ? "default" : "danger"}
                     size="default"
-                    className="w-full font-mono font-bold"
+                    className="w-full font-bold"
                     label="View 1930 Cybercrime Dossier →"
                   />
                 </Link>
@@ -339,7 +339,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
           onClick={onReset}
           variant="secondary"
           size="default"
-          className="font-mono font-semibold px-8"
+          className="font-semibold px-8"
           label="← Check Another Call"
         />
       </div>
