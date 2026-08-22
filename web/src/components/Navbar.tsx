@@ -2,62 +2,75 @@ import { NavLink } from "react-router-dom";
 
 export default function Navbar() {
   return (
-    <header className="border-b border-[var(--color-border-default)] bg-[#000000] px-4 sm:px-8 py-3 select-none">
-      <div className="max-w-[1440px] mx-auto flex items-center justify-between">
-        {/* Left Brand */}
+    <header className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-4 sm:px-8 py-3.5 select-none">
+      <div className="max-w-4xl mx-auto flex items-center justify-between">
+        {/* Brand */}
         <NavLink to="/" className="flex items-center gap-3 text-inherit no-underline">
-          <div className="w-6 h-6 rounded border border-white/20 bg-white/5 flex items-center justify-center font-mono font-bold text-xs text-white">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-md">
             S
           </div>
-          <div className="flex items-center gap-2.5">
-            <span className="font-bold text-sm tracking-wider uppercase text-white font-mono">
-              SATYACHECK
+          <div>
+            <span className="font-bold text-lg tracking-tight text-white block leading-tight">
+              SatyaCheck
             </span>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/10">
-              VOICE.DEFENSE
+            <span className="text-xs text-slate-300 font-medium">
+              Family Voice Protection
             </span>
           </div>
         </NavLink>
 
-        {/* Center: Futuristic HUD Tabs */}
-        <nav className="flex items-center gap-1 bg-[#080808] p-1 rounded border border-white/10">
-          <NavItem to="/" code="01" label="SCREENING" />
-          <NavItem to="/enroll" code="02" label="FAMILY VAULT" />
-          <NavItem to="/report" code="03" label="INCIDENT DOSSIER" />
+        {/* Navigation Tabs */}
+        <nav className="flex items-center gap-2">
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              `px-3.5 py-2 rounded-xl text-sm font-semibold transition-all no-underline flex items-center gap-2 cursor-pointer ${
+                isActive
+                  ? "bg-white text-black shadow-sm"
+                  : "text-slate-200 hover:text-white hover:bg-slate-800"
+              }`
+            }
+          >
+            Check a Call
+          </NavLink>
+
+          <NavLink
+            to="/enroll"
+            className={({ isActive }) =>
+              `px-3.5 py-2 rounded-xl text-sm font-semibold transition-all no-underline flex items-center gap-2 cursor-pointer ${
+                isActive
+                  ? "bg-white text-black shadow-sm"
+                  : "text-slate-200 hover:text-white hover:bg-slate-800"
+              }`
+            }
+          >
+            My Family
+          </NavLink>
+
+          <NavLink
+            to="/report"
+            className={({ isActive }) =>
+              `px-3.5 py-2 rounded-xl text-sm font-semibold transition-all no-underline flex items-center gap-2 cursor-pointer ${
+                isActive
+                  ? "bg-white text-black shadow-sm"
+                  : "text-slate-200 hover:text-white hover:bg-slate-800"
+              }`
+            }
+          >
+            Help & Report
+          </NavLink>
         </nav>
 
-        {/* Right: Telemetry & Helpline */}
-        <div className="flex items-center gap-3 font-mono text-xs">
-          <div className="hidden md:flex items-center gap-2 text-zinc-500 text-[11px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span>AIR-GAPPED INFERENCE</span>
-          </div>
+        {/* Emergency Call Helpline */}
+        <div className="hidden md:flex items-center">
           <a
             href="tel:1930"
-            className="px-2.5 py-1 rounded bg-rose-950/40 text-rose-300 border border-rose-800/40 hover:bg-rose-900/40 transition-colors text-[11px] font-medium no-underline"
+            className="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-600 text-white text-sm font-bold no-underline flex items-center gap-2 transition-colors shadow-md"
           >
-            HELPLINE: 1930
+            <span>Call Helpline 1930</span>
           </a>
         </div>
       </div>
     </header>
-  );
-}
-
-function NavItem({ to, code, label }: { to: string; code: string; label: string }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        `px-3 py-1 rounded text-xs font-mono tracking-wide transition-all no-underline flex items-center gap-1.5 cursor-pointer ${
-          isActive
-            ? "bg-white/10 text-white border border-white/20 font-semibold shadow-sm"
-            : "text-zinc-400 hover:text-white hover:bg-white/5"
-        }`
-      }
-    >
-      <span className="text-zinc-500 text-[10px]">{code}</span>
-      <span>{label}</span>
-    </NavLink>
   );
 }

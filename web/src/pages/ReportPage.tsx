@@ -20,7 +20,7 @@ Verification Findings:
 - Extortion Pattern: Fake Police Arrest & Isolation Demand
 - Demanded Payment: Rs 50,000 via Immediate UPI
 Transcript: "Papa emergency ho gaya hai, police ne pakad liya hai! Phone kisi ko mat dena, turant 50000 bhejo is UPI ID pe!"
-Statutory Filing: National Cybercrime Portal (1930) & Chakshu (sancharsaathi.gov.in)`;
+Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov.in)`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -28,138 +28,128 @@ Statutory Filing: National Cybercrime Portal (1930) & Chakshu (sancharsaathi.gov
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="max-w-3xl mx-auto space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-800/60 uppercase">
-              STATUTORY EVIDENCE DOSSIER
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-900/60 text-red-300 border border-red-700/60">
+              OFFICIAL FRAUD REPORT
             </span>
-            <span className="text-xs text-zinc-500 font-mono">
+            <span className="text-xs text-slate-400 font-mono">
               #{reportId}
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white font-sans">
-            Cybercrime Incident Dossier (1930 / Chakshu)
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+            Cybercrime Incident Report (1930)
           </h1>
-          <p className="text-xs text-zinc-400 font-mono mt-0.5">
-            Cryptographically signed evidence packet ready for submission to National Cybercrime Helpline 1930 & your bank.
+          <p className="text-base text-slate-300 mt-1">
+            Official evidence document formatted for the National Cybercrime Portal (1930) or your bank.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 font-mono text-xs">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleCopy}
-            className="px-3.5 py-1.5 rounded bg-[#0A0A0A] hover:bg-[#161616] border border-white/20 text-white transition-all cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#1F2937] hover:bg-[#374151] border border-slate-600 text-white transition-all cursor-pointer"
           >
-            {copied ? "[✓ COPIED]" : "[ COPY TEXT ]"}
+            {copied ? "✓ Copied" : "Copy Text"}
           </button>
 
           <button
             onClick={() => window.print()}
-            className="px-3.5 py-1.5 rounded bg-white hover:bg-zinc-200 text-black font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all cursor-pointer shadow-md"
           >
-            [ PRINT / EXPORT PDF ]
+            Print / Save PDF
           </button>
         </div>
       </div>
 
       {/* Main Dossier Card */}
-      <div className="hud-panel p-6 space-y-6">
+      <div className="p-6 sm:p-8 rounded-2xl bg-[#111827] border border-slate-700 space-y-6 shadow-xl text-base">
         {/* Incident Summary Card */}
-        <div className="p-4 rounded bg-[#050505] border border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
+        <div className="p-5 rounded-xl bg-[#1F2937] border border-slate-600 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <div className="text-zinc-500 uppercase">INCIDENT CLASSIFICATION</div>
-            <div className="font-bold text-rose-400 mt-1 font-sans text-sm">Deepfake AI Voice Extortion</div>
+            <div className="text-xs text-slate-400 uppercase font-semibold">Incident Type</div>
+            <div className="font-bold text-red-400 mt-1">AI Voice Extortion</div>
           </div>
           <div>
-            <div className="text-zinc-500 uppercase">SUSPECT CALLER NUMBER</div>
-            <div className="font-bold text-white mt-1 font-mono text-sm">+91 70428 19043</div>
+            <div className="text-xs text-slate-400 uppercase font-semibold">Suspect Caller</div>
+            <div className="font-bold text-white mt-1">+91 70428 19043</div>
           </div>
           <div>
-            <div className="text-zinc-500 uppercase">TARGETED IDENTITY</div>
-            <div className="font-bold text-white mt-1 font-sans text-sm">Rahul Verma (Son)</div>
+            <div className="text-xs text-slate-400 uppercase font-semibold">Targeted Member</div>
+            <div className="font-bold text-white mt-1">Rahul Verma (Son)</div>
           </div>
         </div>
 
         {/* Forensic Evidence Breakdown */}
-        <div className="space-y-3 font-mono">
-          <div className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-            01 // FORENSIC EVIDENCE FINDINGS
-          </div>
+        <div className="space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+            1. Evidence Findings & AI Voice Detection
+          </h2>
 
-          <div className="space-y-2 text-xs">
-            <div className="p-3.5 rounded bg-[#050505] border border-white/10 space-y-1">
-              <div className="text-rose-400 font-bold uppercase">
-                SYNTHETIC SPEECH DETECTED (98% CONFIDENCE)
-              </div>
-              <p className="text-zinc-300 font-sans leading-relaxed">
-                Acoustic neural vocoder signatures confirm caller's voice was generated by an AI cloning model rather than natural human vocal cords. Max contiguous synthetic run duration: 6.5s.
+          <div className="space-y-3">
+            <div className="p-4 rounded-xl bg-[#1F2937] border border-slate-600 space-y-1">
+              <strong className="text-red-300 block font-bold text-base">
+                Synthetic Speech Detected (98% Confidence):
+              </strong>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Neural vocoder acoustic artifacts confirm the caller's voice was generated by an AI cloning system rather than a real human.
               </p>
             </div>
 
-            <div className="p-3.5 rounded bg-[#050505] border border-white/10 space-y-1">
-              <div className="text-rose-400 font-bold uppercase">
-                EXTORTION & ISOLATION SCRIPT PATTERN
-              </div>
-              <p className="text-zinc-300 font-sans leading-relaxed">
-                Caller strictly demanded isolation ("Don't hand phone to anyone") and immediate Rs 50,000 UPI transfer under a fake police arrest emergency.
+            <div className="p-4 rounded-xl bg-[#1F2937] border border-slate-600 space-y-1">
+              <strong className="text-red-300 block font-bold text-base">
+                Extortion & Isolation Demand:
+              </strong>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Caller demanded strict isolation ("Don't hand phone to anyone") and immediate Rs 50,000 UPI transfer under a fake police arrest claim.
               </p>
             </div>
           </div>
         </div>
 
         {/* Verbatim Audio Transcript */}
-        <div className="space-y-2 font-mono">
-          <div className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-            02 // VERBATIM CALL TRANSCRIPT (HINDI)
-          </div>
-          <div className="p-4 rounded bg-[#050505] border border-white/10 space-y-2 text-xs">
-            <div className="italic text-white font-sans text-sm">
+        <div className="space-y-2">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+            2. Call Transcript (Hindi / Devanagari)
+          </h2>
+          <div className="p-4 rounded-xl bg-[#1F2937] border border-slate-600 space-y-2">
+            <div className="italic text-white text-base">
               "Papa emergency ho gaya hai, police ne pakad liya hai! Phone kisi ko mat dena, turant 50000 bhejo is UPI ID pe!"
             </div>
-            <div className="text-zinc-500 pt-2 border-t border-white/10 font-sans text-[11px]">
+            <div className="text-xs text-slate-400 pt-2 border-t border-slate-700">
               English translation: "Papa an emergency happened, police have caught me! Don't give the phone to anyone, send 50,000 immediately to this UPI ID!"
             </div>
           </div>
         </div>
 
-        {/* Cryptographic Hash */}
-        <div className="space-y-2 font-mono">
-          <div className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-            03 // CHAIN OF CUSTODY (CRYPTOGRAPHIC AUDIT)
-          </div>
-          <div className="p-3 rounded bg-[#030303] border border-white/10 text-xs text-zinc-400 break-all">
-            PROBE SHA-256 HASH: <span className="text-white font-semibold">{sha256Digest}</span>
-          </div>
-        </div>
-
         {/* Next Steps for the User */}
-        <div className="p-4 rounded bg-white/5 border border-white/15 text-xs font-mono space-y-2">
-          <div className="font-bold text-white uppercase tracking-wider">
-            MANDATORY REPORTING DIRECTIVES:
+        <div className="p-6 rounded-xl bg-blue-950/40 border border-blue-600/50 space-y-3">
+          <div className="font-bold text-blue-200 text-base">
+            How to File This Report with Authorities:
           </div>
-          <ol className="list-decimal pl-4 space-y-1.5 text-zinc-300 font-sans text-xs">
+          <ol className="list-decimal pl-5 space-y-2 text-slate-200 text-sm">
             <li>
-              <strong className="text-white">Call 1930 immediately:</strong> Quote this incident to freeze the suspect's bank account or receiving UPI handle before funds can be withdrawn.
+              <strong>Call Helpline 1930 immediately:</strong> Quote this incident to freeze the scammer's bank account or UPI ID.
             </li>
             <li>
-              <strong className="text-white">Submit on cybercrime.gov.in:</strong> Attach this dossier alongside the SHA-256 audio hash under "Financial Fraud / Impersonation".
+              <strong>Submit online at cybercrime.gov.in:</strong> Upload this printed PDF under "Financial Fraud / Impersonation".
             </li>
             <li>
-              <strong className="text-white">Report on Chakshu (sancharsaathi.gov.in):</strong> Blocks the scammer's SIM card across all Indian telecom networks.
+              <strong>Report on Chakshu (sancharsaathi.gov.in):</strong> Blocks the scammer's SIM card across all telecom networks.
             </li>
           </ol>
         </div>
 
         {/* Back Link */}
-        <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs font-mono">
-          <Link to="/" className="text-white hover:text-zinc-300 font-semibold no-underline">
-            ← RETURN TO SCREENING HUD
+        <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-sm">
+          <Link to="/" className="text-blue-400 hover:underline font-semibold no-underline">
+            ← Return to Call Checking
           </Link>
-          <span className="text-zinc-500">
-            SATYACHECK EVIDENCE DOSSIER v1.0
+          <span className="text-slate-400 text-xs">
+            SatyaCheck Secure Evidence System
           </span>
         </div>
       </div>

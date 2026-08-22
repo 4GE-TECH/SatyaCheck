@@ -15,7 +15,7 @@ const INITIAL_MEMBERS: EnrolledMember[] = [
     name: "Rahul Verma",
     relation: "Son",
     phone: "+91 98112 04829",
-    enrolledDate: "2026-08-15",
+    enrolledDate: "Aug 15, 2026",
     secretQuestion: "What is our hometown dog's name?",
   },
   {
@@ -23,7 +23,7 @@ const INITIAL_MEMBERS: EnrolledMember[] = [
     name: "Priya Sharma",
     relation: "Daughter",
     phone: "+91 99201 83721",
-    enrolledDate: "2026-08-18",
+    enrolledDate: "Aug 18, 2026",
     secretQuestion: "What school did you go to?",
   },
 ];
@@ -49,7 +49,7 @@ export default function EnrollPage() {
       name,
       relation,
       phone: phone || "+91 98765 XXXXX",
-      enrolledDate: new Date().toISOString().slice(0, 10),
+      enrolledDate: "Today",
       secretQuestion: question || "None configured",
     };
 
@@ -66,44 +66,33 @@ export default function EnrollPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="pb-4 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <div className="text-[10px] font-mono font-bold tracking-widest text-zinc-500 uppercase">
-            REGISTRY // 02
-          </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white font-sans">
-            Family Voiceprint Vault
-          </h1>
-          <p className="text-xs text-zinc-400 font-mono mt-0.5">
-            Store condition-matched reference embeddings (16kHz Wideband + 8kHz Narrowband) locally.
-          </p>
-        </div>
-
-        <div className="text-xs font-mono text-emerald-400 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          <span>{members.length} PROFILES ACTIVE IN SECURE VAULT</span>
-        </div>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          My Family Voice Vault
+        </h1>
+        <p className="text-base text-slate-300 mt-1">
+          Save a 30-second voice recording of your children and family. If you ever receive a suspicious call claiming to be them, SatyaCheck checks if the voice is authentic.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Enrollment Form (5 Cols) */}
         <div className="lg:col-span-5">
-          <div className="hud-panel p-5 space-y-4">
-            <div className="text-xs font-mono font-bold uppercase tracking-wider text-white pb-3 border-b border-white/10 flex items-center justify-between">
-              <span>ENROLL NEW CONTACT</span>
-              <span className="text-zinc-500">ECAPA-TDNN</span>
-            </div>
+          <div className="p-6 rounded-2xl bg-[#111827] border border-slate-700 space-y-4 shadow-lg">
+            <h2 className="text-lg font-bold text-white pb-3 border-b border-slate-800 flex items-center gap-2">
+              <span>Add a Family Member</span>
+            </h2>
 
             {isSuccess && (
-              <div className="p-3 rounded bg-emerald-950/60 border border-emerald-500/60 text-xs font-mono text-emerald-300">
-                [✓] VOICEPRINT EMBEDDING COMPUTED & COMMITTED TO LOCAL VAULT
+              <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-500 text-sm text-emerald-200">
+                ✓ Voice recording saved safely to your family vault!
               </div>
             )}
 
-            <form onSubmit={handleEnroll} className="space-y-4 font-mono text-xs">
+            <form onSubmit={handleEnroll} className="space-y-4 text-sm">
               <div>
-                <label className="block text-zinc-400 uppercase mb-1 font-semibold">
-                  CONTACT NAME *
+                <label className="block text-sm font-semibold text-slate-200 mb-1.5">
+                  Full Name *
                 </label>
                 <input
                   type="text"
@@ -111,19 +100,19 @@ export default function EnrollPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Rahul, Mother, Papa"
-                  className="w-full px-3 py-2 rounded bg-[#050505] border border-white/15 text-white focus:border-white outline-none font-sans"
+                  className="w-full px-4 py-3 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-base focus:border-blue-500 outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-400 uppercase mb-1 font-semibold">
-                    RELATIONSHIP *
+                  <label className="block text-sm font-semibold text-slate-200 mb-1.5">
+                    Relationship *
                   </label>
                   <select
                     value={relation}
                     onChange={(e) => setRelation(e.target.value)}
-                    className="w-full px-3 py-2 rounded bg-[#050505] border border-white/15 text-white focus:border-white outline-none font-sans"
+                    className="w-full px-4 py-3 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-base focus:border-blue-500 outline-none"
                   >
                     <option value="Son">Son</option>
                     <option value="Daughter">Daughter</option>
@@ -131,38 +120,38 @@ export default function EnrollPage() {
                     <option value="Father">Father</option>
                     <option value="Spouse">Spouse</option>
                     <option value="Sibling">Sibling</option>
-                    <option value="Other">Other Contact</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-zinc-400 uppercase mb-1 font-semibold">
-                    PHONE NUMBER
+                  <label className="block text-sm font-semibold text-slate-200 mb-1.5">
+                    Phone Number
                   </label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+91 98765 43210"
-                    className="w-full px-3 py-2 rounded bg-[#050505] border border-white/15 text-white focus:border-white outline-none font-sans"
+                    className="w-full px-4 py-3 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-base focus:border-blue-500 outline-none"
                   />
                 </div>
               </div>
 
               {/* Audio Reference Ingestion */}
               <div>
-                <label className="block text-zinc-400 uppercase mb-1 font-semibold">
-                  REFERENCE AUDIO (30–60 SECONDS)
+                <label className="block text-sm font-semibold text-slate-200 mb-1.5">
+                  Voice Note or Audio Recording (30s)
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-4 rounded border border-dashed border-white/20 bg-[#050505] hover:bg-[#101010] cursor-pointer text-center space-y-1 transition-all"
+                  className="p-5 rounded-xl border-2 border-dashed border-slate-600 bg-[#1F2937] hover:bg-[#374151] cursor-pointer text-center space-y-1 transition-all"
                 >
-                  <div className="text-xs font-semibold text-white">
-                    {file ? file.name : "[ SELECT OR DROP AUDIO / VOICE NOTE ]"}
+                  <div className="text-base font-bold text-blue-400">
+                    {file ? file.name : "📁 Tap to Choose Voice Recording"}
                   </div>
-                  <div className="text-[10px] text-zinc-500">
-                    Extracts 192-dim speaker vector across wideband & 8kHz telephony codecs
+                  <div className="text-xs text-slate-400">
+                    WAV, MP3, or WhatsApp Voice Note
                   </div>
                   <input
                     ref={fileInputRef}
@@ -174,32 +163,36 @@ export default function EnrollPage() {
                 </div>
               </div>
 
-              {/* Out-of-Band Challenge Setup */}
-              <div className="pt-3 border-t border-white/10 space-y-2">
-                <div className="text-[11px] uppercase font-bold text-zinc-300">
-                  OUT-OF-BAND CHALLENGE QUESTION
+              {/* Secret Question Setup */}
+              <div className="pt-3 border-t border-slate-800 space-y-3">
+                <div className="text-sm font-bold text-slate-200">
+                  Secret Family Question (Optional)
                 </div>
+                <p className="text-xs text-slate-400">
+                  Set a question only this person knows. SatyaCheck will prompt you to ask this if a scam occurs.
+                </p>
+
                 <input
                   type="text"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Challenge Prompt (e.g. What is our first pet's name?)"
-                  className="w-full px-3 py-2 rounded bg-[#050505] border border-white/15 text-white focus:border-white outline-none font-sans mb-1"
+                  placeholder="e.g. What is our hometown dog's name?"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-sm focus:border-blue-500 outline-none"
                 />
                 <input
                   type="text"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="Secret Answer (stored as SHA-256 hash)"
-                  className="w-full px-3 py-2 rounded bg-[#050505] border border-white/15 text-white focus:border-white outline-none font-sans"
+                  placeholder="Answer (encrypted on device)"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-sm focus:border-blue-500 outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded bg-white text-black font-bold uppercase tracking-wider hover:bg-zinc-200 transition-all cursor-pointer shadow-sm mt-2"
+                className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base transition-all cursor-pointer shadow-md mt-2"
               >
-                COMPUTE & REGISTER VOICEPRINT →
+                Save to Family Vault →
               </button>
             </form>
           </div>
@@ -207,44 +200,44 @@ export default function EnrollPage() {
 
         {/* Right: Enrolled Members (7 Cols) */}
         <div className="lg:col-span-7">
-          <div className="hud-panel p-5 space-y-4">
-            <div className="text-xs font-mono font-bold uppercase tracking-wider text-white pb-3 border-b border-white/10 flex items-center justify-between">
-              <span>ACTIVE ENROLLED PROFILES ({members.length})</span>
-              <span className="text-zinc-500">AIR-GAPPED STORAGE</span>
-            </div>
+          <div className="p-6 rounded-2xl bg-[#111827] border border-slate-700 space-y-4 shadow-lg">
+            <h2 className="text-lg font-bold text-white pb-3 border-b border-slate-800 flex items-center justify-between">
+              <span>Enrolled Family Contacts ({members.length})</span>
+              <span className="text-xs text-emerald-400 font-medium">100% Private on Device</span>
+            </h2>
 
             <div className="space-y-3">
               {members.map((m) => (
                 <div
                   key={m.id}
-                  className="p-4 rounded bg-[#050505] border border-white/10 hover:border-white/20 transition-all space-y-2"
+                  className="p-5 rounded-xl bg-[#1F2937] border border-slate-600 space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded bg-white/10 border border-white/20 text-white font-mono font-bold text-xs flex items-center justify-center">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 rounded-full bg-blue-600 text-white font-bold text-lg flex items-center justify-center shadow">
                         {m.name.slice(0, 1)}
                       </div>
                       <div>
-                        <div className="font-semibold text-sm text-white font-sans">
+                        <div className="font-bold text-base text-white">
                           {m.name}
                         </div>
-                        <div className="text-xs font-mono text-zinc-500">
-                          {m.id} · {m.phone}
+                        <div className="text-sm text-slate-300">
+                          {m.phone}
                         </div>
                       </div>
                     </div>
 
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-white/10 text-white border border-white/20 uppercase">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-700/60">
                       {m.relation}
                     </span>
                   </div>
 
-                  <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between text-xs font-mono text-zinc-500 gap-2">
+                  <div className="pt-3 border-t border-slate-700 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
                     <div>
-                      <span>CHALLENGE: </span>
-                      <span className="text-zinc-300 italic">"{m.secretQuestion}"</span>
+                      <span>Secret: </span>
+                      <span className="text-slate-200 italic font-medium">"{m.secretQuestion}"</span>
                     </div>
-                    <span>REGISTERED: {m.enrolledDate}</span>
+                    <span>Saved: {m.enrolledDate}</span>
                   </div>
                 </div>
               ))}

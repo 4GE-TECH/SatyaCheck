@@ -1,66 +1,60 @@
-import { useState } from "react";
 import useScreening from "../hooks/useScreening";
 import type { MockScenario } from "../api/mock";
 
-import StreamControlHUD from "../components/StreamControlHUD";
-import MonolithicVerdictHUD from "../components/MonolithicVerdictHUD";
-import TechnicalForensicsAccordion from "../components/TechnicalForensicsAccordion";
+import IdleCheckScreen from "../components/IdleCheckScreen";
+import ElderlyVerdictCard from "../components/ElderlyVerdictCard";
 
 export default function ScreenPage() {
-  const { data, loading, error, screenFile, screenMock } = useScreening();
-  const [selectedScenario, setSelectedScenario] = useState<MockScenario | null>("red");
-
-  // Initial load default to "red" so the user immediately sees the focal verdict
-  useState(() => {
-    screenMock("red");
-  });
+  const { data, loading, error, screenFile, screenMock, clear } = useScreening();
 
   const handleSelectScenario = (scenario: MockScenario) => {
-    setSelectedScenario(scenario);
     screenMock(scenario);
   };
 
   const handleUploadFile = (file: File) => {
-    setSelectedScenario(null);
     screenFile(file);
+  };
+
+  const handleReset = () => {
+    clear();
   };
 
   return (
     <div className="space-y-6 pb-12">
-      {/* 1. Stream Control & Case Ingest */}
-      <StreamControlHUD
-        activeScenario={selectedScenario}
-        onSelectScenario={handleSelectScenario}
-        onUploadFile={handleUploadFile}
-        isLoading={loading}
-      />
-
-      {/* 2. Loading State */}
+      {/* ── 1. LOADING STATE ─────────────────────────────── */}
       {loading && (
-        <div className="hud-panel p-12 flex flex-col items-center justify-center gap-3 text-center">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-          <div className="text-xs font-mono font-bold tracking-wider text-white">
-            COMPUTING ACOUSTIC EMBEDDINGS & SPEECH SYNTHESIS SIGNATURES...
+        <div className="p-12 rounded-2xl bg-[#111827] border border-slate-700 text-center space-y-4 shadow-xl">
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
+          <div className="text-xl font-bold text-white">
+            Checking voice authenticity…
           </div>
-          <div className="text-[11px] font-mono text-zinc-500">
-            ECAPA-TDNN / AASIST-CM / BGE-M3 / INTENT GATING
-          </div>
+          <p className="text-sm text-slate-300">
+            Listening for AI voice cloning and suspicious emergency patterns.
+          </p>
         </div>
       )}
 
-      {/* 3. System Advisory Error */}
+      {/* ── 2. ERROR STATE ───────────────────────────────── */}
       {error && (
-        <div className="p-4 rounded bg-rose-950/40 border border-rose-600/60 text-xs font-mono text-rose-200">
-          SYSTEM ADVISORY: {error}
+        <div className="p-5 rounded-2xl bg-amber-950/60 border border-amber-500/50 text-sm text-amber-200">
+          ⚠️ {error}
         </div>
       )}
 
-      {/* 4. Monolithic Focus Verdict & Action Directives */}
+      {/* ── 3. MAIN IDLE OR VERDICT VIEW ─────────────────── */}
+      {!loading && !data && (
+        <IdleCheckScreen
+          onSelectScenario={handleSelectScenario}
+          onUploadFile={handleUploadFile}
+          isLoading={loading}
+        />
+      )}
+
       {!loading && data && (
-        <div className="space-y-6">
-          <MonolithicVerdictHUD data={data} />
-          <TechnicalForensicsAccordion data={data} />
-        </div>
+        <ElderlyVerdictCard
+          data={data}
+          onReset={handleReset}
+        />
       )}
     </div>
   );
