@@ -123,11 +123,22 @@ def score_script(
         return abstain("empty_text")
 
     r_ret, z = _retrieval_risk(retrieval)
-    suppressed = {
-        m.marker_id
-        for m in incriminating
-        if m.marker_id in set(retrieval.top_doc_markers)
-    }
+
+    # Suppression only applies when the retrieval hit is strong enough to be cited.
+    #
+    # The premise of suppression is that the marker is already reflected in the
+    # retrieval score. When retrieval is uncorroborated that premise is false: we have
+    # decided the hit is too weak to show, so nothing is counting the marker, and
+    # dropping it discards the only evidence we have. A genuine-but-unusual money
+    # request scored 0.02 this way -- indistinguishable from a routine check-in --
+    # because the urgency marker was suppressed by a playbook we then refused to cite.
+    suppressed: set[str] = set()
+    if r_ret >= thresholds.CORROBORATION_FLOOR:
+        suppressed = {
+            m.marker_id
+            for m in incriminating
+            if m.marker_id in set(retrieval.top_doc_markers)
+        }
     delta, net_weight = _marker_delta(markers, suppressed)
 
     risk = r_ret + delta

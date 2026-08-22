@@ -38,6 +38,25 @@ def test_urgent_upi_transfer_detected_in_latin_hinglish():
     assert "MK_URGENT_FINANCIAL_UPI" in _ids("turant 50000 bhejo is UPI ID pe")
 
 
+def test_urgently_is_a_time_pressure_word():
+    """The commonest English urgency word in these scripts, and it was missing.
+
+    Without it a genuine-but-unusual money request scored 0.02 — indistinguishable
+    from a routine check-in — which breaks PRD §6's second false-positive guard from
+    the wrong direction: the call must be amber, not green.
+    """
+    assert "MK_URGENT_FINANCIAL_UPI" in _ids("I need 20000 urgently for a deposit")
+
+
+def test_urgent_variants_are_detected():
+    for phrase in (
+        "please send it urgently",
+        "this is an urgent payment",
+        "I need the money as soon as possible",
+    ):
+        assert "MK_URGENT_FINANCIAL_UPI" in _ids(phrase), phrase
+
+
 def test_authority_impersonation_detected():
     assert "MK_AUTHORITY_IMPERSONATION" in _ids("This is Inspector Sharma from the CBI")
 
@@ -135,3 +154,34 @@ def test_isolation_and_verification_invite_can_coexist_in_one_transcript():
     ids = _ids(text)
     assert "MK_ISOLATION_DEMAND" in ids
     assert "MK_EXCULPATORY_VERIFICATION_INVITE" in ids
+
+
+# --- mentioning a credential is not soliciting one ---------------------------
+# The most legitimate call in the corpus is a bank saying it will never ask for an
+# OTP. If the marker fires on the word alone, that call scores like a scam, which is
+# the over-flagging failure the whole design exists to prevent.
+
+def test_a_bank_refusing_to_take_an_otp_is_not_soliciting_one():
+    assert "MK_OTP_SOLICITATION" not in _ids(
+        "I am not able to take any card or OTP details over the phone. "
+        "Please raise it in the app under disputes."
+    )
+
+
+def test_an_advisory_warning_never_to_share_an_otp_is_not_soliciting_one():
+    assert "MK_OTP_SOLICITATION" not in _ids(
+        "The bank will never ask for your OTP, PIN or CVV over a call."
+    )
+
+
+def test_do_not_share_your_otp_is_not_soliciting_one():
+    assert "MK_OTP_SOLICITATION" not in _ids("Do not share your OTP with anyone.")
+
+
+def test_actually_soliciting_an_otp_still_fires():
+    for phrase in (
+        "Please share the OTP you just received",
+        "just read out the OTP to me",
+        "tell me the six digit code and your PIN",
+    ):
+        assert "MK_OTP_SOLICITATION" in _ids(phrase), phrase

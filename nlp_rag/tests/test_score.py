@@ -17,7 +17,20 @@ from nlp_rag import thresholds
 from nlp_rag.corpus_loader import load_corpus
 from nlp_rag.markers import find_markers
 from nlp_rag.retrieve import RetrievalResult, Retriever
+from contracts import RetrievedPlaybook
 from nlp_rag.score import score_script
+
+
+def playbook(similarity: float) -> RetrievedPlaybook:
+    return RetrievedPlaybook(
+        playbook_id="anch-x",
+        title="Advisory",
+        category="Extortion",
+        similarity_score=similarity,
+        matched_excerpt="...",
+        source_url="https://cybercrime.gov.in/x",
+        source_agency="I4C",
+    )
 from nlp_rag.tests.fakes import FakeEncoder
 
 CORPUS_DIR = Path(__file__).parent.parent / "corpus"
@@ -116,15 +129,26 @@ def test_both_marker_directions_are_reported_separately():
 # --- double counting ---------------------------------------------------------
 
 def test_marker_already_exemplified_by_the_top_playbook_is_not_counted_twice():
-    """'kisi ko mat dena' is both a marker and why the isolation playbook retrieved."""
+    """'kisi ko mat dena' is both a marker and why the isolation playbook retrieved.
+
+    The retrieval must actually be corroborated for this to hold. Suppression assumes
+    the retrieval score already reflects the marker, and an uncorroborated hit
+    contributes nothing to reflect it with -- see
+    test_markers_are_not_suppressed_when_retrieval_is_uncorroborated.
+    """
     text = "Phone kisi ko mat dena, turant 50000 bhejo is UPI ID pe."
     markers = find_markers(text)
     cohort = [0.1, 0.12, 0.09]
 
     counted_twice = RetrievalResult(
-        cohort_similarities=cohort, top_similarity=0.72, top_doc_id="d1", top_doc_markers=[]
+        playbooks=[playbook(0.72)],
+        cohort_similarities=cohort,
+        top_similarity=0.72,
+        top_doc_id="d1",
+        top_doc_markers=[],
     )
     suppressed = RetrievalResult(
+        playbooks=[playbook(0.72)],
         cohort_similarities=cohort,
         top_similarity=0.72,
         top_doc_id="d1",
@@ -208,3 +232,42 @@ def test_risk_stays_within_the_contract_bounds(retriever: Retriever):
 def test_normalisation_details_are_reported_for_debugging(retriever: Retriever):
     details = analyse(retriever, CLONE_EXTORTION).details
     assert "z" in details and "r_ret" in details and "marker_delta" in details
+
+
+# --- suppression must not discard evidence we never counted ------------------
+
+def test_markers_are_not_suppressed_when_retrieval_is_uncorroborated():
+    """Suppression assumes the retrieval score already reflects the marker.
+
+    When the hit is too weak to cite, nothing is counting the marker, so dropping it
+    throws away the only evidence there is.
+    """
+    retrieval = RetrievalResult(
+        playbooks=[],
+        cohort_similarities=[0.55] * 20,   # background just as similar -> low z
+        top_similarity=0.58,
+        top_doc_id="anch-x",
+        top_doc_markers=["MK_URGENT_FINANCIAL_UPI"],
+    )
+    markers = find_markers("I need 20000 urgently for a deposit")
+    result = score_script("I need 20000 urgently for a deposit", retrieval, markers)
+
+    assert result.details["corroborated"] is False, "precondition"
+    assert result.details["suppressed_markers"] == []
+    assert result.details["marker_net_weight"] > 0
+
+
+def test_markers_are_still_suppressed_when_retrieval_is_corroborated():
+    """The original rule holds where its premise holds."""
+    retrieval = RetrievalResult(
+        playbooks=[playbook(0.95)],
+        cohort_similarities=[0.1] * 20,    # background far away -> high z
+        top_similarity=0.95,
+        top_doc_id="anch-x",
+        top_doc_markers=["MK_URGENT_FINANCIAL_UPI"],
+    )
+    markers = find_markers("I need 20000 urgently for a deposit")
+    result = score_script("I need 20000 urgently for a deposit", retrieval, markers)
+
+    assert result.details["corroborated"] is True, "precondition"
+    assert result.details["suppressed_markers"] == ["MK_URGENT_FINANCIAL_UPI"]

@@ -26,6 +26,11 @@ class MarkerDef:
     weight: float
     description: str
     patterns: list[str] = field(default_factory=list)
+    #: If any of these match, the marker does not fire at all.
+    #: Mentioning a credential is not the same as asking for one: a bank saying it will
+    #: never ask for an OTP is the most legitimate call there is, and firing on the word
+    #: alone scores it like a scam.
+    veto: list[str] = field(default_factory=list)
 
 
 # Weights for markers that appear in `contracts.create_mock_fixture` match the values
@@ -56,8 +61,11 @@ MARKERS: list[MarkerDef] = [
         description="Demanding immediate irreversible fund transfer under time pressure",
         patterns=[
             r"(?:turant|abhi|jaldi|foran)[^.!?]{0,60}?(?:bhej|transfer|paise|paisa|upi)\w*",
-            r"(?:immediately|right now|within \d+ minutes?)[^.!?]{0,60}?"
-            r"(?:transfer|send|pay|deposit)\w*",
+            r"(?:immediately|right now|urgent|urgently|as soon as possible|asap"
+            r"|within \d+ minutes?)[^.!?]{0,60}?"
+            r"(?:transfer|send|pay|deposit|money|rupees|\d{3,})\w*",
+            r"(?:transfer|send|pay|deposit|need)[^.!?]{0,60}?"
+            r"(?:immediately|right now|urgently|as soon as possible|asap)",
             r"(?:transfer|send|pay)[^.!?]{0,40}?(?:upi|qr code|gift card)",
             r"(?:तुरंत|अभी|जल्दी)[^।!?]{0,60}?(?:भेज|ट्रांसफर|पैसे)\w*",
         ],
@@ -81,11 +89,20 @@ MARKERS: list[MarkerDef] = [
         weight=0.88,
         description="Caller solicits a one-time password, PIN or card credential",
         patterns=[
-            r"\b(?:otp|o\.t\.p|one[- ]time password)\b",
-            r"\b(?:pin|cvv|card number|password)\b[^.!?]{0,30}?"
-            r"(?:share|batao|bta|tell|send|read)",
-            r"(?:share|tell|send|read)[^.!?]{0,30}?\b(?:otp|pin|cvv|password)\b",
-            r"\b(?:ओटीपी|पिन)\b",
+            # Solicitation, not mention. A bare "otp" fires on every advisory that
+            # warns about OTPs, including a bank saying it will never ask for one.
+            r"(?:share|tell|send|read|give|provide|confirm|repeat)[^.!?]{0,40}?"
+            r"\b(?:otp|o\.t\.p|one[- ]time password|pin|cvv|card number|password"
+            r"|six digit code|verification code)\b",
+            r"\b(?:otp|o\.t\.p|one[- ]time password|pin|cvv|card number|password)\b"
+            r"[^.!?]{0,40}?(?:share|batao|bta|bataiye|tell|send|read|likh|type)",
+            r"\b(?:ओटीपी|पिन)\b[^।!?]{0,40}?(?:बताइए|बताओ|भेजिए|लिखिए)",
+        ],
+        veto=[
+            r"(?:never|not|cannot|can'?t|don'?t|do not|will not|won'?t|unable)"
+            r"[^.!?]{0,40}?(?:ask|take|request|share|need|give)",
+            r"(?:kabhi|kabhi bhi)\s+(?:nahi|nahin)[^.!?]{0,30}?(?:maang|puchh)",
+            r"कभी (?:नहीं|न)[^।!?]{0,30}?(?:माँग|मांग|पूछ)",
         ],
     ),
     MarkerDef(
@@ -172,8 +189,13 @@ MARKERS: list[MarkerDef] = [
     ),
 ]
 
-_COMPILED: list[tuple[MarkerDef, list[re.Pattern[str]]]] = [
-    (m, [re.compile(p, re.IGNORECASE) for p in m.patterns]) for m in MARKERS
+_COMPILED: list[tuple[MarkerDef, list[re.Pattern[str]], list[re.Pattern[str]]]] = [
+    (
+        m,
+        [re.compile(p, re.IGNORECASE) for p in m.patterns],
+        [re.compile(v, re.IGNORECASE) for v in m.veto],
+    )
+    for m in MARKERS
 ]
 
 
@@ -187,7 +209,9 @@ def find_markers(text: str) -> list[MarkerMatch]:
         return []
 
     found: list[MarkerMatch] = []
-    for definition, patterns in _COMPILED:
+    for definition, patterns, vetoes in _COMPILED:
+        if any(v.search(text) for v in vetoes):
+            continue
         for pattern in patterns:
             hit = pattern.search(text)
             if hit is None:
@@ -216,7 +240,9 @@ def marker_spans(text: str) -> dict[str, tuple[int, int]]:
         return {}
 
     spans: dict[str, tuple[int, int]] = {}
-    for definition, patterns in _COMPILED:
+    for definition, patterns, vetoes in _COMPILED:
+        if any(v.search(text) for v in vetoes):
+            continue
         for pattern in patterns:
             hit = pattern.search(text)
             if hit is None:
