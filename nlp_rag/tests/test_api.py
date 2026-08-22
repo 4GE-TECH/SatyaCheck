@@ -93,8 +93,17 @@ def test_analyze_script_returns_a_valid_result_for_garbage_input():
         assert isinstance(result, ScriptAnalysisResult)
 
 
-def test_analyze_script_degrades_to_markers_only_without_an_encoder():
-    """No BGE-m3 means no retrieval. Markers still work; risk stays uncorroborated."""
+def test_analyze_script_degrades_to_markers_only_without_an_encoder(monkeypatch):
+    """No BGE-m3 means no retrieval. Markers still work; risk stays uncorroborated.
+
+    The absent-encoder state is forced rather than inherited from the machine. This
+    test previously passed only because models/ happened to be empty, so it started
+    failing the moment BGE-m3 was downloaded -- it was asserting on the environment,
+    not on the degradation path.
+    """
+    import nlp_rag.embed
+
+    monkeypatch.setattr(nlp_rag.embed, "load_encoder", lambda: None)
     api.reset()
     result = api.analyze_script(transcript(SCAM))
 
