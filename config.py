@@ -181,8 +181,8 @@ ENABLE_PDF_REPORTS: bool = True
 
 # Use real module implementations vs mocked stubs
 # Flipped to True one branch at a time during Block 2 integration
-USE_REAL_SPEAKER: bool = os.getenv("USE_REAL_SPEAKER", "false").lower() == "true"
-USE_REAL_SPOOF: bool = os.getenv("USE_REAL_SPOOF", "false").lower() == "true"
+USE_REAL_SPEAKER: bool = os.getenv("USE_REAL_SPEAKER", "true").lower() == "true"
+USE_REAL_SPOOF: bool = os.getenv("USE_REAL_SPOOF", "true").lower() == "true"
 USE_REAL_NLP: bool = os.getenv("USE_REAL_NLP", "false").lower() == "true"
 USE_REAL_FUSION: bool = os.getenv("USE_REAL_FUSION", "false").lower() == "true"
 
