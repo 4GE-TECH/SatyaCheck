@@ -80,6 +80,26 @@ def test_genuine_unusual_request_stays_below_high_risk(retriever: Retriever):
     assert analyse(retriever, GENUINE_UNUSUAL).risk < thresholds.SCRIPT_HIGH_RISK
 
 
+# --- the same scam must score the same in whichever script Whisper emits ------
+# `z = (max_scam_cos - mean(benign_cos)) / std(benign_cos)`. The benign cohort is
+# thoroughly multilingual; the scam corpus was not (20 en / 4 hi_latn / 2 devanagari).
+# A Devanagari call therefore met a well-populated background and a nearly empty
+# foreground -- a starved numerator against a healthy denominator -- and under-scored
+# purely for being in Hindi. None of the three targets above catch it: all are Latin.
+#
+# The guard is deliberately NOT here. `FakeEncoder` is a lexical hasher and `fakes.py`
+# says plainly that no test should assert on its absolute scores; a paraphrased
+# Devanagari probe shares few exact tokens with any document, so an absolute threshold
+# measures the stand-in rather than the corpus. The defect was corpus *coverage*, so it
+# is asserted as coverage:
+#
+#   tests/test_corpus_integrity.py::test_every_indexed_anchor_covers_all_three_scripts
+#
+# and the resulting score is checked under the real encoder, where it is meaningful:
+#
+#   eval_retrieval.CALIBRATION_CASES -> kyc_deva, parcel_deva
+
+
 # --- the cap: no citation, no red -------------------------------------------
 
 def test_markers_alone_cannot_reach_high_risk():

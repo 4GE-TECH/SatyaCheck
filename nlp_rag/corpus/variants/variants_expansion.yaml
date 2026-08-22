@@ -1,0 +1,510 @@
+# Variant expansion — every indexed anchor gets a full en / hi_latn / hi_deva triple.
+#
+# Why triples, not more English: `z = (max_scam_cos - mean(benign_cos)) / std(benign_cos)`.
+# The benign cohort is thoroughly multilingual (43 en / 27 hi_latn / 12 devanagari) but
+# the scam corpus was 20/4/2, so a Devanagari call met a well-populated background and a
+# nearly empty foreground and under-scored purely for being in Hindi.
+# `tests/test_score.py::test_a_devanagari_scam_call_reaches_the_high_hit_target` is the
+# guard; it failed at 0.63 before these documents existed.
+#
+# Hand-authored in all three scripts, NOT machine-transliterated. Running Devanagari
+# through indic-transliteration yields `phona kisī ko mata denā`, which is not what
+# Whisper emits on code-switched audio — it emits the spelling a person would type.
+#
+# Each is written in call register (what a caller says), not advisory register (what an
+# agency writes). Phrasing is deliberately distinct from `corpus/heldout/`: a variant
+# that paraphrases a held-out excerpt turns P@3 into a memorisation check.
+
+# --- digital arrest: the "no such thing as digital arrest" anchor -------------
+
+- id: var-digital-arrest-002-en
+  kind: variant
+  anchor_id: anch-digital-arrest-002
+  derived: true
+  scam_family: digital_arrest
+  lang: en
+  script: latin
+  title: Video-call custody and a verification account, English
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_ISOLATION_DEMAND]
+  text: >-
+    You are being placed under formal custody through this video call and the proceedings
+    are being recorded. Keep your camera on at all times. Your entire balance must be
+    moved to a Reserve Bank verification account today so the source of funds can be
+    audited; it is refunded once you are cleared. Stay on the line until then.
+
+- id: var-digital-arrest-002-hi-latn
+  kind: variant
+  anchor_id: anch-digital-arrest-002
+  derived: true
+  scam_family: digital_arrest
+  lang: hi_latn
+  script: latin
+  title: Video-call custody and a verification account, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_ISOLATION_DEMAND]
+  text: >-
+    Aap is video call par custody mein hain aur poori recording ho rahi hai. Camera band
+    mat kijiye aur line par rahiye. Aapke account ka paisa RBI ke verification account
+    mein aaj hi transfer karna hoga, audit ke baad wapas mil jayega. Kisi ko bataya to
+    case aur bigad jayega.
+
+- id: var-digital-arrest-002-hi-deva
+  kind: variant
+  anchor_id: anch-digital-arrest-002
+  derived: true
+  scam_family: digital_arrest
+  lang: hi
+  script: devanagari
+  title: वीडियो कॉल हिरासत और सत्यापन खाता, देवनागरी
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_ISOLATION_DEMAND]
+  text: >-
+    आप इस वीडियो कॉल पर हिरासत में हैं और पूरी कार्यवाही रिकॉर्ड हो रही है। कैमरा बंद मत
+    कीजिए और लाइन पर बने रहिए। आपके खाते का पूरा पैसा आज ही रिज़र्व बैंक के सत्यापन खाते में
+    जमा करना होगा, जाँच के बाद वापस मिल जाएगा। किसी को मत बताओ।
+
+# --- voice cloning -----------------------------------------------------------
+
+- id: var-voice-clone-001-en
+  kind: variant
+  anchor_id: anch-voice-clone-001
+  derived: true
+  scam_family: family_emergency
+  lang: en
+  script: latin
+  title: Cloned voice calling from an unfamiliar number, English
+  markers: [MK_URGENT_FINANCIAL_UPI, MK_ISOLATION_DEMAND]
+  text: >-
+    I'm calling from a friend's phone because mine was taken. I know it sounds strange on
+    this line, it's the network. Listen, I can't explain now, I need thirty thousand sent
+    to the account I'm about to message you. Please just do it before you call anyone
+    else, there isn't time.
+
+- id: var-voice-clone-001-hi-latn
+  kind: variant
+  anchor_id: anch-voice-clone-001
+  derived: true
+  scam_family: family_emergency
+  lang: hi_latn
+  script: latin
+  title: Cloned voice calling from an unfamiliar number, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI, MK_ISOLATION_DEMAND]
+  text: >-
+    Doosre phone se call kar raha hoon, mera phone chala gaya hai. Awaaz thodi alag lag
+    rahi hai na, network ka problem hai. Abhi samjha nahi sakta, bas turant tees hazaar
+    is account mein bhej do. Kisi ko phone mat karna pehle, time nahi hai.
+
+- id: var-voice-clone-001-hi-deva
+  kind: variant
+  anchor_id: anch-voice-clone-001
+  derived: true
+  scam_family: family_emergency
+  lang: hi
+  script: devanagari
+  title: क्लोन आवाज़, अनजान नंबर से, देवनागरी
+  markers: [MK_URGENT_FINANCIAL_UPI, MK_ISOLATION_DEMAND]
+  text: >-
+    किसी और के फ़ोन से बात कर रहा हूँ, मेरा फ़ोन छिन गया है। आवाज़ अलग लग रही है तो नेटवर्क
+    की वजह से है। अभी कुछ पूछो मत, तुरंत तीस हज़ार इस खाते में भेजो। पहले किसी को फ़ोन मत
+    करना, समय नहीं है।
+
+# --- credential harvesting ---------------------------------------------------
+
+- id: var-financial-fraud-001-en
+  kind: variant
+  anchor_id: anch-financial-fraud-001
+  derived: true
+  scam_family: financial_fraud
+  lang: en
+  script: latin
+  title: Card credentials for a promised refund, English
+  markers: [MK_OTP_SOLICITATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Your card has been charged twice for the same order and I am processing the reversal
+    from the bank's side. To release it I need the sixteen digit number on the front, the
+    expiry, and the three digit CVV on the back. Confirm the verification code as soon as
+    it arrives, the reversal has to be authorised urgently.
+
+- id: var-financial-fraud-001-hi-latn
+  kind: variant
+  anchor_id: anch-financial-fraud-001
+  derived: true
+  scam_family: financial_fraud
+  lang: hi_latn
+  script: latin
+  title: Card credentials for a promised refund, Latin Hinglish
+  markers: [MK_OTP_SOLICITATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Aapke card se do baar paisa kat gaya hai, main refund process kar raha hoon bank ki
+    taraf se. Card ke aage ka poora number, expiry aur peeche ka CVV bata dijiye. Jo
+    verification code aaya hai wo bhi turant batao, warna refund window band ho jayegi.
+
+- id: var-financial-fraud-001-hi-deva
+  kind: variant
+  anchor_id: anch-financial-fraud-001
+  derived: true
+  scam_family: financial_fraud
+  lang: hi
+  script: devanagari
+  title: रिफ़ंड के बहाने कार्ड की जानकारी, देवनागरी
+  markers: [MK_OTP_SOLICITATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    आपके कार्ड से दो बार पैसा कट गया है, मैं बैंक की तरफ़ से रिफ़ंड कर रहा हूँ। कार्ड के आगे
+    का पूरा नंबर, एक्सपायरी और पीछे का सीवीवी बताइए। जो ओटीपी आया है वो भी तुरंत बताइए, वरना
+    रिफ़ंड नहीं हो पाएगा।
+
+# --- telecom impersonation: numbers on your Aadhaar --------------------------
+
+- id: var-telecom-aadhaar-001-en
+  kind: variant
+  anchor_id: anch-utility-disconnection-002
+  derived: true
+  scam_family: telecom_impersonation
+  lang: en
+  script: latin
+  title: All numbers on your identity to be disconnected, English
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT]
+  text: >-
+    I am calling from the Department of Telecommunications. Nine connections have been
+    issued against your identity document and one of them has been used for criminal
+    messaging. Every number in your name will be barred this evening. I am connecting you
+    to the cyber crime officer handling the case; do not hang up.
+
+- id: var-telecom-aadhaar-001-hi-latn
+  kind: variant
+  anchor_id: anch-utility-disconnection-002
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi_latn
+  script: latin
+  title: All numbers on your identity to be disconnected, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT]
+  text: >-
+    Telecom vibhag se baat kar raha hoon. Aapke identity document par nau connection
+    nikle hain aur ek se criminal message bheje gaye hain. Aaj shaam tak aapke naam ke
+    saare number band kar diye jayenge. Main case wale cyber officer se baat karwata
+    hoon, phone mat kaatna.
+
+- id: var-telecom-aadhaar-001-hi-deva
+  kind: variant
+  anchor_id: anch-utility-disconnection-002
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi
+  script: devanagari
+  title: आपकी पहचान पर जारी सभी नंबर बंद, देवनागरी
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT]
+  text: >-
+    मैं दूरसंचार विभाग से बोल रहा हूँ। आपके पहचान पत्र पर नौ कनेक्शन जारी हुए हैं और एक से
+    आपराधिक संदेश भेजे गए हैं। आज शाम तक आपके नाम के सभी नंबर बंद कर दिए जाएँगे। मैं साइबर
+    सेल के अधिकारी से बात करवाता हूँ, फ़ोन मत काटो।
+
+# --- telecom impersonation: TRAI ---------------------------------------------
+
+- id: var-telecom-impersonation-001-en
+  kind: variant
+  anchor_id: anch-telecom-impersonation-001
+  derived: true
+  scam_family: telecom_impersonation
+  lang: en
+  script: latin
+  title: Regulator threatening to block the number, English
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_CALLBACK_REQUEST]
+  text: >-
+    This is an automated notice from the telecom regulatory authority. Your subscriber
+    number has been flagged in three complaints of unsolicited commercial messaging and
+    the connection is scheduled for termination. To contest this before it takes effect,
+    call us back on the helpline number being read out now.
+
+- id: var-telecom-impersonation-001-hi-latn
+  kind: variant
+  anchor_id: anch-telecom-impersonation-001
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi_latn
+  script: latin
+  title: Regulator threatening to block the number, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_CALLBACK_REQUEST]
+  text: >-
+    Ye telecom regulatory authority ki taraf se automated soochna hai. Aapke number par
+    teen complaint darj hui hain spam messages ki, aur connection band kiya ja raha hai.
+    Isse rokne ke liye hamare helpline number par call us back kijiye.
+
+- id: var-telecom-impersonation-001-hi-deva
+  kind: variant
+  anchor_id: anch-telecom-impersonation-001
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi
+  script: devanagari
+  title: नियामक द्वारा नंबर बंद करने की धमकी, देवनागरी
+  markers: [MK_AUTHORITY_IMPERSONATION]
+  text: >-
+    यह दूरसंचार नियामक प्राधिकरण की ओर से स्वचालित सूचना है। आपके नंबर के विरुद्ध अनचाहे
+    व्यावसायिक संदेश भेजने की तीन शिकायतें दर्ज हुई हैं और कनेक्शन बंद किया जा रहा है।
+    कार्रवाई रोकने के लिए हमारी हेल्पलाइन पर संपर्क कीजिए।
+
+# --- advance fee -------------------------------------------------------------
+
+- id: var-lottery-advance-fee-001-en
+  kind: variant
+  anchor_id: anch-lottery-advance-fee-001
+  derived: true
+  scam_family: lottery_advance_fee
+  lang: en
+  script: latin
+  title: Prize held pending a processing charge, English
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Your mobile number has won second prize in our anniversary draw. The amount is
+    approved and waiting, but foreign remittance rules require the conversion charge to
+    be cleared from your side first. Deposit it into the account I am sending and the
+    full amount is credited the same day. The claim lapses if it is not paid today.
+
+- id: var-lottery-advance-fee-001-hi-latn
+  kind: variant
+  anchor_id: anch-lottery-advance-fee-001
+  derived: true
+  scam_family: lottery_advance_fee
+  lang: hi_latn
+  script: latin
+  title: Prize held pending a processing charge, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Aapka mobile number hamare anniversary draw mein doosra inaam jeeta hai. Paisa
+    approve ho chuka hai, bas conversion charge aapki taraf se jama karna hoga. Is
+    account mein bhej dijiye, usi din poora amount credit ho jayega. Aaj nahi bheja to
+    claim cancel ho jayega.
+
+- id: var-lottery-advance-fee-001-hi-deva
+  kind: variant
+  anchor_id: anch-lottery-advance-fee-001
+  derived: true
+  scam_family: lottery_advance_fee
+  lang: hi
+  script: devanagari
+  title: इनाम रोका गया, पहले शुल्क भेजिए, देवनागरी
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    आपके मोबाइल नंबर ने हमारे वार्षिक ड्रॉ में दूसरा इनाम जीता है। रकम मंज़ूर हो चुकी है,
+    बस रूपांतरण शुल्क आपकी तरफ़ से जमा करना है। इस खाते में तुरंत पैसे भेजो, उसी दिन पूरी
+    राशि आ जाएगी। आज नहीं भेजा तो दावा रद्द हो जाएगा।
+
+# --- QR code payment fraud ---------------------------------------------------
+
+- id: var-qr-code-001-en
+  kind: variant
+  anchor_id: anch-qr-code-001
+  derived: true
+  scam_family: qr_code_fraud
+  lang: en
+  script: latin
+  title: Scan this code to receive the payment, English
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    I have raised the refund from my end but it will not go through until you accept it.
+    I am sending a QR code now. Scan it with any payment app and enter your UPI PIN to
+    confirm receipt, otherwise the credit bounces back to me. Do it quickly, the request
+    expires in a few minutes.
+
+- id: var-qr-code-001-hi-latn
+  kind: variant
+  anchor_id: anch-qr-code-001
+  derived: true
+  scam_family: qr_code_fraud
+  lang: hi_latn
+  script: latin
+  title: Scan this code to receive the payment, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Maine apni taraf se refund daal diya hai lekin jab tak aap accept nahi karenge tab
+    tak nahi aayega. QR code bhej raha hoon, kisi bhi payment app se scan karke apna UPI
+    PIN daal dijiye, tabhi paisa credit hoga. Jaldi kijiye, request expire ho jayegi.
+
+- id: var-qr-code-001-hi-deva
+  kind: variant
+  anchor_id: anch-qr-code-001
+  derived: true
+  scam_family: qr_code_fraud
+  lang: hi
+  script: devanagari
+  title: पैसा पाने के लिए यह कोड स्कैन कीजिए, देवनागरी
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    मैंने अपनी तरफ़ से रिफ़ंड भेज दिया है, लेकिन जब तक आप स्वीकार नहीं करेंगे तब तक नहीं
+    आएगा। क्यूआर कोड भेज रहा हूँ, किसी भी पेमेंट ऐप से स्कैन करके अपना यूपीआई पिन डालिए,
+    तभी पैसा आएगा। जल्दी कीजिए, रिक्वेस्ट ख़त्म हो जाएगी।
+
+# =============================================================================
+# Batch 2 — completing the partial triples.
+# These anchors already had one or two scripts; the missing ones are what left a
+# Devanagari or Latin-Hinglish call with no foreground to retrieve against.
+# =============================================================================
+
+# --- KYC: the missing Devanagari -------------------------------------------
+
+- id: var-kyc-update-001-hi-deva
+  kind: variant
+  anchor_id: anch-kyc-update-001
+  derived: true
+  scam_family: kyc_update
+  lang: hi
+  script: devanagari
+  title: केवाईसी समाप्त, खाता बंद होगा, देवनागरी
+  markers: [MK_OTP_SOLICITATION]
+  text: >-
+    मैं बैंक के मुख्य कार्यालय से बोल रहा हूँ। आपके खाते की केवाईसी की अवधि समाप्त हो गई है
+    और आज रात तक खाता बंद कर दिया जाएगा। अभी आपके नंबर पर एक ओटीपी भेजा है, वो बताइए, मैं
+    अपनी तरफ़ से अपडेट कर देता हूँ।
+
+# --- electricity disconnection: the missing English and Devanagari ---------
+
+- id: var-utility-disconnection-001-en
+  kind: variant
+  anchor_id: anch-utility-disconnection-001
+  derived: true
+  scam_family: utility_disconnection
+  lang: en
+  script: latin
+  title: Meter KYC not updated, supply to be cut, English
+  markers: [MK_URGENT_FINANCIAL_UPI, MK_CALLBACK_REQUEST]
+  text: >-
+    This is a notice from the electricity board. Your meter KYC was not updated against
+    last month's bill, so the supply at your address is scheduled for disconnection
+    tonight. Call us back on the helpline number in this message and make the pending
+    payment immediately to keep the connection active.
+
+- id: var-utility-disconnection-001-hi-deva
+  kind: variant
+  anchor_id: anch-utility-disconnection-001
+  derived: true
+  scam_family: utility_disconnection
+  lang: hi
+  script: devanagari
+  title: मीटर केवाईसी अपडेट नहीं, बिजली कटेगी, देवनागरी
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    यह बिजली विभाग की सूचना है। पिछले बिल के साथ आपके मीटर की केवाईसी अपडेट नहीं हुई है,
+    इसलिए आज रात आपके पते का कनेक्शन काट दिया जाएगा। कनेक्शन चालू रखने के लिए तुरंत इस नंबर
+    पर बकाया राशि भेजो।
+
+# --- parcel and customs: the missing Hinglish and Devanagari ---------------
+
+- id: var-parcel-customs-001-hi-latn
+  kind: variant
+  anchor_id: anch-parcel-customs-001
+  derived: true
+  scam_family: parcel_customs
+  lang: hi_latn
+  script: latin
+  title: Customs seizure, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Aapke naam se ek parcel customs ne rok liya hai, usme banned saman mila hai. Case
+    narcotics department ko bhej diya gaya hai. FIR se bachna hai to clearance charge
+    turant jama karna hoga, warna giraftari ho sakti hai.
+
+- id: var-parcel-customs-001-hi-deva
+  kind: variant
+  anchor_id: anch-parcel-customs-001
+  derived: true
+  scam_family: parcel_customs
+  lang: hi
+  script: devanagari
+  title: कस्टम ज़ब्ती, देवनागरी
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    आपके नाम से बुक किया गया एक पार्सल कस्टम विभाग ने रोक लिया है, उसमें प्रतिबंधित सामान
+    मिला है। मामला नारकोटिक्स विभाग को भेज दिया गया है। एफ़आईआर और गिरफ़्तारी से बचने के लिए
+    क्लियरेंस शुल्क तुरंत जमा करना होगा।
+
+# --- regulator misuse: the second TRAI anchor ------------------------------
+
+- id: var-telecom-impersonation-002-en
+  kind: variant
+  anchor_id: anch-telecom-impersonation-002
+  derived: true
+  scam_family: telecom_impersonation
+  lang: en
+  script: latin
+  title: Licence issue in the regulator's name, English
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    We are contacting you on behalf of the telecom authority regarding a licensing
+    irregularity linked to your connection. A regulatory penalty has been raised against
+    your number and must be settled before the end of the day. Confirm your full name and
+    address, then pay the penalty to the account we are sending you.
+
+- id: var-telecom-impersonation-002-hi-latn
+  kind: variant
+  anchor_id: anch-telecom-impersonation-002
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi_latn
+  script: latin
+  title: Licence issue in the regulator's name, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Hum telecom authority ki taraf se baat kar rahe hain, aapke connection par licence ka
+    issue aaya hai. Aapke number par regulatory penalty lagi hai jo aaj hi bharni hogi.
+    Apna poora naam aur pata confirm kijiye, phir jo account bhej rahe hain usme turant
+    penalty transfer kar dijiye.
+
+- id: var-telecom-impersonation-002-hi-deva
+  kind: variant
+  anchor_id: anch-telecom-impersonation-002
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi
+  script: devanagari
+  title: नियामक के नाम पर लाइसेंस शुल्क, देवनागरी
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    हम दूरसंचार प्राधिकरण की ओर से बात कर रहे हैं, आपके कनेक्शन पर लाइसेंस से जुड़ी अनियमितता
+    पाई गई है। आपके नंबर पर जुर्माना लगाया गया है जो आज ही भरना होगा। अपना पूरा नाम और पता
+    बताइए, फिर जो खाता भेज रहे हैं उसमें तुरंत पैसे भेजो।
+
+# =============================================================================
+# Batch 3 — the last uncovered anchor.
+# =============================================================================
+
+- id: var-sms-fraud-001-en
+  kind: variant
+  anchor_id: anch-sms-fraud-001
+  derived: true
+  scam_family: sms_fraud
+  lang: en
+  script: latin
+  title: Fake redelivery and refund links, English
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Your package could not be delivered because the address was incomplete. A small
+    redelivery charge is pending. Open the link in the message we just sent, confirm your
+    details and pay the charge today, otherwise the parcel will be returned to the
+    warehouse and the amount will be forfeited.
+
+- id: var-sms-fraud-001-hi-latn
+  kind: variant
+  anchor_id: anch-sms-fraud-001
+  derived: true
+  scam_family: sms_fraud
+  lang: hi_latn
+  script: latin
+  title: Fake redelivery and refund links, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Aapka parcel deliver nahi ho paya kyunki address adhura tha. Thoda redelivery charge
+    pending hai. Jo link message mein bheja hai usme apni details daal kar aaj hi payment
+    kar dijiye, warna parcel wapas chala jayega.
+
+- id: var-sms-fraud-001-hi-deva
+  kind: variant
+  anchor_id: anch-sms-fraud-001
+  derived: true
+  scam_family: sms_fraud
+  lang: hi
+  script: devanagari
+  title: नकली री-डिलीवरी और रिफ़ंड लिंक, देवनागरी
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    आपका पार्सल डिलीवर नहीं हो सका क्योंकि पता अधूरा था। थोड़ा री-डिलीवरी शुल्क बाकी है।
+    जो लिंक संदेश में भेजा है उसमें अपनी जानकारी भरकर आज ही भुगतान कीजिए, वरना पार्सल वापस
+    चला जाएगा।

@@ -37,8 +37,13 @@ def test_similarity_floor_comes_from_config():
 
 
 def test_thresholds_owned_by_b_are_not_overridden_by_config():
-    """config.py defines none of these, so B's documented defaults must survive."""
-    assert thresholds.SCRIPT_Z0 == 4.0
+    """config.py defines none of these, so B's documented defaults must survive.
+
+    SCRIPT_Z0 tracks the corpus: it was raised 4.0 -> 5.5 when the indexed corpus grew
+    26 -> 56, because growing the scam index lifts every benign z. If C later defines it
+    in config.py this assertion is the thing that will say so.
+    """
+    assert thresholds.SCRIPT_Z0 == 5.5
     assert thresholds.CORROBORATION_FLOOR == 0.35
 
 
