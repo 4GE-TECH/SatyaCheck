@@ -87,13 +87,23 @@ def configure(
         corpus = load_corpus(corpus_dir or CORPUS_DIR)
 
         # Warm start: reuse pre-encoded vectors if `python -m nlp_rag.index_store` has
-        # been run. Missing, stale or corrupt artefacts fall through to encoding.
-        cached = index_store.load(*index_store.default_paths())
-        vectors = cached.vectors if cached else None
+        # been run. Missing, stale, corrupt or foreign artefacts fall through to
+        # encoding. `expect_encoder` matters: a cache written by BGE-m3 read against the
+        # 256-dim stand-in is not a degraded result, it is a matmul shape error raised
+        # from inside a live request.
+        cached = index_store.load(
+            *index_store.default_paths(),
+            expect_encoder=index_store.encoder_id(encoder),
+        )
         if cached:
-            logger.info("index cache hit: %d vectors", len(vectors))
+            logger.info("index cache hit: %d vectors", len(cached.vectors))
 
-        _retriever = Retriever(encoder, corpus, vectors=vectors)
+        _retriever = Retriever(
+            encoder,
+            corpus,
+            vectors=cached.vectors if cached else None,
+            hashes=cached.hashes if cached else None,
+        )
     except Exception as exc:  # noqa: BLE001 - a broken corpus degrades, never raises
         logger.warning("retriever unavailable (%s); intent branch runs markers-only", exc)
         _retriever = None

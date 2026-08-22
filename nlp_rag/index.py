@@ -45,5 +45,10 @@ class InnerProductIndex:
             return []
         return [float(s) for s in self._matrix @ np.asarray(query, dtype=np.float32)]
 
+    @property
+    def ids(self) -> list[str]:
+        """Indexed ids, in the order `scores_against_all` returns scores."""
+        return list(self._ids)
+
     def __len__(self) -> int:
         return len(self._ids)

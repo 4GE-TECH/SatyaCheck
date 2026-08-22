@@ -33,6 +33,11 @@ class RetrievalResult:
 
     playbooks: list[RetrievedPlaybook] = field(default_factory=list)
     cohort_similarities: list[float] = field(default_factory=list)
+    #: Cohort document ids, positionally aligned with `cohort_similarities`. Scoring
+    #: ignores them; `eval_retrieval` needs them to score a benign document
+    #: leave-one-out, since a document's own ~1.0 self-similarity would otherwise sit in
+    #: the background it is being compared against and understate its risk.
+    cohort_ids: list[str] = field(default_factory=list)
     top_similarity: float = 0.0
     top_doc_id: str | None = None
     #: Markers the top-scoring document exemplifies. Scoring suppresses these from the
@@ -52,15 +57,23 @@ class Retriever:
         encoder: Encoder,
         corpus: Corpus,
         vectors: dict[str, np.ndarray] | None = None,
+        hashes: dict[str, str] | None = None,
     ) -> None:
         """`vectors` is an optional `{doc_id: embedding}` cache from `index_store`.
 
         Documents present in it are not re-encoded, which is what makes a warm start
         cheap under BGE-m3. Documents absent from it still are, so adding a corpus
         document never means discarding the whole cache.
+
+        `hashes` is the matching `{doc_id: sha256(text)}` map. A document whose text no
+        longer hashes to its cached value is re-encoded: without this, editing a body
+        under an unchanged id serves the previous wording's embedding indefinitely and
+        reports nothing. Passing `None` keeps the old id-only behaviour, so a cache
+        written before hashes were stored still loads.
         """
         self._encoder = encoder
         self._corpus = corpus
+        self._hashes = hashes
 
         self._scam_index = InnerProductIndex()
         self._cohort_index = InnerProductIndex()
@@ -79,12 +92,23 @@ class Retriever:
                 self._embed(benign, vectors),
             )
 
+    def _is_stale(self, doc) -> bool:
+        """True when the cached vector was built from different text."""
+        if self._hashes is None:
+            return False
+        cached = self._hashes.get(doc.id)
+        if cached is None:
+            return True
+        from nlp_rag.index_store import text_hash
+
+        return cached != text_hash(doc.text)
+
     def _embed(self, docs, cache: dict[str, np.ndarray] | None) -> np.ndarray:
-        """Encode only what the cache does not already hold."""
+        """Encode only what the cache does not already hold, or holds stale."""
         if cache is None:
             return self._encoder.encode([doc.text for doc in docs])
 
-        missing = [doc for doc in docs if doc.id not in cache]
+        missing = [doc for doc in docs if doc.id not in cache or self._is_stale(doc)]
         fresh: dict[str, np.ndarray] = {}
         if missing:
             encoded = self._encoder.encode([doc.text for doc in missing])
@@ -92,8 +116,10 @@ class Retriever:
                 doc.id: np.asarray(vec, dtype=np.float32)
                 for doc, vec in zip(missing, encoded)
             }
+        # Freshly encoded wins over cached. A stale document is present in *both* maps,
+        # and reading the cache first would re-serve the vector we just replaced.
         return np.stack(
-            [cache.get(doc.id, fresh.get(doc.id)) for doc in docs]
+            [fresh.get(doc.id, cache.get(doc.id)) for doc in docs]
         ).astype(np.float32)
 
     def search(self, text: str, k: int = 5) -> RetrievalResult:
@@ -104,7 +130,8 @@ class Retriever:
         hits = self._scam_index.search(query, k)
         if not hits:
             return RetrievalResult(
-                cohort_similarities=self._cohort_index.scores_against_all(query)
+                cohort_similarities=self._cohort_index.scores_against_all(query),
+                cohort_ids=self._cohort_index.ids,
             )
 
         return RetrievalResult(
@@ -112,6 +139,7 @@ class Retriever:
                 self._corpus.to_playbook(doc_id, score) for doc_id, score in hits
             ],
             cohort_similarities=self._cohort_index.scores_against_all(query),
+            cohort_ids=self._cohort_index.ids,
             top_similarity=hits[0][1],
             top_doc_id=hits[0][0],
             top_doc_markers=self._corpus.markers_for(hits[0][0]),
