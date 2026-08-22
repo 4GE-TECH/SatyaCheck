@@ -1,5 +1,5 @@
 {
-  "genuine_file": "data/demo_clips/friend_test_nb8k_probe.wav",
+  "genuine_probe": "data/demo_clips/friend_test_nb8k_probe.wav",
   "impostor_files": [
     "data/eval_set/raw/person1.wav",
     "data/eval_set/raw/person2.wav",
@@ -7,16 +7,6 @@
   ],
   "conditions": {
     "wideband": {
-      "genuine_score": 0.8639527559280396,
-      "impostor_mean": 0.22724875311056772,
-      "impostor_scores": [
-        0.24534690380096436,
-        0.11224128305912018,
-        0.32415807247161865
-      ],
-      "separation": 0.6367040028174719
-    },
-    "naive_nb8k": {
       "genuine_score": 0.8639527559280396,
       "impostor_mean": 0.22724875311056772,
       "impostor_scores": [

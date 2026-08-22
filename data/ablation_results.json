@@ -1,43 +1,47 @@
 {
-  "description": "Condition-matched enrollment ablation showing simulated vs genuine narrowband degradation",
-  "key_finding": "Genuine phone-degraded audio is 14.6% BETTER MATCHED (separation 0.5268 vs 0.4596) than ffmpeg-simulated degradation when compared against the correctly-matched centroid. This quantifies how computationally-simulated codec degradation differs from real telephony.",
-  "genuine_file": "data/demo_clips/friend_test_nb8k_probe.wav",
+  "description": "Condition-matched enrollment ablation: simulated vs genuine narrowband",
+  "key_finding": "Genuine phone-degraded audio with condition matching achieves 14.6% BETTER SEPARATION (0.5268 vs 0.4596) than ffmpeg-simulated degradation. However, BOTH lose separation vs not doing condition matching (0.6367 baseline). Genuine phone narrowband is more distinctive than simulated, but a single wideband centroid may be more robust than condition-matched approaches.",
+  "genuine_probe": "data/demo_clips/friend_test_nb8k_probe.wav",
   "impostor_files": [
     "data/eval_set/raw/person1.wav",
     "data/eval_set/raw/person2.wav",
     "data/eval_set/raw/person3.wav"
   ],
   "by_condition": {
-    "wideband": {
-      "description": "Baseline: genuine wideband probe vs enrolled friend wideband centroid",
+    "wideband_baseline": {
+      "description": "Baseline: genuine narrowband probe vs enrolled wideband centroid (mismatch, no condition awareness)",
       "genuine_score": 0.8640,
-      "impostor_mean": 0.2272,
-      "impostor_scores": [0.2453, 0.1122, 0.3242],
-      "separation": 0.6367
-    },
-    "naive_nb8k": {
-      "description": "Degraded probe vs wideband centroid (no condition matching)",
-      "genuine_score": 0.8640,
+      "genuine_description": "phone-degraded audio scored against wideband centroid",
       "impostor_mean": 0.2272,
       "impostor_scores": [0.2453, 0.1122, 0.3242],
       "separation": 0.6367
     },
     "simulated_matched": {
-      "description": "Degraded probe vs ffmpeg-simulated narrowband centroid (simulated condition matching)",
+      "description": "Condition-matched with simulated degradation: genuine narrowband probe vs ffmpeg-degraded centroid",
       "genuine_score": 0.6506,
+      "genuine_description": "phone-degraded probe scored against centroid from ffmpeg-degraded wideband",
       "impostor_mean": 0.1911,
       "impostor_scores": [0.1863, 0.1294, 0.2575],
       "separation": 0.4596,
-      "note": "Computed by degrading wideband enrollment with ffmpeg"
+      "vs_baseline": "-27.8%",
+      "note": "Centroid created by degrading wideband enrollment with ffmpeg"
     },
     "genuine_matched": {
-      "description": "Degraded probe vs genuine narrowband centroid (real condition matching)",
+      "description": "Condition-matched with genuine audio: genuine narrowband probe vs genuine narrowband centroid",
       "genuine_score": 0.7298,
+      "genuine_description": "phone-degraded probe scored against centroid from genuine phone-degraded audio",
       "impostor_mean": 0.2030,
       "impostor_scores": [0.2077, 0.1007, 0.3007],
       "separation": 0.5268,
-      "improvement_vs_simulated": "+14.6%",
-      "note": "Computed from genuinely phone-degraded enrollment audio (friend_test_nb8k_enroll.wav)"
+      "vs_baseline": "-17.2%",
+      "vs_simulated": "+14.6%",
+      "note": "Centroid created from friend_test_nb8k_enroll.wav (genuine phone audio)"
     }
+  },
+  "interpretation": {
+    "genuine_vs_simulated": "Genuine phone-degraded audio is 14.6% MORE DISTINCTIVE when matched against a centroid created from similar phone audio than when compared against a centroid from computationally-simulated degradation.",
+    "condition_matching_trade": "Condition-matched enrollment trades absolute separation for acoustic-condition specificity. A narrowband probe loses 17-28% separation when compared against condition-matched centroids vs a generic wideband centroid.",
+    "robustness_vs_specificity": "Single wideband centroid achieves best separation but ignores probe condition. Condition-matched enrollment with genuine audio achieves better separation than simulated, but at cost of lower absolute separation.",
+    "recommendation": "For this speaker and test set, a single wideband centroid is most robust. Condition-matching adds value only when degradation characteristics matter more than raw separation (e.g., applications where phone calls are common and reproducibility matters)."
   }
 }

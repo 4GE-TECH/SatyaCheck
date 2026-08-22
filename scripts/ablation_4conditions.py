@@ -1,12 +1,16 @@
 """
-scripts/ablation_4conditions.py — Four-condition ablation: WB, naive NB8K, simulated-matched, genuine-matched.
+scripts/ablation_4conditions.py — Four-condition ablation measuring the gap between
+simulated and genuine narrowband audio when condition-matched.
 
-Measures the gap between computationally-simulated codec degradation (ffmpeg)
-and genuine phone-quality narrowband audio.
+Tests: genuine narrowband probe (friend_test_nb8k_probe.wav, already phone-degraded)
+Enrollment: Friend with 3 centroids (wb, nb8k_sim from ffmpeg, nb8k_real from phone)
 
-Probe: held-out narrowband test portion (friend_test_nb8k_probe.wav)
-Genuine source: narrowband enrollment portion (friend_test_nb8k_enroll.wav)
-Impostors: person1.wav, person2.wav, person3.wav
+Conditions:
+  1. wideband: genuine narrowband probe vs wb centroid (naive mismatch - baseline)
+  2. simulated_matched: genuine narrowband probe vs nb8k_sim (ffmpeg-degraded)
+  3. genuine_matched: genuine narrowband probe vs nb8k_real (real phone-degraded)
+
+Expected: wideband > genuine_matched > simulated_matched (in separation)
 """
 
 import sys
@@ -16,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from audio_ml.verify import verify_speaker
-from audio_ml import embed, enroll, codec
+from audio_ml import embed, enroll
 import logging
 import numpy as np
 
@@ -24,29 +28,31 @@ logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 def main():
-    print("\n" + "=" * 100)
-    print("FOUR-CONDITION ABLATION: Simulated vs Genuine Narrowband")
-    print("=" * 100)
+    print("\n" + "=" * 110)
+    print("THREE-CONDITION ABLATION: Genuine Narrowband Probe vs Different Centroids")
+    print("=" * 110)
 
-    genuine_file = "data/demo_clips/friend_test_nb8k_probe.wav"
+    genuine_probe = "data/demo_clips/friend_test_nb8k_probe.wav"
     impostor_files = [
         "data/eval_set/raw/person1.wav",
         "data/eval_set/raw/person2.wav",
         "data/eval_set/raw/person3.wav",
     ]
 
-    # Load genuine speaker's voiceprint
+    # Load friend's voiceprint with 3 centroids
     voiceprint = enroll.load_voiceprint("friend")
     if not voiceprint:
         logger.error("Friend voiceprint not found")
         return
 
-    # Load genuine probe embedding
-    audio, sr = embed.load_audio(genuine_file)
+    # Load genuine probe (narrowband, phone-degraded)
+    logger.info(f"Loading genuine probe: {genuine_probe}")
+    audio, sr = embed.load_audio(genuine_probe)
     if len(audio) == 0:
-        logger.error(f"Failed to load {genuine_file}")
+        logger.error(f"Failed to load {genuine_probe}")
         return
 
+    condition = embed.detect_condition(audio, sr)
     segments = embed.vad_segments(audio, sr)
     embeddings = embed.embed_chunks(audio, sr, segments)
     probe_emb = np.mean(embeddings, axis=0).astype(np.float32)
@@ -54,19 +60,51 @@ def main():
     if probe_norm > 0:
         probe_emb = probe_emb / probe_norm
 
-    logger.info(f"Genuine probe: {len(embeddings)} chunks from {genuine_file}")
+    logger.info(f"  Detected condition: {condition}")
+    logger.info(f"  Chunks extracted: {len(embeddings)}")
+    logger.info(f"  Duration: {len(audio)/sr:.2f}s at {sr}Hz")
 
-    # Load impostor embeddings and score them
-    impostor_scores_all = {}
-    for cond_name in ["wideband", "naive_nb8k", "simulated_matched", "genuine_matched"]:
-        impostor_scores_all[cond_name] = []
+    # Genuine scores: compare genuine probe against each centroid
+    genuine_scores = {}
+    centroid_info = {
+        "wideband": ("wb centroid (wideband baseline)", voiceprint["wb"]),
+        "simulated_matched": ("nb8k_sim centroid (ffmpeg-degraded)", voiceprint["nb8k_sim"]),
+        "genuine_matched": ("nb8k_real centroid (genuine phone-degraded)", voiceprint.get("nb8k_real")),
+    }
+
+    print("\n" + "=" * 110)
+    print("GENUINE PROBE SCORES")
+    print("=" * 110)
+    print(f"Probe file: {genuine_probe} (detected as {condition})")
+    print(f"{'Condition':<25} {'Centroid':<40} {'Score':<12}")
+    print("-" * 110)
+
+    for cond_name, (centroid_desc, centroid) in centroid_info.items():
+        if centroid is None:
+            genuine_scores[cond_name] = 0.0
+            print(f"{cond_name:<25} {centroid_desc:<40} {'N/A (missing)':<12}")
+        else:
+            score = float(np.dot(probe_emb, centroid))
+            genuine_scores[cond_name] = score
+            print(f"{cond_name:<25} {centroid_desc:<40} {score:<12.4f}")
+
+    # Impostor scores
+    impostor_scores = {}
+    for cond_name in centroid_info.keys():
+        impostor_scores[cond_name] = []
+
+    print("\n" + "=" * 110)
+    print("IMPOSTOR SCORES")
+    print("=" * 110)
 
     for impostor_file in impostor_files:
+        logger.info(f"Loading impostor: {Path(impostor_file).name}")
         audio, sr = embed.load_audio(impostor_file)
         if len(audio) == 0:
             logger.warning(f"Failed to load {impostor_file}")
             continue
 
+        condition_imp = embed.detect_condition(audio, sr)
         segments = embed.vad_segments(audio, sr)
         embeddings = embed.embed_chunks(audio, sr, segments)
         impostor_emb = np.mean(embeddings, axis=0).astype(np.float32)
@@ -74,33 +112,27 @@ def main():
         if impostor_norm > 0:
             impostor_emb = impostor_emb / impostor_norm
 
-        logger.info(f"  Impostor {Path(impostor_file).name}: {len(embeddings)} chunks")
-
-        # Score impostor against each centroid
-        impostor_scores_all["wideband"].append(float(np.dot(impostor_emb, voiceprint["wb"])))
-        impostor_scores_all["naive_nb8k"].append(float(np.dot(impostor_emb, voiceprint["wb"])))  # impostor vs wb centroid
-        impostor_scores_all["simulated_matched"].append(float(np.dot(impostor_emb, voiceprint["nb8k_sim"])))
-        impostor_scores_all["genuine_matched"].append(float(np.dot(impostor_emb, voiceprint["nb8k_real"])) if (voiceprint.get("nb8k_real") is not None) else 0.0)
-
-    # Compute genuine scores
-    genuine_scores = {
-        "wideband": float(np.dot(probe_emb, voiceprint["wb"])),
-        "naive_nb8k": float(np.dot(probe_emb, voiceprint["wb"])),  # nb8k probe vs wb centroid
-        "simulated_matched": float(np.dot(probe_emb, voiceprint["nb8k_sim"])),
-        "genuine_matched": float(np.dot(probe_emb, voiceprint["nb8k_real"])) if (voiceprint.get("nb8k_real") is not None) else 0.0,
-    }
+        print(f"\n{Path(impostor_file).name} (detected as {condition_imp}):")
+        for cond_name, (centroid_desc, centroid) in centroid_info.items():
+            if centroid is None:
+                impostor_scores[cond_name].append(0.0)
+                print(f"  {cond_name:<23} vs {centroid_desc:<38} = N/A")
+            else:
+                score = float(np.dot(impostor_emb, centroid))
+                impostor_scores[cond_name].append(score)
+                print(f"  {cond_name:<23} vs {centroid_desc:<38} = {score:.4f}")
 
     # Compute stats
-    print("\n" + "=" * 100)
-    print("RESULTS")
-    print("=" * 100)
-    print(f"{'Condition':<30} {'Genuine':<12} {'Impostor Avg':<15} {'Separation':<12}")
-    print("-" * 100)
+    print("\n" + "=" * 110)
+    print("SUMMARY: SEPARATION METRICS")
+    print("=" * 110)
+    print(f"{'Condition':<25} {'Genuine':<12} {'Impostor Avg':<15} {'Separation':<12}")
+    print("-" * 110)
 
     results = {}
-    for cond in ["wideband", "naive_nb8k", "simulated_matched", "genuine_matched"]:
+    for cond in centroid_info.keys():
         genuine = genuine_scores[cond]
-        impostors = impostor_scores_all[cond]
+        impostors = impostor_scores[cond]
         impostor_mean = np.mean(impostors) if impostors else 0.0
         separation = genuine - impostor_mean
 
@@ -111,13 +143,13 @@ def main():
             "separation": float(separation),
         }
 
-        print(f"{cond:<30} {genuine:<12.4f} {impostor_mean:<15.4f} {separation:<12.4f}")
+        print(f"{cond:<25} {genuine:<12.4f} {impostor_mean:<15.4f} {separation:<12.4f}")
 
     # Save results
     output_path = Path("data/ablation_4conditions.json")
     with open(output_path, "w") as f:
         json.dump({
-            "genuine_file": genuine_file,
+            "genuine_probe": genuine_probe,
             "impostor_files": impostor_files,
             "conditions": results,
         }, f, indent=2)
@@ -125,23 +157,32 @@ def main():
     print(f"\nResults saved to {output_path}")
 
     # Key finding
-    print("\n" + "=" * 100)
+    print("\n" + "=" * 110)
     print("KEY FINDING")
-    print("=" * 100)
-    if "simulated_matched" in results and "genuine_matched" in results:
-        sim_sep = results["simulated_matched"]["separation"]
-        gen_sep = results["genuine_matched"]["separation"]
+    print("=" * 110)
+
+    wb_sep = results["wideband"]["separation"]
+    sim_sep = results["simulated_matched"]["separation"]
+    gen_sep = results["genuine_matched"]["separation"]
+
+    print(f"Wideband baseline (mismatch):     separation = {wb_sep:.4f}")
+    print(f"Simulated (ffmpeg-matched):       separation = {sim_sep:.4f}")
+    print(f"Genuine (phone-matched):          separation = {gen_sep:.4f}")
+
+    if gen_sep > sim_sep:
         gap = gen_sep - sim_sep
-        pct_improvement = (gap / sim_sep * 100) if sim_sep != 0 else 0
-        print(f"Simulated codec (ffmpeg):     separation = {sim_sep:.4f}")
-        print(f"Genuine narrowband (phone):  separation = {gen_sep:.4f}")
-        print(f"Gap (genuine - simulated):   {gap:+.4f} ({pct_improvement:+.1f}%)")
-        print("\nInterpretation:")
-        if gap > 0:
-            print(f"  Genuine phone audio matches {pct_improvement:.1f}% BETTER than simulated degradation.")
-        else:
-            print(f"  Genuine phone audio matches {abs(pct_improvement):.1f}% WORSE than simulated degradation.")
-        print("  This quantifies the difference between real telephony and computational simulation.")
+        pct = (gap / sim_sep * 100) if sim_sep != 0 else 0
+        print(f"\nGap (genuine - simulated): {gap:+.4f} ({pct:+.1f}%)")
+        print(f"RESULT: Genuine narrowband is {pct:.1f}% BETTER than simulated degradation")
+    elif gen_sep < sim_sep:
+        gap = sim_sep - gen_sep
+        pct = (gap / sim_sep * 100) if sim_sep != 0 else 0
+        print(f"\nGap (simulated - genuine): {gap:+.4f} ({pct:+.1f}%)")
+        print(f"RESULT: Genuine narrowband is {pct:.1f}% WORSE than simulated degradation")
+        print("WARNING: This indicates condition-matched enrollment with genuine audio")
+        print("         is NOT improving separation compared to simulated degradation.")
+    else:
+        print(f"\nNo difference between simulated and genuine")
 
 if __name__ == "__main__":
     main()
