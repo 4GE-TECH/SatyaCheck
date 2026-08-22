@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import type { MockScenario } from "../api/mock";
+import { PearlButton } from "@/components/ui/pearl-button";
 
 interface IdleCheckScreenProps {
   onSelectScenario: (scenario: MockScenario) => void;
@@ -80,23 +81,18 @@ export default function IdleCheckScreen({
           </p>
         </div>
 
-        {/* Big Touch-Friendly Buttons */}
-        <div className="max-w-md mx-auto space-y-3 pt-2 relative z-10">
-          <button
+        {/* Big Pearl Buttons */}
+        <div className="max-w-md mx-auto space-y-4 pt-2 relative z-10 flex flex-col items-center">
+          <PearlButton
             onClick={() => setIsListening(!isListening)}
             disabled={isLoading}
-            className={`w-full py-4 px-6 rounded-xl text-base font-bold transition-all cursor-pointer shadow-xl flex items-center justify-center gap-3 font-mono border ${
+            className="w-full flex items-center justify-center"
+            label={
               isListening
-                ? "bg-red-600 hover:bg-red-700 text-white border-red-400 animate-pulse"
-                : "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-black border-transparent shadow-[0_0_24px_-4px_rgba(56,189,248,0.35)]"
-            }`}
-          >
-            <span>
-              {isListening
                 ? `Listening on Speakerphone (${listenTimer}s)...`
-                : "Listen to Call on Speakerphone"}
-            </span>
-          </button>
+                : "Listen to Call on Speakerphone"
+            }
+          />
 
           <button
             onClick={() => fileInputRef.current?.click()}
