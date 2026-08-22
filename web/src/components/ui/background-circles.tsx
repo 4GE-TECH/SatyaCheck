@@ -218,7 +218,7 @@ export function BackgroundCircles({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
       >
-        <h1 className="text-3xl sm:text-5xl font-black tracking-tight font-mono text-[var(--text-primary)] leading-tight">
+        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black uppercase tracking-wider font-akira text-[var(--text-primary)] leading-tight">
           {title}
         </h1>
 

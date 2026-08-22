@@ -42,7 +42,7 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
               #{reportId}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-mono">
+          <h1 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] font-akira uppercase tracking-wide">
             Cybercrime Incident Report (1930)
           </h1>
           <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-1">

@@ -69,7 +69,7 @@ export default function EnrollPage() {
     <div className="space-y-6 pb-12">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight font-mono">
+        <h1 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-wide font-akira uppercase">
           My Family Voice Vault
         </h1>
         <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-1">

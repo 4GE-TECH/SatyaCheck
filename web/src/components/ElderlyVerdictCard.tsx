@@ -118,7 +118,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
           </div>
 
           <h1
-            className={`text-2xl sm:text-4xl font-black tracking-tight leading-tight uppercase font-mono ${
+            className={`text-2xl sm:text-4xl font-black tracking-wide leading-tight uppercase font-akira ${
               isHighRisk
                 ? "text-[var(--danger)] drop-shadow-sm"
                 : isSuspicious
