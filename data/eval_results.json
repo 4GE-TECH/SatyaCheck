@@ -1,13 +1,13 @@
 {
-  "timestamp": 1787409261.6413538,
+  "timestamp": 1787410876.6738596,
   "speaker_verification": {
     "genuine_mean": 0.9588,
-    "clone_mean": 0.7578,
-    "impostor_mean": 0.3241,
-    "separation_genuine_vs_clone": 0.201,
-    "separation_genuine_vs_impostor": 0.6347,
-    "eer_pct": 0.0,
-    "eer_threshold": 0.9588
+    "clone_mean": 0.7631,
+    "impostor_mean": 0.3375,
+    "separation_genuine_vs_clone": 0.1957,
+    "separation_genuine_vs_impostor": 0.6213,
+    "eer_pct": "n=1 genuine sample, not statistically meaningful",
+    "eer_threshold": null
   },
   "clone_detection": {
     "clone_detection_rate": 1.0,

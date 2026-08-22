@@ -361,9 +361,12 @@ def detect_condition(audio: np.ndarray, sr: int) -> str:
         Returns "wb" on error or if detection is inconclusive.
 
     Heuristic:
-        - If significant energy exists above 4 kHz, classify as "wb".
-        - If minimal energy above 4 kHz (< 10% of total), likely narrowband.
-        - Also checks for specific codec artifacts (attempted via spectral peaks).
+        The key signal for narrowband is the absence of energy above 8kHz.
+        Wideband audio has significant energy in the 8-16kHz range (from formants,
+        fricatives, sibilants). Narrowband (resampled from 8kHz) has zero energy
+        above 8kHz (hard cutoff at Nyquist).
+
+        Human speech naturally has most energy below 4kHz; that's not a narrowband indicator.
     """
     if len(audio) < 512:
         return "wb"
@@ -383,23 +386,30 @@ def detect_condition(audio: np.ndarray, sr: int) -> str:
         spectrum = np.abs(np.fft.rfft(audio_padded))
         spectrum = spectrum ** 2  # Power spectrum
 
-        # Energy in different frequency bands
+        # Energy in frequency bands: the key is 8-16kHz
         energy_0_4k = np.sum(spectrum[freqs <= 4000])
         energy_4k_8k = np.sum(spectrum[(freqs > 4000) & (freqs <= 8000)])
+        energy_8k_16k = np.sum(spectrum[(freqs > 8000) & (freqs <= 16000)])
         total_energy = np.sum(spectrum)
 
         if total_energy < 1e-10:
             return "wb"
 
-        # Ratio of energy above 4 kHz
-        high_freq_ratio = (energy_4k_8k) / total_energy
+        # Key heuristic: narrowband has NO energy above 8kHz
+        # Wideband has at least some energy in 8-16kHz range (from fricatives, sibilants, formants)
+        energy_above_8k_ratio = energy_8k_16k / total_energy
 
-        # If very little energy above 4 kHz, likely narrowband (8kHz Nyquist)
-        if high_freq_ratio < 0.05:  # < 5% above 4kHz suggests bandwidth limit at 4kHz
-            logger.debug(f"detect_condition: high_freq_ratio={high_freq_ratio:.3f} → nb8k")
+        # Also check 4-8kHz energy
+        mid_high_ratio = energy_4k_8k / total_energy
+
+        # Narrowband indicator: minimal energy above 8kHz AND minimal energy 4-8kHz
+        # (suggests hard cutoff at 4kHz from 8kHz Nyquist)
+        # Threshold: < 0.5% above 8kHz AND < 2% in 4-8kHz → narrowband
+        if energy_above_8k_ratio < 0.005 and mid_high_ratio < 0.02:
+            logger.debug(f"detect_condition: 8k_ratio={energy_above_8k_ratio:.4f}, 4-8k_ratio={mid_high_ratio:.4f} → nb8k (hard cutoff at 8kHz)")
             return "nb8k"
 
-        logger.debug(f"detect_condition: high_freq_ratio={high_freq_ratio:.3f} → wb")
+        logger.debug(f"detect_condition: 8k_ratio={energy_above_8k_ratio:.4f}, 4-8k_ratio={mid_high_ratio:.4f} → wb")
         return "wb"
 
     except Exception as e:

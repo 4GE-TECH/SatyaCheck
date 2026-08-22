@@ -140,8 +140,14 @@ def run_evaluation():
     # EER: genuine vs impostor (caveat: n=1 genuine is not statistically meaningful)
     genuine = scores["genuine"]
     impostor = scores["impostor"]
-    eer_pct, eer_threshold = compute_eer(genuine, impostor)
-    logger.info(f"EER (genuine vs impostor): {eer_pct:.2f}% at threshold {eer_threshold:.4f} [CAVEAT: n={len(genuine)} genuine, not statistically meaningful]")
+    eer_caveat = "n=1 genuine sample, not statistically meaningful"
+    if len(genuine) >= 5:
+        eer_pct, eer_threshold = compute_eer(genuine, impostor)
+        logger.info(f"EER (genuine vs impostor): {eer_pct:.2f}% at threshold {eer_threshold:.4f}")
+    else:
+        eer_pct = None
+        eer_threshold = None
+        logger.info(f"EER: {eer_caveat}")
 
     # Clone detection: fraction below match threshold
     clone = scores["clone"]
@@ -165,27 +171,34 @@ def run_evaluation():
     logger.info(f"  Impostor mean: {impostor_mean:.4f}")
 
     # Ablation already loaded above, skip duplicate load
-    logger.info(f"✓ Ablation data confirmed: {len(ablation)} conditions")
+    logger.info(f"Ablation data confirmed: {len(ablation)} conditions")
 
     # Load scenario matrix
     scenarios = {}
     if SCENARIO_PATH.exists():
         with open(SCENARIO_PATH) as f:
             scenarios = json.load(f)
-        logger.info(f"✓ Scenario matrix loaded")
+        logger.info(f"Scenario matrix loaded")
 
     # Build results JSON
+    # Handle EER caveat for small sample sizes
+    speaker_verification = {
+        "genuine_mean": round(gen_mean, 4),
+        "clone_mean": round(clone_mean, 4),
+        "impostor_mean": round(impostor_mean, 4),
+        "separation_genuine_vs_clone": round(sep_genuine_vs_clone, 4),
+        "separation_genuine_vs_impostor": round(sep_genuine_vs_impostor, 4),
+    }
+    if eer_pct is not None:
+        speaker_verification["eer_pct"] = round(eer_pct, 2)
+        speaker_verification["eer_threshold"] = round(eer_threshold, 4)
+    else:
+        speaker_verification["eer_pct"] = eer_caveat
+        speaker_verification["eer_threshold"] = None
+
     results = {
         "timestamp": Path("data/eval_results.json").stat().st_mtime if OUTPUT_JSON.exists() else 0,
-        "speaker_verification": {
-            "genuine_mean": round(gen_mean, 4),
-            "clone_mean": round(clone_mean, 4),
-            "impostor_mean": round(impostor_mean, 4),
-            "separation_genuine_vs_clone": round(sep_genuine_vs_clone, 4),
-            "separation_genuine_vs_impostor": round(sep_genuine_vs_impostor, 4),
-            "eer_pct": round(eer_pct, 2),
-            "eer_threshold": round(eer_threshold, 4),
-        },
+        "speaker_verification": speaker_verification,
         "clone_detection": {
             "clone_detection_rate": round(clone_detection_rate, 4),
             "threshold": config.SPEAKER_MATCH_THRESHOLD,
@@ -215,7 +228,7 @@ def run_evaluation():
     OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_JSON, "w") as f:
         json.dump(results, f, indent=2)
-    logger.info(f"\n✓ Results saved to {OUTPUT_JSON}")
+    logger.info(f"\nResults saved to {OUTPUT_JSON}")
 
     # Generate ablation chart
     if ablation:
@@ -267,7 +280,7 @@ def generate_ablation_chart(ablation: dict):
 
         plt.tight_layout()
         plt.savefig(OUTPUT_CHART, dpi=150, bbox_inches="tight")
-        logger.info(f"✓ Ablation chart saved to {OUTPUT_CHART}")
+        logger.info(f"Ablation chart saved to {OUTPUT_CHART}")
         plt.close()
 
     except Exception as e:
@@ -285,31 +298,34 @@ def print_summary_table(results: dict):
     th = results["thresholds"]
     ss = results["sample_sizes"]
 
-    print("\n📊 SPEAKER VERIFICATION PERFORMANCE")
+    print("\n[SPEAKER VERIFICATION PERFORMANCE]")
     print("-" * 90)
     print(f"  Genuine (friend_test, wideband): {vv['genuine_mean']:.4f}")
     print(f"  Clone (cloned_scam):             {vv['clone_mean']:.4f}")
     print(f"  Impostors (strangers, avg):      {vv['impostor_mean']:.4f}")
     print(f"\n  Separation (genuine vs clone):    {vv['separation_genuine_vs_clone']:+.4f}")
-    print(f"  Separation (genuine vs impostor): {vv['separation_genuine_vs_impostor']:.4f} ✓")
-    eer_caveat = f"  EER: n={ss['n_genuine']} genuine (not statistically meaningful)" if ss['n_genuine'] < 5 else f"  Equal Error Rate (EER): {vv['eer_pct']:.2f}%"
-    print(f"  {eer_caveat}")
+    print(f"  Separation (genuine vs impostor): {vv['separation_genuine_vs_impostor']:.4f}")
+    # Handle EER: if it's a string caveat, print as-is; otherwise format as percentage
+    if isinstance(vv['eer_pct'], str):
+        print(f"  EER: {vv['eer_pct']}")
+    else:
+        print(f"  Equal Error Rate (EER): {vv['eer_pct']:.2f}%")
 
-    print("\n🎯 CLONE DETECTION")
+    print("\n[CLONE DETECTION]")
     print("-" * 90)
     print(f"  Detection Rate: {cd['clone_detection_rate']*100:.0f}% ({cd['clones_detected']}/{cd['clones_tested']} clones flagged)")
     print(f"  Threshold Used: {th['SPEAKER_MATCH_THRESHOLD']} (< this = impostor/clone)")
 
-    print("\n⚙️  CALIBRATED THRESHOLDS")
+    print("\n[CALIBRATED THRESHOLDS]")
     print("-" * 90)
-    print(f"  MATCH_THRESHOLD:  {th['SPEAKER_MATCH_THRESHOLD']:.2f}  (>= this → 'match')")
-    print(f"  UNKNOWN_FLOOR:    {th['SPEAKER_UNKNOWN_FLOOR']:.2f}  (< this → 'unknown')")
+    print(f"  MATCH_THRESHOLD:  {th['SPEAKER_MATCH_THRESHOLD']:.2f}  (>= this = 'match')")
+    print(f"  UNKNOWN_FLOOR:    {th['SPEAKER_UNKNOWN_FLOOR']:.2f}  (< this = 'unknown')")
     print(f"  Rationale:")
     for key, desc in th["rationale"].items():
         print(f"    • {desc}")
 
     if results["ablation"]:
-        print("\n📈 8kHz ABLATION (Condition-Matched Enrollment)")
+        print("\n[8kHz ABLATION - CONDITION-MATCHED ENROLLMENT]")
         print("-" * 90)
         abl = results["ablation"]
         if "wideband" in abl and "condition_matched_nb8k" in abl:
@@ -320,7 +336,7 @@ def print_summary_table(results: dict):
             improvement = (cm_sep - abl["naive_nb8k"]["separation"]) / abl["naive_nb8k"]["separation"] * 100 if abl["naive_nb8k"]["separation"] > 0 else 0
             print(f"  Improvement vs naive 8k:  +{improvement:.1f}%")
 
-    print("\n📋 SAMPLE SIZES")
+    print("\n[SAMPLE SIZES]")
     print("-" * 90)
     print(f"  Genuine:  {ss['n_genuine']} ({ss['n_genuine']}/{ss['n_total']} samples)")
     print(f"  Clone:    {ss['n_clone']} ({ss['n_clone']}/{ss['n_total']} samples)")

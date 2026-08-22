@@ -266,16 +266,18 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
                 logger.warning(f"  Could not load voiceprint for {person_id}")
                 continue
 
-            # Pick matching centroid (condition-aware)
-            if condition == "nb8k" and voiceprint["nb8k"] is not None:
-                enrolled_centroid = voiceprint["nb8k"]
+            # Compare against BOTH centroids and pick the max.
+            # This handles degradation mismatches: if degradation mode differs,
+            # we still match if the score is high on either centroid.
+            raw_wb = float(np.dot(probe_emb, voiceprint["wb"]))
+            raw_nb8k = float(np.dot(probe_emb, voiceprint["nb8k"]))
+            raw_cosine = max(raw_wb, raw_nb8k)
+
+            # Log which centroid was better
+            if raw_cosine == raw_wb:
+                logger.debug(f"  {person['name']}: raw_cosine={raw_cosine:.4f} (wb)")
             else:
-                enrolled_centroid = voiceprint["wb"]
-
-            # Compute cosine similarity (both L2-normalised)
-            raw_cosine = float(np.dot(probe_emb, enrolled_centroid))
-
-            logger.debug(f"  {person['name']}: raw_cosine={raw_cosine:.4f}")
+                logger.debug(f"  {person['name']}: raw_cosine={raw_cosine:.4f} (nb8k)")
 
             if raw_cosine > best_raw:
                 best_raw = raw_cosine
@@ -296,8 +298,11 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
         )
 
         # Step 4: S-normalise the best raw score
+        # Use whichever centroid gave the max score
         best_voiceprint = enroll.load_voiceprint(result.best_match_id)
-        if condition == "nb8k" and best_voiceprint["nb8k"] is not None:
+        raw_wb_best = float(np.dot(probe_emb, best_voiceprint["wb"]))
+        raw_nb8k_best = float(np.dot(probe_emb, best_voiceprint["nb8k"]))
+        if raw_nb8k_best > raw_wb_best:
             best_enrolled = best_voiceprint["nb8k"]
         else:
             best_enrolled = best_voiceprint["wb"]
