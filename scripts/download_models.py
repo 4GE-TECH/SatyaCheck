@@ -45,7 +45,8 @@ def ecapa(verify: bool):
     from speechbrain.inference import EncoderClassifier
     EncoderClassifier.from_hparams(
         source="speechbrain/spkrec-ecapa-voxceleb",
-        savedir=os.path.join(MODELS_DIR, "ecapa"),
+        # Removed savedir to bypass speechbrain symlinking on Windows.
+        # HF_HOME is already set to models/hf, so it will cache there.
     )
 
 
@@ -94,7 +95,7 @@ def main() -> int:
     else:
         print("\nDOWNLOADING to ./models — this takes several minutes.\n")
 
-    for fn in (ecapa, silero, whisper, bge, antispoof):
+    for fn in (bge, antispoof, ecapa, silero, whisper):
         fn(args.verify)
 
     print()
