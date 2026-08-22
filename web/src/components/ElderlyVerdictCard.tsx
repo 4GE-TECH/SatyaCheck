@@ -5,7 +5,7 @@ import SignalForensics from "./SignalForensics";
 import SpoofTimeline from "./SpoofTimeline";
 import EvidencePanel from "./EvidencePanel";
 import AudioInspector from "./AudioInspector";
-import { PearlButton } from "@/components/ui/pearl-button";
+import { GlassButton } from "@/components/ui/glass-button";
 
 interface ElderlyVerdictCardProps {
   data: ScreeningResponse;
@@ -160,7 +160,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
         {/* ── 2. VOICE-FIRST PRIMARY AUDIO WARNING BUTTON ── */}
         {fusion.vernacular_warning && (
           <div className="pt-2 max-w-md mx-auto">
-            <PearlButton
+            <GlassButton
               onClick={handlePlayVoiceWarning}
               variant="danger"
               size="lg"
@@ -249,7 +249,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                 </p>
               </div>
 
-              <PearlButton
+              <GlassButton
                 onClick={() => setCurrentStep(2)}
                 variant="default"
                 size="lg"
@@ -275,17 +275,17 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
               </div>
 
               <div className="flex gap-3">
-                <PearlButton
+                <GlassButton
                   onClick={() => setCurrentStep(1)}
                   variant="secondary"
-                  size="md"
+                  size="default"
                   className="w-1/3 font-mono font-semibold"
                   label="← Back"
                 />
-                <PearlButton
+                <GlassButton
                   onClick={() => setCurrentStep(3)}
                   variant="default"
-                  size="md"
+                  size="default"
                   className="w-2/3 font-mono font-bold"
                   label="Next: Challenge Question →"
                 />
@@ -312,17 +312,17 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
               </div>
 
               <div className="flex gap-3">
-                <PearlButton
+                <GlassButton
                   onClick={() => setCurrentStep(2)}
                   variant="secondary"
-                  size="md"
+                  size="default"
                   className="w-1/3 font-mono font-semibold"
                   label="← Back"
                 />
                 <Link to="/report" className="w-2/3 no-underline">
-                  <PearlButton
+                  <GlassButton
                     variant={isCaution ? "default" : "danger"}
-                    size="md"
+                    size="default"
                     className="w-full font-mono font-bold"
                     label="View 1930 Cybercrime Dossier →"
                   />
@@ -335,10 +335,10 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
 
       {/* ── 4. CHECK ANOTHER CALL BUTTON ── */}
       <div className="text-center pt-2">
-        <PearlButton
+        <GlassButton
           onClick={onReset}
           variant="secondary"
-          size="md"
+          size="default"
           className="font-mono font-semibold px-8"
           label="← Check Another Call"
         />

@@ -1,19 +1,18 @@
 import { useTheme } from "../context/ThemeContext";
-import { PearlButton } from "@/components/ui/pearl-button";
+import { GlassButton } from "@/components/ui/glass-button";
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
 
   return (
-    <PearlButton
+    <GlassButton
       onClick={toggleTheme}
       type="button"
       variant="secondary"
-      size="sm"
+      size="icon"
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="!p-0 w-9 h-9 flex items-center justify-center !rounded-full"
     >
       {isDark ? (
         /* Sun icon for dark mode */
@@ -34,6 +33,6 @@ export default function ThemeToggle() {
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       )}
-    </PearlButton>
+    </GlassButton>
   );
 }

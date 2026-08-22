@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { PearlButton } from "@/components/ui/pearl-button";
+import { GlassButton } from "@/components/ui/glass-button";
 import { CheckCircle2 } from "lucide-react";
 
 interface EnrolledMember {
@@ -187,7 +187,7 @@ export default function EnrollPage() {
                 />
               </div>
 
-              <PearlButton
+              <GlassButton
                 type="submit"
                 variant="default"
                 size="lg"

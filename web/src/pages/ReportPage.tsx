@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { PearlButton } from "@/components/ui/pearl-button";
+import { GlassButton } from "@/components/ui/glass-button";
 import { Copy, Check, Printer } from "lucide-react";
 
 export default function ReportPage() {
@@ -51,7 +51,7 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
         </div>
 
         <div className="flex items-center gap-2.5">
-          <PearlButton
+          <GlassButton
             onClick={handleCopy}
             variant="secondary"
             size="sm"
@@ -59,7 +59,7 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
             icon={copied ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
           />
 
-          <PearlButton
+          <GlassButton
             onClick={() => window.print()}
             variant="default"
             size="sm"
@@ -150,7 +150,7 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
         {/* Back Link */}
         <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
           <Link to="/" className="no-underline">
-            <PearlButton
+            <GlassButton
               variant="secondary"
               size="sm"
               label="← Return to Call Checking"
