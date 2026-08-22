@@ -58,18 +58,26 @@
   - [ ] Enrollment screen (mic capture / file upload + shared secrets)
   - [ ] Screening screen with animated trust meter
   - [ ] Evidence panel rendering reason codes, citations, and markers
-- [ ] **GATE C1 (H4:00)**: A scores a WAV from CLI · B retrieves from CLI · C ingests upload · D has 3 screens.
+- [x] **GATE C1 (H4:00)**: A scores a WAV from CLI · B retrieves from CLI · C ingests upload · D has 3 screens.
 
 ---
 
-### Block 2 · H4:00–H6:00 · Integration 1
-- [x] **C**: Integrate `nlp_rag` branch into server orchestrator and lifespan.
-- [ ] **C + A**: Swap mocks for live `audio_ml` imports:
-  - [ ] Speaker verification (`USE_REAL_SPEAKER = True`)
-  - [ ] Anti-spoofing (`USE_REAL_SPOOF = True`)
-  - [ ] Fusion (`USE_REAL_FUSION = True`)
-- [ ] **GATE C2 (H6:00) — HARD**:
-  - [ ] Upload a test WAV in the UI → real trust score from all 3 live branches.
+### Block 2 — The Tree
+
+**Owner:** Role C (Integration)  
+**Goal:** Assemble the first full pipeline (GATE C2).
+
+- [x] **C:** Unify the tree. `backend-integration` absorbs `audio_ml`, `nlp_rag`, and `frontend`.
+- [x] **C:** Write `server/audio_adapter.py`.
+- [x] **C:** One voiceprint store (SQLite metadata + `.npz` disk).
+- [x] **C:** Enable `USE_REAL_SPEAKER` and `USE_REAL_SPOOF`.
+- [x] **B:** Fix the FAISS index cache bug.
+- [x] **B:** Grow the RAG corpus to ≥50 documents.
+- [x] **B:** `eval_retrieval.py` proving P@3 ≥ 80%.
+- [x] **B:** ASR deployed without forcing the Hindi decoder.
+- [x] **C:** `python -m audio_ml.eval.test_scenarios` exits 0.
+
+**GATE C2:** Upload a WAV through the web UI and get a real trust score from three live ML branches.
   - [ ] *Contingency*: If spoof branch fails at H6:00, cut it immediately and ship two signals.
 
 ---

@@ -2,7 +2,7 @@
   "scenarios": [
     {
       "scenario": "1  genuine human, normal call",
-      "trust": 73,
+      "trust": 90,
       "band": "green",
       "mode": "identity_check",
       "expected": [
@@ -10,7 +10,7 @@
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.6418,
+        "asv": 0.2086,
         "cm_raw": 0.06,
         "cm_gated": 0.0168,
         "text": 0.04,
@@ -59,7 +59,7 @@
     },
     {
       "scenario": "4  AI clone, family emergency",
-      "trust": 6,
+      "trust": 10,
       "band": "red",
       "mode": "identity_check",
       "expected": [
@@ -67,11 +67,11 @@
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.989,
+        "asv": 0.9298,
         "cm_raw": 0.94,
-        "cm_gated": 0.9323,
+        "cm_gated": 0.8905,
         "text": 0.88,
-        "intent": 0.989,
+        "intent": 0.9298,
         "replay_suspected": false,
         "flagged_voice_hits": 0
       }
@@ -97,7 +97,7 @@
     },
     {
       "scenario": "6  trusted number, cloned voice",
-      "trust": 15,
+      "trust": 18,
       "band": "red",
       "mode": "identity_check",
       "expected": [
@@ -105,11 +105,11 @@
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.9914,
+        "asv": 0.9445,
         "cm_raw": 0.9,
-        "cm_gated": 0.8942,
+        "cm_gated": 0.8625,
         "text": 0.55,
-        "intent": 0.9914,
+        "intent": 0.9445,
         "replay_suspected": false,
         "flagged_voice_hits": 0
       }
@@ -125,7 +125,7 @@
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.2689,
+        "asv": 0.0513,
         "cm_raw": 0.1,
         "cm_gated": 0.0475,
         "text": 0.3,
@@ -174,7 +174,7 @@
     },
     {
       "scenario": "10 genuine family, odd money request",
-      "trust": 54,
+      "trust": 66,
       "band": "amber",
       "mode": "identity_check",
       "expected": [
@@ -182,7 +182,7 @@
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.7144,
+        "asv": 0.2689,
         "cm_raw": 0.07,
         "cm_gated": 0.0501,
         "text": 0.62,
