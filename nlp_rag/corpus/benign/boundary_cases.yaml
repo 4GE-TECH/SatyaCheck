@@ -1,0 +1,252 @@
+# Benign cohort — boundary cases.
+#
+# WHY THIS FILE EXISTS
+# 30.5% of the previous cohort scored at the absolute floor of 0.01. Documents that far
+# from the decision boundary are not testing anything: "Hi Ma, I just reached the office"
+# is trivially benign in any encoder. A 1.2% false-positive rate measured against calls
+# like that is a statement about the cohort, not about the system.
+#
+# Everything below is a LEGITIMATE call that deliberately shares vocabulary, urgency or
+# structure with a scam family:
+#
+#   - real debt collection sounds like payment pressure
+#   - a genuine police callback sounds like authority impersonation
+#   - a hospital asking for a deposit sounds like the family-emergency script
+#   - an actual utility disconnection notice IS the utility scam, minus the fraud
+#   - a bank's real fraud-alert call talks about cards, OTPs and blocked transactions
+#
+# These are what the system will actually struggle with, and several of them SHOULD sit
+# above the floor — a hospital demanding an immediate deposit is genuinely ambiguous and
+# amber is the honest answer. What must not happen is red: PRD §6 forbids flagging a real
+# institution or a real emergency as fraud.
+#
+# Expect the reported false-positive rate to rise when these land. That is the point.
+
+# --- debt collection: real payment pressure ---------------------------------
+
+- id: benign-collections-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine loan EMI recovery call
+  text: >-
+    I am calling from the recovery department regarding your personal loan account. Two
+    EMIs are overdue and the penalty is accruing daily. Please make the payment
+    immediately to avoid it being reported to the credit bureau. You can pay through the
+    app or at any branch.
+
+- id: benign-collections-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Genuine credit card overdue call
+  text: >-
+    Sir aapke credit card ka minimum due nikal chuka hai aur late fee lag rahi hai.
+    Turant payment kar dijiye to interest bachega. Aap bank ki app se ya customer care
+    se kar sakte hain, main koi detail nahi maangunga.
+
+- id: benign-collections-003
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Genuine EMI reminder from a finance company
+  text: >-
+    नमस्ते, आपकी किस्त की तारीख निकल गई है और अभी तक भुगतान दर्ज नहीं हुआ है। कृपया जल्दी
+    से जल्दी भुगतान कर दीजिए ताकि अतिरिक्त शुल्क न लगे। भुगतान आप शाखा में या ऐप से कर
+    सकते हैं।
+
+# --- police and government: real authority ----------------------------------
+
+- id: benign-police-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine police station callback about a filed complaint
+  text: >-
+    This is Sub-Inspector Kulkarni from Vishrantwadi police station. You had filed a
+    complaint about your stolen scooter last week. The investigating officer needs your
+    statement. Please come to the station with your documents any time before six, or
+    call the station landline to fix a time.
+
+- id: benign-police-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Genuine passport verification visit
+  text: >-
+    Main thane se bol raha hoon, aapke passport verification ke liye. Constable kal
+    subah aayega address check karne. Aap ghar par rahiyega aur original documents ready
+    rakhiyega. Koi payment nahi karni hai, ye process free hai.
+
+- id: benign-govt-003
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Genuine court witness summons follow-up
+  text: >-
+    यह अदालत के कार्यालय से सूचना है। आपको गवाह के रूप में अगली तारीख पर उपस्थित होना है।
+    तारीख और समय आपके पते पर भेज दिया गया है। कोई शुल्क नहीं देना है, केवल पहचान पत्र
+    साथ लाइए।
+
+# --- medical: a real emergency asking for money -----------------------------
+
+- id: benign-hospital-deposit-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Hospital admission deposit, genuine
+  text: >-
+    Sir, your father has been admitted to the ICU and the doctors are starting treatment.
+    The admission deposit of fifty thousand needs to be cleared at the counter before the
+    procedure. You can pay here at the reception, or transfer it, but please do it
+    urgently as they are waiting.
+
+- id: benign-hospital-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Genuine relative calling from a hospital
+  text: >-
+    Bhaiya, mummy ko hospital le aaye hain, chest pain tha. Doctor keh rahe hain
+    admission ke liye abhi paise jama karne padenge. Aap seedhe hospital aa jao ya
+    reception ka number le lo, main aapko doctor se baat karwa deta hoon.
+
+- id: benign-hospital-003
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Genuine surgery deposit call from a relative
+  text: >-
+    पापा का ऑपरेशन आज शाम को है और अस्पताल वालों ने अभी जमा राशि माँगी है। आप सीधे
+    अस्पताल आ जाइए या डॉक्टर से बात कर लीजिए, नंबर मैं भेज देता हूँ। पैसा काउंटर पर ही
+    जमा करना है।
+
+# --- utilities and telecom: the real version of the scam --------------------
+
+- id: benign-utility-real-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine electricity disconnection notice for an unpaid bill
+  text: >-
+    This is a notice from the electricity board. Your bill for the last two cycles is
+    unpaid and the supply is scheduled for disconnection this week. Payment can be made
+    at the board office, through the official app, or at any authorised collection
+    centre. No one from the board will call you for card details.
+
+- id: benign-utility-real-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Genuine water board maintenance and dues call
+  text: >-
+    Jal board se bol rahe hain, aapke connection ka pichla bill pending hai. Kal
+    maintenance ke liye supply do ghante band rahegi. Bill aap board ke counter par ya
+    official website se jama kar sakte hain, kisi aur number par payment mat kijiyega.
+
+- id: benign-telecom-real-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine operator call about a plan expiry
+  text: >-
+    Your prepaid plan expires the day after tomorrow and outgoing calls will stop after
+    that. You can recharge from the app, the website, or any retailer. We are not asking
+    for any payment on this call, this is only a reminder about the validity.
+
+- id: benign-telecom-real-002
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Genuine operator call about a SIM upgrade
+  text: >-
+    आपके नंबर पर नेटवर्क अपग्रेड के लिए नया सिम उपलब्ध है। आप नज़दीकी स्टोर पर जाकर पहचान
+    पत्र दिखाकर बदल सकते हैं। इसके लिए कोई शुल्क नहीं है और हम फ़ोन पर कोई जानकारी नहीं
+    माँगते।
+
+# --- banking: real fraud alerts, which talk about cards and codes -----------
+
+- id: benign-bank-fraud-alert-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine bank fraud alert, refusing to take credentials
+  text: >-
+    We have detected an unusual transaction of eleven thousand on your debit card and we
+    have already blocked the card as a precaution. I will not ask you for your PIN, OTP
+    or card number at any point. If you did not authorise it, please confirm and visit
+    your branch for a replacement.
+
+- id: benign-bank-fraud-alert-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Genuine bank call after a blocked transaction
+  text: >-
+    Aapke account se ek transaction attempt hua tha jo humne rok diya hai. Card
+    temporarily block kar diya gaya hai. Hum kabhi bhi OTP ya PIN nahi puchhte. Aap app
+    mein jaake ya branch jaake naya card request kar sakte hain.
+
+- id: benign-bank-kyc-real-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine branch KYC reminder with no credential request
+  text: >-
+    Your account KYC is due for periodic updation as per regulatory requirement. Please
+    visit the branch with your identity and address proof at your convenience within the
+    next sixty days. We do not collect KYC documents over a phone call or a link.
+
+- id: benign-bank-kyc-real-002
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Genuine branch KYC reminder, Devanagari
+  text: >-
+    आपके खाते की केवाईसी नियमानुसार अद्यतन करनी है। कृपया अगले दो महीनों में शाखा आकर
+    पहचान और पते का प्रमाण जमा कर दीजिए। हम फ़ोन पर या किसी लिंक के ज़रिए कोई जानकारी नहीं
+    माँगते।
+
+# --- delivery and commerce: real OTPs and real redelivery -------------------
+
+- id: benign-delivery-real-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine courier asking for the delivery OTP at the door
+  text: >-
+    I am at your gate with the delivery. The system is asking for the code that came on
+    your phone to close the delivery. If you prefer, I can mark it undelivered and it
+    will be reattempted tomorrow, or you can collect it from the hub.
+
+- id: benign-delivery-real-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Genuine redelivery attempt after a failed address
+  text: >-
+    Kal aapka parcel deliver nahi ho paya kyunki address par koi nahi tha. Aaj shaam
+    dobara laa raha hoon. Agar aap nahi honge to hub se collect kar lijiyega, koi extra
+    charge nahi hai.
+
+# --- education and services -------------------------------------------------
+
+- id: benign-school-fee-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine school fee deadline reminder
+  text: >-
+    This is from the school accounts office. The term fee is due by the end of this week
+    and a late charge applies after that. Payment can be made on the school portal or at
+    the office counter. Please ignore this if you have already paid.
+
+- id: benign-insurance-renewal-001
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Genuine insurance lapse warning
+  text: >-
+    Aapki policy kal lapse ho rahi hai, uske baad cover band ho jayega. Renewal aap
+    company ki website se ya agent ke through kar sakte hain. Main sirf reminder ke liye
+    call kar raha hoon, koi detail nahi chahiye.
