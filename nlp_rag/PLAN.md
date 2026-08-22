@@ -501,8 +501,8 @@ cut.
 | **0** | H0:00–H1:00 | **E1 + E2 to C by H0:15.** Corpus schema locked H0:30. Harvest starts wifi-on: ~10 anchors with exact URLs; set held-out excerpts aside as you find them. |
 | **1** ✅ | H1:00–H4:00 | **Done.** See "Block 1 as built" below. |
 | **2** | H4:00–H6:00 | **Stop building.** Sit next to C. Swap mocks one branch at a time: ASR → script → reason codes. Never two at once. |
-| **3** | H6:00–H9:00 | Exculpatory breadth, reason-code templates per scam family, `citations.py`, `challenge.py`, `warnings.py`. Corpus growth **only after** those are done. |
-| **4** | H9:00–H11:00 | `eval_retrieval.py` → P@3 and benign false-positive rate, hand to A. Pre-transcribe demo clips at H10:00. Then **floater rule** — join D. |
+| **3** ✅ | H6:00–H9:00 | **Done.** Per-family guidance, exculpatory breadth, `citations.py`, `challenge.py`, `warnings.py`. |
+| **4** ◐ | H9:00–H11:00 | `eval_retrieval.py` done and extended with recall. `pretranscribe.py` built and measured; **needs A+D's clips to populate**. Then **floater rule** — join D. |
 | **5** | H11:00–H12:00 | Bug bash. Nothing new gets built. |
 
 > **H12:00 — FEATURE FREEZE. ABSOLUTE.**
@@ -545,6 +545,55 @@ existed:
 
 The one remaining benign false positive is `benign-unusual-request-006` at 0.355 — a
 genuine but unusual money request, correctly elevated to amber rather than green.
+
+### Blocks 3 and 4 as built
+
+**Per-family reason-code guidance.** §11 asked for "reason-code templates per scam family"
+and the template was one generic sentence for all ten: *"matches a documented scam
+playbook: {title}"* — true, and useless to a frightened relative. `FAMILY_GUIDANCE` in
+`reason_codes.py` now appends the single fact that collapses that specific script, drawn
+from the advisory the citation points at. Digital arrest gets *"There is no provision for
+digital arrest in Indian law"*; QR fraud gets *"No PIN is ever needed to receive a
+payment"*.
+
+Advisory, never accusatory, and asserted as such — the caller may be genuine, the reader is
+usually family, and `PRD.md` NG2 forbids emitting a verdict. Guidance is additive: an
+unrecognised or absent family still produces the code with its citation, because losing the
+evidence is worse than losing the advice.
+
+Plumbing: `RetrievalResult.top_doc_family` → `details["scam_family"]` → the code.
+
+**Exculpatory breadth, 4 markers to 6.** `MK_EXCULPATORY_NO_URGENCY` (tolerates delay) and
+`MK_EXCULPATORY_CHECKABLE_PLACE` (names somewhere you can physically go). Both are the
+structural inverse of something fraud requires: every family in the corpus compresses the
+victim's decision window, and a caller running a script cannot offer a counter to turn up
+at.
+
+They fire on **13 documents, all benign, none scam or held-out** — the precision that
+matters, since a false exculpatory hit silently lowers a real scam. `benign-hospital-002`
+moved 0.292 → 0.241 and `benign-police-001` 0.239 → 0.175: real movement, both still above
+the amber floor, so the false-positive count is unchanged. No regression on recall, P@3 or
+calibration.
+
+Two of §6's eight categories are deliberately **not** implemented. *No payment ask* is an
+absence, and a regex cannot match the non-occurrence of a request — it is already carried
+by the retrieval score being low. *References shared history* needs to know what history
+the pair actually shares; a pattern like `remember when` fires on "remember to send the
+money" and would be a risk-lowering marker on a scam.
+
+**`pretranscribe.py`** — the §8 mitigation, keyed on the SHA-256 of the audio rather than
+its path, so a clip renamed between rehearsal and demo still hits and one quietly
+re-recorded misses instead of serving the previous take. Measured on three real clips:
+**8.60s decoded, 0.003s served.** `api.transcribe` consults it before the decoder and a
+miss falls straight through, so C's call site is unchanged and the streaming path (a raw
+waveform, which has no file to hash) is unaffected.
+
+Clips the decoder could not read are skipped rather than stored empty — a cached empty
+transcript would pin a silent result for a clip that merely failed once, and a cache hit is
+indistinguishable from a success.
+
+Build it once the clips exist: `python -m nlp_rag.pretranscribe data/demo_clips`.
+`nlp_rag/index/` is now gitignored, as §3 always said it should be.
 
 ### Bug-bash inputs (Block 5)
 

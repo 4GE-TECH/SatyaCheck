@@ -1,10 +1,12 @@
 # `nlp_rag` integration — for C
 
-Everything B owes the server layer, and the three things B cannot do because
-`CLAUDE.md` rule 2 puts `server/` on your side of the line.
+Everything B owes the server layer, and what is left to turn the intent branch on.
 
-The branch is **verified working end to end on real audio** on B's machine. Nothing here
-is theoretical — the numbers below were measured, not estimated.
+The branch is **verified working end to end on real audio**. Nothing here is theoretical —
+the numbers below were measured, not estimated.
+
+**Status:** the three original requests are all implemented (§3). The remaining item is a
+single flag — `USE_REAL_NLP` is still `false` while speaker and spoof are live.
 
 ---
 
@@ -68,83 +70,63 @@ degradation.
 USE_REAL_NLP=true        # this is the whole switch
 ```
 
-1. **Flip `USE_REAL_NLP`.** Check a real call produces non-empty `transcript.text` and a
-   `script.risk` that is not 0.0.
-2. **Apply R1** (below) so `challenge_question` stops returning `None`.
-3. **R3** if you want language-correct vernacular copy.
-4. **R2** is already wired and waits on A.
+1. **Build the index artefacts** — `python -m nlp_rag.index_store`. Not fatal to skip,
+   but every boot otherwise re-encodes 173 documents through BGE-m3.
+2. **Flip `USE_REAL_NLP`.** Check a real call produces non-empty `transcript.text` and a
+   `script.risk` that is not 0.0, and that `details["available"]` is `True`.
+3. Confirm the evidence panel shows an INTENT reason code with a `citation_url`. That is
+   the corpus becoming visible; while the flag is off you are seeing fixture text.
+
+Everything else is already wired — see §3.
 
 **Rollback is `USE_REAL_NLP=false`.** No code change, no restart of anything else.
 
 ---
 
-## 3 · The three requests
+## 3 · Requests — all three are done
 
-### R1 — required · register the person lookup at startup
+Written when B was reading the stale copy of `server/` carried on the `nlp_rag` branch. On
+`backend-integration` they were already implemented, and C has since gone further. Kept so
+nobody re-does them.
 
-`challenge_question` needs to resolve `speaker.matched_person_id` into an `EnrolledPerson`.
-Shared secrets live in your database and `nlp_rag` may not import `server/`, so the
-resolver is injected once at startup.
+- **☑ R1** — `configure(person_lookup=get_person_by_id)` in `lifespan`
+  ([main.py:58](server/main.py#L58)), wrapped in its own try/except so a DB failure degrades
+  rather than blocking startup. It also warms BGE-m3, moving ~7.9s off the first request.
+- **☑ R2** — `build_reason_codes` is called in the `_compute_fusion` path
+  ([orchestrator.py:306](server/orchestrator.py#L306)), not only under `USE_REAL_FUSION`. So
+  intent codes and citations reach the evidence panel **without** waiting on
+  `audio_ml.api.fuse`, which is better than what B asked for.
+- **☑ R3** — `_get_vernacular_warning(band, script)` reads
+  `script.details["vernacular_warnings"]` and falls back to the hardcoded table.
 
-In `server/main.py`, inside `lifespan`, beside the existing `init_db()`:
+C has also merged all four branches into `backend-integration`, added
+`server/audio_adapter.py` to bridge A's models, and turned on `USE_REAL_SPEAKER` and
+`USE_REAL_SPOOF`.
 
-```python
-    try:
-        from server.database import init_db, get_person
-        init_db()
-        log.info("  DB init: OK")
-
-        import nlp_rag.api
-        nlp_rag.api.configure(person_lookup=get_person)
-        log.info("  NLP configure: OK")
-    except ImportError:
-        log.warning("  server.database not yet available — skipping DB init (Block 0 mode)")
-```
-
-`configure()` also warms BGE-m3 and loads the index cache, which takes **7.9s**. Doing it
-at startup rather than on the first request moves that cost off the demo.
-
-**Skip this and** `challenge_question` returns `None` on every call — silently, by design,
-since public functions never raise. The red-band demo features the challenge prominently.
-
-Any callable taking a person id and returning an `EnrolledPerson` (or `None`) works; the
-name `get_person` is a guess at your API.
-
-### R2 — blocked on A · no action now
-
-`build_reason_codes` is already called at `server/orchestrator.py:437`, inside
-`if config.USE_REAL_FUSION:`. That flag needs `audio_ml.api.fuse`, which does not exist yet.
-
-**Known and accepted consequence: until A ships `fuse`, the evidence panel shows identity
-and authenticity codes only.** No INTENT codes, no citations — none of the corpus work is
-visible. Your `_build_reason_codes` emits no INTENT codes, and B deliberately did not ask
-you to add a temporary call in the `_compute_fusion` path that would have to be removed
-later and risks double-appending.
-
-Recorded here so it is a decision, not a surprise, when the panel looks thin.
-
-### R3 — optional · language-aware vernacular warnings
-
-`server/orchestrator.py:219` calls `_get_vernacular_warning(band)`, which is hardcoded
-Hindi regardless of the caller's language. B emits the full set instead:
+### The one thing left · `USE_REAL_NLP` is still `false`
 
 ```python
-script.details["vernacular_warnings"]   # {"high_risk": "…", "suspicious": "…", "caution": "…"}
+USE_REAL_SPEAKER = "true"    # on
+USE_REAL_SPOOF   = "true"    # on
+USE_REAL_NLP     = "false"   # off
 ```
 
-Keyed by `TrustBand` value, in the transcript's detected language. Bands with nothing to
-warn about are omitted, so presence means there is something to say.
+Speaker and spoof are live; the intent branch is not. It is the branch that needed **no**
+adapter and is the one already verified end to end on real audio — a clone-extortion
+script scores 0.999 with the right citation, a routine check-in 0.010, and silence
+abstains with `available=False`.
 
-```python
-    warnings = script.details.get("vernacular_warnings") or {}
-    vernacular_warning = warnings.get(band.value) or _get_vernacular_warning(band)
+While it is off, `_mock_nlp_branch` supplies the transcript and script risk, so the
+evidence panel shows fixture text rather than the corpus, and none of the intent work is
+visible.
+
+Prerequisite before flipping it, if not already done:
+
+```bash
+python -m nlp_rag.index_store     # else every boot re-encodes 173 documents
 ```
 
-**The key is present even when the branch abstains** — read it unconditionally. A call can
-still fuse into a risky band on the other two branches alone, and that verdict still has to
-be speakable.
-
----
+Rollback is setting it back to `false`. Nothing else changes.
 
 ## 4 · What "working" looks like
 
