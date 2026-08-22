@@ -26,6 +26,7 @@ export const PearlButton: React.FC<PearlButtonProps> = ({
         .pearl-btn-base {
           outline: none;
           cursor: pointer;
+          border: 0;
           position: relative;
           border-radius: 9999px;
           transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -35,16 +36,15 @@ export const PearlButton: React.FC<PearlButtonProps> = ({
           justify-content: center;
           user-select: none;
           text-decoration: none;
-          font-weight: 600;
         }
 
         /* ── Size Variants ── */
         .pearl-btn-sm {
-          font-size: 13px;
+          font-size: 12px;
           border-radius: 9999px;
         }
         .pearl-btn-sm .pearl-wrap {
-          padding: 6px 16px;
+          padding: 6px 14px;
           gap: 6px;
         }
 
@@ -53,7 +53,7 @@ export const PearlButton: React.FC<PearlButtonProps> = ({
           border-radius: 9999px;
         }
         .pearl-btn-md .pearl-wrap {
-          padding: 10px 22px;
+          padding: 10px 20px;
           gap: 8px;
         }
 
@@ -62,58 +62,104 @@ export const PearlButton: React.FC<PearlButtonProps> = ({
           border-radius: 9999px;
         }
         .pearl-btn-lg .pearl-wrap {
-          padding: 14px 30px;
+          padding: 14px 28px;
           gap: 10px;
         }
 
-        /* ── Pearl White Pill Styling (Consistent in Light & Dark Mode) ── */
-
-        /* 1. Default & Secondary Pearl Pill */
-        .pearl-variant-default,
-        .pearl-variant-secondary {
-          background-color: #FFFFFF;
-          color: #0F172A;
-          border: 1.5px solid #CBD5E1;
+        /* ── Default / Neutral Pearl ── */
+        .pearl-variant-default {
+          --bg: #0A0D14;
+          --text: #FFFFFF;
+          --rim: rgba(255, 255, 255, 0.35);
+          background-color: var(--bg);
+          color: var(--text);
           box-shadow:
-            inset 0 0.2rem 0.5rem rgba(255, 255, 255, 0.95),
+            inset 0 0.2rem 0.6rem var(--rim),
+            inset 0 -0.1rem 0.3rem rgba(0, 0, 0, 0.8),
+            0 0.8rem 1.2rem -0.4rem rgba(0, 0, 0, 0.6);
+        }
+        html:not(.dark) .pearl-variant-default {
+          --bg: #FFFFFF;
+          --text: #0F172A;
+          --rim: rgba(255, 255, 255, 0.95);
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          box-shadow:
+            inset 0 0.2rem 0.5rem var(--rim),
             inset 0 -0.1rem 0.2rem rgba(0, 0, 0, 0.06),
-            0 0.4rem 0.9rem -0.2rem rgba(0, 0, 0, 0.35);
+            0 0.4rem 0.8rem -0.2rem rgba(0, 0, 0, 0.12);
         }
 
-        /* 2. Danger Pearl Pill (Ruby Border & Text) */
+        /* ── Danger Pearl ── */
         .pearl-variant-danger {
-          background-color: #FFF8F8;
-          color: #991B1B;
-          border: 1.5px solid #FCA5A5;
+          --bg: #1A0507;
+          --text: #FFA3A8;
+          --rim: rgba(255, 59, 48, 0.5);
+          background-color: var(--bg);
+          color: var(--text);
+          border: 1px solid rgba(255, 59, 48, 0.3);
           box-shadow:
-            inset 0 0.2rem 0.5rem rgba(255, 255, 255, 0.95),
-            inset 0 -0.1rem 0.2rem rgba(220, 38, 38, 0.08),
-            0 0.4rem 0.9rem -0.2rem rgba(0, 0, 0, 0.35);
+            inset 0 0.2rem 0.6rem var(--rim),
+            inset 0 -0.1rem 0.3rem rgba(0, 0, 0, 0.9),
+            0 0.8rem 1.2rem -0.4rem rgba(255, 59, 48, 0.3);
+        }
+        html:not(.dark) .pearl-variant-danger {
+          --bg: #FEF2F2;
+          --text: #991B1B;
+          --rim: rgba(255, 255, 255, 0.9);
+          border: 1px solid #FCA5A5;
+          box-shadow:
+            inset 0 0.2rem 0.5rem var(--rim),
+            inset 0 -0.1rem 0.2rem rgba(220, 38, 38, 0.1),
+            0 0.4rem 0.8rem -0.2rem rgba(220, 38, 38, 0.15);
         }
 
-        /* 3. Success Pearl Pill (Emerald Border & Text) */
+        /* ── Success Pearl ── */
         .pearl-variant-success {
-          background-color: #F6FEF8;
-          color: #166534;
-          border: 1.5px solid #86EFAC;
+          --bg: #04170A;
+          --text: #86EFAC;
+          --rim: rgba(48, 209, 88, 0.45);
+          background-color: var(--bg);
+          color: var(--text);
+          border: 1px solid rgba(48, 209, 88, 0.3);
           box-shadow:
-            inset 0 0.2rem 0.5rem rgba(255, 255, 255, 0.95),
-            inset 0 -0.1rem 0.2rem rgba(22, 163, 74, 0.08),
-            0 0.4rem 0.9rem -0.2rem rgba(0, 0, 0, 0.35);
+            inset 0 0.2rem 0.6rem var(--rim),
+            inset 0 -0.1rem 0.3rem rgba(0, 0, 0, 0.9),
+            0 0.8rem 1.2rem -0.4rem rgba(48, 209, 88, 0.25);
+        }
+        html:not(.dark) .pearl-variant-success {
+          --bg: #F0FDF4;
+          --text: #166534;
+          --rim: rgba(255, 255, 255, 0.9);
+          border: 1px solid #86EFAC;
+          box-shadow:
+            inset 0 0.2rem 0.5rem var(--rim),
+            inset 0 -0.1rem 0.2rem rgba(22, 163, 74, 0.1),
+            0 0.4rem 0.8rem -0.2rem rgba(22, 163, 74, 0.15);
         }
 
-        /* 4. Warning Pearl Pill (Amber Border & Text) */
-        .pearl-variant-warning {
-          background-color: #FFFEFA;
-          color: #92400E;
-          border: 1.5px solid #FDE68A;
+        /* ── Secondary / Subtle Pearl ── */
+        .pearl-variant-secondary {
+          --bg: #0D0F15;
+          --text: #D1D5DB;
+          --rim: rgba(255, 255, 255, 0.15);
+          background-color: var(--bg);
+          color: var(--text);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           box-shadow:
-            inset 0 0.2rem 0.5rem rgba(255, 255, 255, 0.95),
-            inset 0 -0.1rem 0.2rem rgba(217, 119, 6, 0.08),
-            0 0.4rem 0.9rem -0.2rem rgba(0, 0, 0, 0.35);
+            inset 0 0.15rem 0.4rem var(--rim),
+            0 0.4rem 0.8rem -0.2rem rgba(0, 0, 0, 0.5);
+        }
+        html:not(.dark) .pearl-variant-secondary {
+          --bg: #F1F5F9;
+          --text: #475569;
+          --rim: rgba(255, 255, 255, 0.9);
+          border: 1px solid #CBD5E1;
+          box-shadow:
+            inset 0 0.15rem 0.4rem var(--rim),
+            0 0.2rem 0.4rem -0.1rem rgba(0, 0, 0, 0.08);
         }
 
-        /* ── Pearl Inner Wrap & Specular Highlight ── */
+        /* ── Pearl Inner Wrap & Highlights ── */
         .pearl-btn-base .pearl-wrap {
           border-radius: inherit;
           position: relative;
@@ -121,6 +167,7 @@ export const PearlButton: React.FC<PearlButtonProps> = ({
           display: flex;
           align-items: center;
           justify-content: center;
+          font-weight: 600;
           width: 100%;
           letter-spacing: -0.01em;
         }
@@ -133,7 +180,7 @@ export const PearlButton: React.FC<PearlButtonProps> = ({
           bottom: 30%;
           top: -100%;
           border-radius: 50%;
-          background-color: rgba(255, 255, 255, 0.3);
+          background-color: rgba(255, 255, 255, 0.08);
           pointer-events: none;
           transition: transform 0.2s ease;
         }
@@ -143,32 +190,32 @@ export const PearlButton: React.FC<PearlButtonProps> = ({
           position: absolute;
           left: 8%;
           right: 8%;
-          top: 6%;
-          bottom: 50%;
+          top: 8%;
+          bottom: 45%;
           border-radius: 9999px;
-          box-shadow: inset 0 4px 4px -3px rgba(255, 255, 255, 0.9);
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, transparent 100%);
+          box-shadow: inset 0 6px 6px -6px rgba(255, 255, 255, 0.6);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
           pointer-events: none;
           transition: opacity 0.2s ease;
         }
 
-        /* ── Hover & Active Micro-Interactions ── */
+        /* ── Hover & Active ── */
         .pearl-btn-base:hover {
-          transform: translateY(-1.5px);
-          filter: brightness(1.03);
-          box-shadow:
-            inset 0 0.2rem 0.5rem rgba(255, 255, 255, 0.95),
-            0 0.6rem 1.1rem -0.2rem rgba(0, 0, 0, 0.45);
+          transform: translateY(-1px);
+          filter: brightness(1.06);
+        }
+        .pearl-btn-base:hover .pearl-wrap::before {
+          transform: translateY(-4%);
+        }
+        .pearl-btn-base:hover .pearl-wrap::after {
+          opacity: 0.7;
         }
         .pearl-btn-base:active {
           transform: translateY(1px);
-          filter: brightness(0.97);
-          box-shadow:
-            inset 0 0.15rem 0.3rem rgba(0, 0, 0, 0.1),
-            0 0.2rem 0.4rem -0.1rem rgba(0, 0, 0, 0.2);
+          filter: brightness(0.96);
         }
         .pearl-btn-base:disabled {
-          opacity: 0.6;
+          opacity: 0.5;
           cursor: not-allowed;
           transform: none;
           filter: none;
