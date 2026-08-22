@@ -197,7 +197,7 @@ named owner.
 ```yaml
 id: str              # anch-digital-arrest-001 / var-digital-arrest-004
 kind: anchor | variant | benign | heldout
-scam_family: str     # digital_arrest | family_emergency | kyc_update | ...
+scam_family: str     # from corpus_loader.VALID_FAMILIES — a closed set
 lang: en | hi | hi_latn
 script: latin | devanagari
 title: str           # → RetrievedPlaybook.title
@@ -206,9 +206,28 @@ source_url: str      # anchors: exact. variants: inherited via anchor_id
 source_agency: str   # → RetrievedPlaybook.source_agency
 anchor_id: str|null  # variants only
 derived: bool
+indexed: bool        # default true; false = citable but not retrievable
 markers: [str]       # marker ids this document exemplifies
-severity: float      # family-level prior, NOT a per-document score
+expected_anchor: str # heldout only — ground truth for P@k
 ```
+
+**`scam_family` is a closed set.** It is the key `eval_retrieval` scores family-level P@k
+against, so two spellings of one concept split the metric across both and read as a
+retrieval failure. `electricity_disconnection` sitting alongside `utility_disconnection`
+did exactly that, and an anchor filed under "utility" by *filename* while its text
+described telecom impersonation scored a correct retrieval as a miss. `VALID_FAMILIES`
+plus two integrity tests (variant matches its anchor, held-out matches its expected
+anchor) close both.
+
+**`indexed: false` separates citability from retrievability.** The two reporting
+advisories describe what a victim should *do*, not what a caller *says*. No held-out item
+expects either, so in the index they were pure false-positive surface — a benign caller
+mentioning the 1930 helpline retrieved a scam playbook. They remain anchors, keep their
+deep-link obligations, and leave top-k.
+
+**`severity` was removed.** It was authored on every anchor as a "family-level prior" and
+read by nothing. A family prior is a fourth weighted term in all but name, and the family
+label is the field that turned out to be least reliable.
 
 ### Where the URLs come from
 
@@ -234,10 +253,18 @@ text = "Papa emergency ho gaya hai … turant 50000 bhejo is UPI ID pe"
 detected_language = "hi"
 ```
 
-Latin script, Hindi tag. So **index every Hindi concept three ways: `en`, `hi-deva`,
-`hi-latn`**, the transliteration generated offline with `indic-transliteration`. Zero extra
-authoring cost, no query-time transliteration risk. A corpus written only in Devanagari
-misses every Latin-script transcription, silently.
+Latin script, Hindi tag. So **index every concept three ways: `en`, `hi_latn`, `hi`
+(Devanagari)**. A corpus written in one script misses every transcription in the others,
+silently.
+
+*Revised during implementation.* The original instruction was to generate `hi_latn`
+offline with `indic-transliteration`. **Hand-author all three instead.** Transliterating
+Devanagari produces `phona kisī ko mata denā`; Whisper emits the spelling a person would
+actually type. The machine output is a third script that matches nothing.
+
+**This is enforced, not aspirational**:
+`test_corpus_integrity.py::test_every_indexed_anchor_covers_all_three_scripts`. It is the
+language-bias guard as much as a coverage one — see §5.2.
 
 ---
 
@@ -291,6 +318,30 @@ Raw BGE-m3 cosines put ordinary topical text around 0.5–0.6 — nowhere near 0
 fixture values are **unreachable without the benign-cohort s-norm.** That is why step 3 is not
 optional. If you skip it, everything scores amber, which is the failure mode `README.md` and
 `SKILL.md` both warn about.
+
+### 5.2 · `z0` tracks the corpus. This is arithmetic, not taste.
+
+`z` compares the best scam match against the benign background. Growing the scam index
+raises `max_scam_cos` for **every** query — benign ones included — while
+`mean(benign_cos)` and `std(benign_cos)` are computed over an unchanged cohort. So every
+benign z drifts upward with corpus growth, and `SCRIPT_Z0` has to follow it.
+
+Measured, corpus 26 → 56 indexed documents:
+
+| | P@3 strict | family | benign FP |
+|---|---|---|---|
+| before growth, z0 = 4.0 | 81.2% | 93.8% | 7.3% |
+| after growth, z0 = 4.0 | 100% | 100% | **14.6%** |
+| after growth, **z0 = 5.5** | 100% | 100% | **1.2%** |
+
+**Run `python -m nlp_rag.eval_retrieval` after any corpus growth.** The benign
+false-positive rate is the number to watch and the direction it moves is predictable.
+
+Two guards live here rather than in `tests/test_score.py`, because they need a semantic
+encoder to mean anything — `FakeEncoder` is a lexical hasher and `fakes.py` says plainly
+that no test should assert on its absolute scores. `kyc_deva` and `parcel_deva` are
+paraphrased Devanagari scam calls; both sat near 0.5 before every anchor had a Devanagari
+variant, and both clear 0.90 now.
 
 ### 5.2 · Failure behaviour
 
@@ -370,6 +421,39 @@ laptop with Whisper, ECAPA, AASIST and silero.
 - **Pre-transcribe every demo clip** to `nlp_rag/index/pretranscribed.json` at H10:00 and let
   C load it when present. This is the mitigation the risk register already names.
 
+### 8.1 · Measured, Block 2
+
+Everything above was asserted. These are the numbers, `small` + `int8`, CPU, warm model.
+
+**The 30-second mel window is real, and it dominates.** Decode cost is essentially flat
+across input length:
+
+| input | decode | per second of audio |
+|---|---|---|
+| 3s | 1.17s | 0.391s |
+| 9s | 1.24s | 0.138s |
+| 30s | 1.19s | 0.040s |
+
+A 3s chunk costs 1.17s; a 30s chunk costs 1.19s. §8's claim was right. **Batching to 9s
+cuts per-second cost 2.8x against 3s chunks**, and the data would support batching further
+if the re-score loop can absorb the added time-to-first-score.
+
+Real speech sits above that floor — 2.6-2.8s for 9-17s clips — because decoding is
+token-proportional on top of a fixed ~1.2s encoder pass. Budget **~1.2s fixed + ~0.1s per
+second of speech**.
+
+**Cold model load is 3.85s.** It must be warmed at startup or the first call on stage pays
+it. See `INTEGRATION.md`.
+
+**Forcing the language was costing 10x.** `config.WHISPER_LANGUAGE = "hi"` was passed
+straight to `model.transcribe(language=...)`, which disables auto-detection. On English
+audio that measured 1.65-1.82x realtime against 0.16-0.18x auto-detected, produced
+*nondeterministic* output across identical runs, and once returned Devanagari and CJK
+characters as a transcript of clean English. All three symptoms are one cause: a forced
+mismatched language fails Whisper's logprob and compression checks and triggers temperature
+fallback, which is repeated decoding with sampling. Auto-detection is also better for
+Hindi — on code-switched Hinglish it still returns `hi`, and was faster there too.
+
 ---
 
 ## 9 · Reason codes and citations
@@ -415,13 +499,52 @@ cut.
 | Block | Hours | B does |
 |---|---|---|
 | **0** | H0:00–H1:00 | **E1 + E2 to C by H0:15.** Corpus schema locked H0:30. Harvest starts wifi-on: ~10 anchors with exact URLs; set held-out excerpts aside as you find them. |
-| **1** | H1:00–H4:00 | **Caution + suspicious fixture payloads to C at H1:00.** `embed.py`, `index.py`, `retrieve.py`, `markers.py` v1. Anchors → ~30, variants → ~50, benign cohort → ~80. Index built with three-script expansion. `score.py` with the benign s-norm, calibrated to §5.1. |
+| **1** ✅ | H1:00–H4:00 | **Done.** See "Block 1 as built" below. |
 | **2** | H4:00–H6:00 | **Stop building.** Sit next to C. Swap mocks one branch at a time: ASR → script → reason codes. Never two at once. |
 | **3** | H6:00–H9:00 | Exculpatory breadth, reason-code templates per scam family, `citations.py`, `challenge.py`, `warnings.py`. Corpus growth **only after** those are done. |
 | **4** | H9:00–H11:00 | `eval_retrieval.py` → P@3 and benign false-positive rate, hand to A. Pre-transcribe demo clips at H10:00. Then **floater rule** — join D. |
 | **5** | H11:00–H12:00 | Bug bash. Nothing new gets built. |
 
 > **H12:00 — FEATURE FREEZE. ABSOLUTE.**
+
+### Block 1 as built
+
+The stated target was *anchors → ~30, variants → ~50*. **Held at 16 anchors and drove
+variants to 42 instead**, because the two numbers buy different things: anchor bodies are
+third-person advisory prose and do not embed near first-person call transcripts, so
+anchors buy citations and variants buy retrieval. Nine families already carried real,
+deep-linked citations; six anchors had no variant at all, and five held-out items pointed
+straight at them.
+
+The target that replaced the flat 50 is **every indexed anchor carries a complete
+`en` / `hi_latn` / `hi` triple** — 14 × 3 = 42 — which closes the held-out misses and the
+script imbalance in the same work.
+
+| | before | after |
+|---|---|---|
+| indexed anchors + variants | 14 + 10 | 14 + 42 |
+| script mix (scam) | 18 en / 4 hi_latn / 2 deva | 28 / 14 / 14 |
+| P@3 strict · family | 81.2% · 93.8% | **100% · 100%** |
+| MRR | 0.740 | **0.906** |
+| benign false positives | 7.3% | **1.2%** |
+
+Four defects surfaced along the way, three of which were invisible before the harness
+existed:
+
+1. **A mislabelled anchor and a duplicate family name** were corrupting family-level P@3
+   in both directions. Fixed, and `VALID_FAMILIES` now prevents recurrence.
+2. **The vector cache was keyed on document id alone**, so editing a body under an
+   unchanged id served the previous wording's embedding forever, silently. Content hashes
+   added; `FORMAT` bumped to V2.
+3. **The cache recorded no encoder identity.** Writing a real BGE-m3 cache to disk for the
+   first time meant a 256-dim stand-in query met 1024-dim vectors — not a degraded result
+   but a matmul shape error from inside a live request. `expect_encoder` now rejects it.
+4. **`MK_URGENT_FINANCIAL_UPI` fired on "kabhi"**, which contains "abhi". A pharmacy saying
+   *"collect it whenever you like, or shall we send it to your home"* scored as a demand
+   for an immediate transfer. Patterns are `\b`-anchored now.
+
+The one remaining benign false positive is `benign-unusual-request-006` at 0.355 — a
+genuine but unusual money request, correctly elevated to amber rather than green.
 
 ### Bug-bash inputs (Block 5)
 
@@ -440,11 +563,56 @@ marker but no playbook hit · transcript with a playbook hit but no markers.
    available from H1.
 2. **P@3 on H9 recorded-clip transcripts** — real ASR output from A+D's session. Second row,
    measures retrieval under transcription error.
-3. **Benign false-positive rate** — fraction of the benign cohort scoring above the amber
-   floor. This is the number that proves the two over-flagging guards.
+3. **Benign false-positive rate** — fraction of the benign cohort scoring at or above the
+   amber floor, read from `config.BAND_THRESHOLDS["caution"]`. This is the number that
+   proves the two over-flagging guards.
 
 If B authors both the corpus and the test set, P@3 measures B's memory of their own writing.
 Row 1 exists so the honest answer to *"who wrote your test set"* is not *"I did."*
+
+**The benign cohort is scored leave-one-out.** Every benign document is *in* the cohort
+that normalisation reads as background; leaving its own ~1.0 self-match there raises the
+mean, depresses its own z, and understates the false-positive rate — the exact direction
+that makes a corpus look safer than it is. An earlier hand-run figure of 1/82 was measured
+without this and was optimistic; the honest pre-growth number was 7.3%.
+
+The harness also carries the §5.1 calibration table, so one run answers both *did
+retrieval improve* and *did the fixture scores survive*.
+
+### 12.1 · Recall — the axis that was missing
+
+P@k says the right advisory was **retrieved**. It says nothing about the number the user
+is **shown**, and a system can retrieve perfectly while scoring every call green. That is
+not hypothetical: the harness reported 100% P@3 and a 1.2% false-positive rate while
+**36% of known scams scored below the caution floor.**
+
+Every held-out document is a scam by construction, so the recall metrics come free:
+
+- `scam_recall_amber` — fraction reaching at least `caution`
+- `scam_recall_high_risk` — fraction reaching `high_risk`
+- `recall_by_lang` — the same, per language. **This replaced two hand-picked Devanagari
+  strings with an invented `>= 0.90` target.** One of them sat at 0.906 and duly failed
+  the moment the benign cohort grew; a threshold artefact was being reported as a defect.
+  Fifty transcripts across three scripts measure the same property with a sample behind it.
+- `silent_scams` — named, because "which ones" matters more than "how many".
+
+### 12.2 · The exit code cannot rest on the calibration rows
+
+Those three strings are what `SCRIPT_Z0` was fitted against, so they pass by construction.
+A run gated on them alone reported success while recall was 64%.
+
+The gate is **regression against the last recorded baseline** on the metrics that were
+never consulted during tuning: P@k strict and family, both recall figures, and the benign
+false-positive rate. Regression needs no invented absolute target — only "worse than last
+time", with a 0.03 tolerance so one document crossing a boundary in a 50-query set is not
+an alarm.
+
+Two comparisons are refused outright rather than reported, for the same reason
+`expect_encoder` refuses a foreign cache: **a metric is only comparable against a baseline
+measured on the same data.** A baseline from a different encoder, or from a different
+held-out or benign set, is skipped with a warning. Growing the held-out set from 16 to 50
+moved P@3 from 100% to 94% — a harder test, not a regression — and the first version of
+the gate duly reported three failures that had not happened.
 
 ---
 
