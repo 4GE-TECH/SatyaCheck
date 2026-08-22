@@ -7,14 +7,19 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <div className="flex flex-col min-h-dvh bg-[var(--bg-root)] text-[var(--text-primary)] font-sans transition-colors">
+    <div className="relative flex flex-col min-h-dvh bg-[var(--bg-root)] text-[var(--text-primary)] font-sans transition-colors overflow-x-hidden">
+      {/* Subtle Atmospheric Top Glow for Vanta Black Depth */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden select-none">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[300px] bg-gradient-to-b from-sky-500/10 via-sky-500/3 to-transparent blur-3xl dark:opacity-75" />
+      </div>
+
       <Navbar />
 
-      <main className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 md:p-8">
+      <main className="relative z-10 flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 md:p-8">
         {children}
       </main>
 
-      <footer className="border-t border-[var(--border-subtle)] bg-[var(--bg-primary)] px-4 sm:px-8 py-4 text-xs text-[var(--text-muted)] select-none transition-colors">
+      <footer className="relative z-10 border-t border-[var(--border-subtle)] bg-[var(--bg-primary)] px-4 sm:px-8 py-4 text-xs text-[var(--text-muted)] select-none transition-colors">
         <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div>
             <span className="font-bold text-[var(--text-primary)]">SatyaCheck</span>
