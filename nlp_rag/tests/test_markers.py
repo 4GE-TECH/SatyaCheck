@@ -57,6 +57,23 @@ def test_urgent_variants_are_detected():
         assert "MK_URGENT_FINANCIAL_UPI" in _ids(phrase), phrase
 
 
+def test_kabhi_does_not_fire_the_abhi_urgency_pattern():
+    """"kabhi bhi" — "any time at all" — is the *opposite* of time pressure.
+
+    It contains "abhi" as a substring, so an unanchored alternation matches a pharmacy
+    saying "collect it whenever you like, or shall we send it to your home?" and scores
+    a relaxed offer as a demand for an immediate transfer.
+    """
+    assert "MK_URGENT_FINANCIAL_UPI" not in _ids(
+        "Sir, aapki dawai aa gayi hai. Aap kabhi bhi aake le sakte hain, "
+        "ya hum ghar bhej dein?"
+    )
+
+
+def test_abhi_on_its_own_still_fires():
+    assert "MK_URGENT_FINANCIAL_UPI" in _ids("abhi paise bhejo")
+
+
 def test_authority_impersonation_detected():
     assert "MK_AUTHORITY_IMPERSONATION" in _ids("This is Inspector Sharma from the CBI")
 
