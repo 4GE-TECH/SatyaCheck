@@ -33,6 +33,9 @@ __pycache__/
 *.m4a
 *.mp3
 
+# EXCEPT: evaluation and demo clips
+!data/eval_set/clips/*.wav
+
 # Temporary/test files
 test_tone.wav
 setup.ps1
