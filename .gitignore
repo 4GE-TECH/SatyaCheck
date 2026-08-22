@@ -11,6 +11,7 @@ data/enrollments/
 data/cohort/
 data/demo_clips/
 data/reports/
+nlp_rag/index/
 data/faiss_index.bin
 data/faiss_docstore.pkl
 .env

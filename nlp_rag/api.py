@@ -130,6 +130,17 @@ def transcribe(
     C calls this as `transcribe(wav_path or waveform)`, so both are supported.
     """
     try:
+        # Pre-transcribed demo clips short-circuit the decoder — PLAN.md §8, the latency
+        # mitigation the risk register names. A miss is silent and falls straight through,
+        # so this is invisible to C and to the streaming path, where the input is a raw
+        # waveform that could not have been pre-transcribed anyway.
+        from nlp_rag import pretranscribe
+
+        cached = pretranscribe.lookup(audio_path, pretranscribe.DEFAULT_CACHE)
+        if cached is not None:
+            logger.info("pre-transcribed clip hit; skipping the decoder")
+            return cached
+
         return transcribe_file(audio_path, language)
     except Exception as exc:  # noqa: BLE001
         logger.warning("transcribe failed (%s)", exc)
