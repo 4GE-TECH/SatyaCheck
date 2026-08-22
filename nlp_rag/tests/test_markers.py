@@ -202,3 +202,97 @@ def test_actually_soliciting_an_otp_still_fires():
         "tell me the six digit code and your PIN",
     ):
         assert "MK_OTP_SOLICITATION" in _ids(phrase), phrase
+
+
+# --- exculpatory breadth (PLAN §6) -------------------------------------------
+# Isolation and urgency are structurally load-bearing for fraud: remove either and one
+# callback destroys the scam. Their opposites are therefore evidence in the other
+# direction, and an incriminating-only marker file flags the friend calling about a real
+# accident — the harm PRD §9 exists to prevent.
+
+def test_tolerating_delay_is_exculpatory():
+    """A scam cannot survive "think about it overnight". Every family in the corpus
+    compresses the victim's time; a caller who expands it is doing the opposite."""
+    marker = _by_id("Take your time, there is no hurry at all.", "MK_EXCULPATORY_NO_URGENCY")
+    assert marker.marker_type is MarkerType.EXCULPATORY
+    assert marker.weight < 0
+
+
+def test_tolerating_delay_detected_in_latin_hinglish():
+    assert "MK_EXCULPATORY_NO_URGENCY" in _ids("Koi jaldi nahi hai, aaram se dekh lena.")
+
+
+def test_tolerating_delay_detected_in_devanagari():
+    assert "MK_EXCULPATORY_NO_URGENCY" in _ids("कोई जल्दी नहीं है, आराम से बताइए।")
+
+
+def test_a_checkable_place_is_exculpatory():
+    """Naming somewhere the recipient can physically go is a verification route a
+    caller running a script cannot offer."""
+    marker = _by_id(
+        "Come to the hospital, I am in the emergency ward.",
+        "MK_EXCULPATORY_CHECKABLE_PLACE",
+    )
+    assert marker.marker_type is MarkerType.EXCULPATORY
+
+
+def test_a_checkable_place_detected_in_latin_hinglish():
+    assert "MK_EXCULPATORY_CHECKABLE_PLACE" in _ids(
+        "Aap branch aa jaiye, main yahin counter par hoon."
+    )
+
+
+def test_urgency_and_its_absence_do_not_both_fire():
+    """"turant bhejo" and "koi jaldi nahi" are contradictory claims about the same
+    dimension. A transcript matching both would be scoring noise."""
+    ids = _ids("Turant paise bhejo, abhi ke abhi.")
+    assert "MK_EXCULPATORY_NO_URGENCY" not in ids
+
+
+def test_a_scam_demanding_haste_does_not_read_as_patient():
+    assert "MK_EXCULPATORY_NO_URGENCY" not in _ids(
+        "You must transfer the money immediately or you will be arrested."
+    )
+
+
+# --- gaps found by A's calibration table -------------------------------------
+# A supplied four reference transcripts from the audio side. Three scored low, and two of
+# those were marker misses rather than calibration: an external test set catching what an
+# author's own examples did not.
+
+def test_naming_the_family_member_to_hide_from_is_isolation():
+    """"Don't tell Papa" is the family-emergency script almost verbatim, and it is a
+    stronger demand than "don't tell anyone" — it names the one person who could verify
+    the story in a single phone call."""
+    assert "MK_ISOLATION_DEMAND" in _ids("Send 40,000 rupees now, don't tell Papa")
+
+
+def test_isolation_covers_the_common_relations():
+    for phrase in (
+        "don't tell Mummy about this",
+        "do not tell your father",
+        "don't tell Mom, she will worry",
+    ):
+        assert "MK_ISOLATION_DEMAND" in _ids(phrase), phrase
+
+
+def test_a_bare_now_after_an_amount_is_time_pressure():
+    """"right now" matched; "now" alone did not, so "send 40,000 rupees now" scored as
+    though it carried no urgency at all."""
+    assert "MK_URGENT_FINANCIAL_UPI" in _ids("Send 40,000 rupees now")
+
+
+def test_now_without_money_is_not_a_payment_demand():
+    """The guard on the above: "now" is one of the commonest words in speech, and a
+    payment verb near it is not enough on its own."""
+    for phrase in (
+        "send me the photos now",
+        "I am leaving now",
+        "send the documents now please",
+    ):
+        assert "MK_URGENT_FINANCIAL_UPI" not in _ids(phrase), phrase
+
+
+def test_telling_someone_is_not_telling_them_to_hide_it():
+    """Guard against matching the plain verb: "I told Papa already" is the opposite."""
+    assert "MK_ISOLATION_DEMAND" not in _ids("I already told Papa about the accident")

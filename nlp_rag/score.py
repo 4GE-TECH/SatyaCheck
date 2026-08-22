@@ -183,6 +183,9 @@ def score_script(
             "marker_delta": round(delta, 4),
             "marker_net_weight": round(net_weight, 4),
             "suppressed_markers": sorted(suppressed),
+            # Which family the cited playbook belongs to. reason_codes.py turns this
+            # into the actionable line the panel shows.
+            "scam_family": retrieval.top_doc_family if playbooks else "none",
             "cohort_size": len(retrieval.cohort_similarities),
             "corroborated": corroborated,
             "capped_uncorroborated": capped,
