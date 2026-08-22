@@ -129,13 +129,16 @@ Run the scenario matrix after **any** threshold or fusion change. It catches the
 
 | Band | Meaning |
 |---|---|
-| 🟢 `green` | Voice matches an enrolled person, no scam indicators |
-| 🟠 `amber` | Verify before acting |
-| 🔴 `red` | High risk — do not send money |
+| 🟢 `verified` | Voice matches an enrolled person, no scam indicators |
+| 🟡 `caution` | Verify before acting — voice is recognised but context is unusual |
+| 🟠 `suspicious` | Elevated risk — synthetic voice or partial scam markers; proceed with caution |
+| 🔴 `high_risk` | High risk — do not send money or share credentials |
 | ⚪ `unverified` | Caller isn't enrolled. Normal for a genuine stranger. **Not the same as safe.** |
 | ⬜ `insufficient` | Not enough clear audio to analyse. We decline to guess. |
 
 `unverified` is deliberately not green. Green means "we verified this person," and for a stranger we verified nobody.
+
+`suspicious` differs from `high_risk`: synthetic voice is detected but scam intent is low or absent (e.g. an unrecognised automated caller). It warrants verification, not panic.
 
 ---
 

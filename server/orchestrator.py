@@ -61,8 +61,14 @@ def _mock_nlp_branch(
     wav_path: Optional[str],
     waveform: list[float],
 ) -> tuple[TranscriptResult, ScriptAnalysisResult]:
-    """Mock NLP branch — returns empty transcript and neutral script."""
-    return TranscriptResult.empty(), ScriptAnalysisResult.neutral()
+    """Mock NLP branch — returns abstention sentinel (details['available']=False).
+    
+    NOTE: returns risk=0.0 WITH available=False so fusion can distinguish
+    this from a genuinely benign call (which also has risk=0.0 but available=True).
+    """
+    abstain = ScriptAnalysisResult.neutral()
+    abstain.details["available"] = False
+    return TranscriptResult.empty(), abstain
 
 
 # ── Real branch wrappers (activated in Block 2) ──────────────────────
@@ -99,7 +105,9 @@ def _real_nlp_branch(
         return transcript, script
     except Exception as e:
         log.error(f"[nlp] Real branch failed, falling back to neutral: {e}")
-        return TranscriptResult.empty(), ScriptAnalysisResult.neutral()
+        abstain = ScriptAnalysisResult.neutral()
+        abstain.details["available"] = False
+        return TranscriptResult.empty(), abstain
 
 
 # ── Fusion ────────────────────────────────────────────────────────────
@@ -114,8 +122,14 @@ def _compute_fusion(
 
     intent   = max(script.risk, speaker.risk if verdict == mismatch else 0.0)
     r_cm_eff = spoof.risk * (CM_FLOOR + (1 - CM_FLOOR) * intent)
-    combined = sum(w_i * r_i) renormalised by weight sum
+    combined = sum(w_i * r_i) renormalised by active weight sum
     trust    = (1 - combined) * 100
+
+    Text-branch unavailability (B signals details['available']=False):
+      - w_text is excluded and the remaining weights are renormalised.
+      - intent for the CM gate becomes max(0.5, identity_risk_for_gate)
+        — neutral, never 0.0.  A dead ASR branch must not soften the
+        anti-spoof gate; in authority_check that is the only signal we have.
 
     Mode selection:
       unknown → authority_check (speaker abstains, weights shift)
@@ -134,13 +148,44 @@ def _compute_fusion(
     r_cm = spoof.risk
     r_text = script.risk
 
-    # Intent-gated effective CM risk
+    # ── E1 FIX: detect B's unavailability sentinel ─────────────────────
+    # B writes details["available"] = False on every abstention path.
+    # risk=0.0 alone is ambiguous (genuine benign call also has risk 0.0).
+    text_available: bool = script.details.get("available", True) is not False
+    if not text_available:
+        log.warning(
+            "[fusion] text branch unavailable (details['available']=False) — "
+            "renormalising weights, CM gate intent → neutral 0.5"
+        )
+
+    # ── Identity-contribution to CM gate ─────────────────────────────
     identity_risk_for_gate = r_asv if verdict == SpeakerVerdict.MISMATCH else 0.0
-    intent = max(r_text, identity_risk_for_gate)
+
+    # ── Intent for CM gate ────────────────────────────────────────────
+    if text_available:
+        intent = max(r_text, identity_risk_for_gate)
+    else:
+        # Neutral 0.5 — we have no transcript evidence either way.
+        # Using 0.0 would floor r_cm_eff to CM_FLOOR and soften the
+        # anti-spoof branch precisely when we can least afford to.
+        intent = max(0.5, identity_risk_for_gate)
+
     r_cm_eff = r_cm * (config.CM_FLOOR + (1.0 - config.CM_FLOOR) * intent)
 
-    # Weighted sum (weights already sum to 1.0)
-    combined_risk = (w_asv * r_asv + w_cm * r_cm_eff + w_text * r_text)
+    # ── Weighted sum, renormalised over active branches ───────────────
+    if text_available:
+        combined_risk = w_asv * r_asv + w_cm * r_cm_eff + w_text * r_text
+        active_weight_sum = 1.0  # weights already sum to 1.0
+    else:
+        # Drop w_text and renormalise so the remaining two branches
+        # still span the full 0–1 risk range.
+        active_weight_sum = w_asv + w_cm  # e.g. 0.55 in authority_check
+        combined_risk = (w_asv * r_asv + w_cm * r_cm_eff) / active_weight_sum
+        w_text = 0.0  # reflected in weights_used for transparency
+        # Renormalise displayed weights proportionally
+        w_asv = round(w_asv / active_weight_sum, 4)
+        w_cm  = round(w_cm  / active_weight_sum, 4)
+
     combined_risk = round(min(1.0, max(0.0, combined_risk)), 4)
 
     trust_score = config.risk_to_trust_score(combined_risk)

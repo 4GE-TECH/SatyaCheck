@@ -17,7 +17,7 @@ from contracts import ScreeningResponse, create_mock_fixture
 
 router = APIRouter(prefix="/api/mock", tags=["mock"])
 
-ScenarioType = Literal["green", "red", "unverified", "insufficient"]
+ScenarioType = Literal["green", "caution", "suspicious", "red", "unverified", "insufficient"]
 
 
 @router.get(
@@ -40,7 +40,8 @@ async def get_mock_screening(scenario: ScenarioType) -> ScreeningResponse:
 )
 async def list_mock_scenarios() -> JSONResponse:
     return JSONResponse(content={
-        "scenarios": ["green", "red", "unverified", "insufficient"],
+        "scenarios": ["green", "caution", "suspicious", "red", "unverified", "insufficient"],
         "note": "Hit /api/mock/screen/{scenario} for a full ScreeningResponse fixture.",
+        "bands_covered": ["verified", "caution", "suspicious", "high_risk", "unverified", "insufficient"],
         "deprecated_after": "GATE C2 (Block 2 integration)",
     })

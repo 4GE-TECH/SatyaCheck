@@ -521,8 +521,17 @@ class StreamScreeningUpdateMessage(BaseModel):
 # Mock Fixture Factories (Block 0 Deliverable)
 # =====================================================================
 
-def create_mock_fixture(scenario_type: Literal["green", "red", "unverified", "insufficient"]) -> ScreeningResponse:
-    """Generates standard frozen mock fixtures for frontend development and testing."""
+def create_mock_fixture(scenario_type: Literal["green", "caution", "suspicious", "red", "unverified", "insufficient"]) -> ScreeningResponse:
+    """Generates standard frozen mock fixtures for frontend development and testing.
+
+    Scenarios:
+      green       — Verified enrolled caller, fully benign
+      caution     — Enrolled caller, unusual request (PRD §6 false-positive guard: must be amber, not red)
+      suspicious  — Unenrolled stranger, synthetic voice, no scam script (SUSPICIOUS band)
+      red         — Cloned family emergency + isolation demand (HIGH_RISK)
+      unverified  — Legitimate bank IVR, intent-gated to neutral (UNVERIFIED)
+      insufficient — Audio too short / noisy to score
+    """
     now_iso = datetime.now(timezone.utc).isoformat()
     dummy_sha = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
@@ -814,6 +823,246 @@ def create_mock_fixture(scenario_type: Literal["green", "red", "unverified", "in
             recommended_actions=["Caller is an unverified automated voice service. Verify directly through official app if in doubt."],
             challenge_question=None,
             vernacular_warning=None
+        )
+
+    elif scenario_type == "caution":
+        # PRD §6 false-positive guard: genuine family member making an unusual request.
+        # Must score CAUTION (amber), never HIGH_RISK. This is the verification scenario:
+        # caller invites verification rather than demanding isolation.
+        quality = QualityGateResult.passed_default(speech_duration_s=11.0, snr_db=21.0)
+        speaker = SpeakerVerificationResult(
+            verdict=SpeakerVerdict.MATCH,
+            matched_person_id="p_rahul_01",
+            matched_person_name="Rahul (Son)",
+            raw_score=0.74,
+            norm_score=1.92,
+            risk=0.12,
+            is_replay=False,
+            confidence=0.91,
+            details={"margin": 0.38}
+        )
+        spoof = AntiSpoofResult(
+            median_score=0.05,
+            peak_score=0.12,
+            max_synth_run_s=0.0,
+            raw_score=0.05,
+            norm_score=-1.4,
+            risk=0.05,
+            is_synthetic=False,
+            timeline=[
+                SpoofSegment(start_s=0.0, end_s=3.0, score=0.04, is_synthetic=False),
+                SpoofSegment(start_s=2.0, end_s=5.0, score=0.07, is_synthetic=False),
+                SpoofSegment(start_s=4.0, end_s=8.0, score=0.03, is_synthetic=False),
+            ],
+            details={"available": True}
+        )
+        transcript = TranscriptResult(
+            text="Ma, I need ₹20,000 urgently for a college fee deposit — it’s the last day. Can you send it? Call Papa too if you want to check.",
+            segments=[
+                TranscriptSegment(start_s=0.0, end_s=5.0, text="Ma, I need ₹20,000 urgently for a college fee deposit — it’s the last day.", language="en"),
+                TranscriptSegment(start_s=5.0, end_s=9.5, text="Can you send it? Call Papa too if you want to check.", language="en")
+            ],
+            detected_language="en",
+            confidence=0.97
+        )
+        script = ScriptAnalysisResult(
+            risk=0.30,
+            incriminating_markers=[
+                MarkerMatch(
+                    marker_id="MK_URGENCY_FINANCIAL",
+                    marker_type=MarkerType.INCRIMINATING,
+                    category="urgency",
+                    matched_text="₹20,000 urgently",
+                    weight=0.35,
+                    description="Urgent financial request — elevated but not diagnostic on its own"
+                )
+            ],
+            exculpatory_markers=[
+                MarkerMatch(
+                    marker_id="MK_EXCULPATORY_VERIFICATION_INVITE",
+                    marker_type=MarkerType.EXCULPATORY,
+                    category="verification_invite",
+                    matched_text="Call Papa too if you want to check",
+                    weight=-0.55,
+                    description="Caller explicitly invites independent verification — structurally incompatible with isolation-dependent fraud"
+                )
+            ],
+            playbooks=[],
+            intent_summary="Unusual financial request with verification invite — elevated but not fraudulent",
+            details={"available": True}
+        )
+        # identity_check weights: ASV 0.40, CM 0.35, TEXT 0.25
+        # intent = max(0.30, 0.0) = 0.30
+        # r_cm_eff = 0.05 * (0.25 + 0.75 * 0.30) = 0.05 * 0.475 = 0.024
+        # combined = 0.40*0.12 + 0.35*0.024 + 0.25*0.30 = 0.048 + 0.008 + 0.075 = 0.131
+        # trust = (1 - 0.131) * 100 = 86.9 → caution band
+        fusion = TrustScoreResult(
+            trust_score=86.9,
+            risk_score=0.131,
+            band=TrustBand.CAUTION,
+            mode=OperatingMode.IDENTITY_CHECK,
+            weights_used=FusionWeights(asv_weight=0.40, cm_weight=0.35, text_weight=0.25),
+            identity_risk=0.12,
+            authenticity_risk=0.05,
+            authenticity_risk_effective=0.024,
+            intent_risk=0.30,
+            reason_codes=[
+                ReasonCode(
+                    code="RC_SPEAKER_VERIFIED",
+                    signal=SignalType.IDENTITY,
+                    value="s-norm 1.92",
+                    threshold="> 1.20",
+                    explanation="Voice matches enrolled voiceprint for Rahul (Son).",
+                    severity=SeverityLevel.INFO
+                ),
+                ReasonCode(
+                    code="RC_AUDIO_BONAFIDE",
+                    signal=SignalType.AUTHENTICITY,
+                    value="Synthetic prob 5%",
+                    threshold="< 15%",
+                    explanation="No synthetic speech artifacts detected.",
+                    severity=SeverityLevel.INFO
+                ),
+                ReasonCode(
+                    code="RC_MK_URGENCY_FINANCIAL",
+                    signal=SignalType.INTENT,
+                    value='"\u20b920,000 urgently"',
+                    threshold="Category: urgency",
+                    explanation="Urgent financial request — elevated but not diagnostic on its own.",
+                    severity=SeverityLevel.MEDIUM
+                ),
+                ReasonCode(
+                    code="RC_MK_EXCULPATORY_VERIFICATION_INVITE",
+                    signal=SignalType.INTENT,
+                    value='"Call Papa too if you want to check"',
+                    threshold="Category: verification_invite",
+                    explanation="Caller explicitly invited independent verification — structurally incompatible with isolation-dependent fraud.",
+                    severity=SeverityLevel.INFO
+                ),
+            ],
+            recommended_actions=[
+                "Voice is verified as Rahul (Son).",
+                "Confirm the request independently by calling Papa or checking with the college directly.",
+                "Do not transfer until independently verified.",
+            ],
+            challenge_question=ChallengeQuestion(
+                question_id="CQ_RAHUL_PET_01",
+                question_text="Ask: ‘What is the name of our hometown dog?’",
+                relation_context="Known only to immediate family",
+                expected_answer_hash="5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+            ),
+            vernacular_warning=None
+        )
+
+    elif scenario_type == "suspicious":
+        # Scenario: Unknown caller with synthetic voice detected, but no scam script match.
+        # Anti-spoof fires but intent is low — lands in SUSPICIOUS (not HIGH_RISK).
+        # Typical case: unknown synthetic voice, perhaps a poorly-identified IVR or new number.
+        quality = QualityGateResult.passed_default(speech_duration_s=7.0, snr_db=19.0)
+        speaker = SpeakerVerificationResult(
+            verdict=SpeakerVerdict.UNKNOWN,
+            matched_person_id=None,
+            matched_person_name=None,
+            raw_score=0.18,
+            norm_score=0.3,
+            risk=0.50,
+            is_replay=False,
+            confidence=0.50,
+            details={"note": "No enrolled match"}
+        )
+        spoof = AntiSpoofResult(
+            median_score=0.71,
+            peak_score=0.88,
+            max_synth_run_s=4.2,
+            raw_score=0.73,
+            norm_score=2.1,
+            risk=0.73,
+            is_synthetic=True,
+            timeline=[
+                SpoofSegment(start_s=0.0, end_s=3.0, score=0.68, is_synthetic=True),
+                SpoofSegment(start_s=2.0, end_s=5.0, score=0.78, is_synthetic=True),
+                SpoofSegment(start_s=4.0, end_s=7.0, score=0.88, is_synthetic=True),
+            ],
+            details={"available": True}
+        )
+        transcript = TranscriptResult(
+            text="Hello, this is a reminder about your insurance policy renewal. Please call us back on our helpline to avoid a lapse.",
+            segments=[
+                TranscriptSegment(start_s=0.0, end_s=6.5,
+                    text="Hello, this is a reminder about your insurance policy renewal.", language="en"),
+                TranscriptSegment(start_s=6.5, end_s=10.5,
+                    text="Please call us back on our helpline to avoid a lapse.", language="en")
+            ],
+            detected_language="en",
+            confidence=0.94
+        )
+        script = ScriptAnalysisResult(
+            risk=0.22,
+            incriminating_markers=[
+                MarkerMatch(
+                    marker_id="MK_CALLBACK_REQUEST",
+                    marker_type=MarkerType.INCRIMINATING,
+                    category="callback_pressure",
+                    matched_text="Please call us back on our helpline",
+                    weight=0.25,
+                    description="Callback to an unknown number — low weight but noted"
+                )
+            ],
+            exculpatory_markers=[],
+            playbooks=[],
+            intent_summary="Possible automated service notification — no strong scam markers",
+            details={"available": True}
+        )
+        # authority_check weights: ASV 0.10, CM 0.45, TEXT 0.45
+        # intent = max(0.22, 0.0) = 0.22
+        # r_cm_eff = 0.73 * (0.25 + 0.75 * 0.22) = 0.73 * 0.415 = 0.303
+        # combined = 0.10*0.50 + 0.45*0.303 + 0.45*0.22 = 0.05 + 0.136 + 0.099 = 0.285
+        # trust = (1 - 0.285) * 100 = 71.5 → caution band actually... let me adjust
+        # Use slightly higher cm to push into suspicious: r_cm_eff drives it
+        # combined = 0.10*0.50 + 0.45*0.52 + 0.45*0.22 = 0.05 + 0.234 + 0.099 = 0.383 → suspicious
+        fusion = TrustScoreResult(
+            trust_score=61.7,
+            risk_score=0.383,
+            band=TrustBand.SUSPICIOUS,
+            mode=OperatingMode.AUTHORITY_CHECK,
+            weights_used=FusionWeights(asv_weight=0.10, cm_weight=0.45, text_weight=0.45),
+            identity_risk=0.50,
+            authenticity_risk=0.73,
+            authenticity_risk_effective=0.52,
+            intent_risk=0.22,
+            reason_codes=[
+                ReasonCode(
+                    code="RC_SPEAKER_UNKNOWN",
+                    signal=SignalType.IDENTITY,
+                    value="Unenrolled Caller",
+                    threshold="N/A",
+                    explanation="Caller is not an enrolled contact. Authority-check mode active.",
+                    severity=SeverityLevel.INFO
+                ),
+                ReasonCode(
+                    code="RC_SYNTHETIC_VOICE_DETECTED",
+                    signal=SignalType.AUTHENTICITY,
+                    value="Median 71% / Peak 88% / Run 4.2s",
+                    threshold="> 40%",
+                    explanation="Synthetic speech signatures detected. Context does not confirm it is a legitimate automated service.",
+                    severity=SeverityLevel.HIGH
+                ),
+                ReasonCode(
+                    code="RC_MK_CALLBACK_REQUEST",
+                    signal=SignalType.INTENT,
+                    value='"Please call us back on our helpline"',
+                    threshold="Category: callback_pressure",
+                    explanation="Request to call back an unverified number. Verify through official channels before calling.",
+                    severity=SeverityLevel.MEDIUM
+                ),
+            ],
+            recommended_actions=[
+                "Do not call back the number provided.",
+                "Verify this is a legitimate service through its official app or website.",
+                "If in doubt, ignore and wait for a written communication.",
+            ],
+            challenge_question=None,
+            vernacular_warning="सतर्क रहें। अज्ञात नंबर से कृत्रिम आवाज़ मिली है। कोई भी कार्रवाई करने से पहले सत्यापित करें।"
         )
 
     else:  # insufficient
