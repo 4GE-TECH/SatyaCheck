@@ -1,0 +1,566 @@
+# Benign cohort expansion — Block 1. Brings the cohort from 22 to 80.
+#
+# This set defines what "an ordinary call sounds like" for the s-norm, so the failure
+# mode is a NARROW cohort, not an unpolished one. At 22 documents the std estimate on a
+# scam query was 0.051 against a MIN_COHORT_STD floor of 0.05 — one document away from
+# clamping, at which point the normaliser stops normalising and starts returning a
+# constant.
+#
+# Several entries deliberately involve money, urgency, deadlines or identity without
+# being scams. A cohort of nothing but pleasantries would make any transaction look
+# anomalous, which is the same over-flagging failure from the other direction.
+
+# --- institutional / automated ----------------------------------------------
+- id: benign-bank-ivr-003
+  kind: benign
+  lang: en
+  script: latin
+  title: Card transaction confirmation
+  text: >-
+    This is an automated call from your bank. A transaction of two thousand four
+    hundred rupees was made on your card ending 8871. If this was you, no action is
+    needed. To report it, please use the bank app.
+
+- id: benign-bank-ivr-004
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Credit card bill reminder
+  text: >-
+    Namaskar, aapke credit card ka bill teen tareekh ko due hai. Payment aap app ya
+    net banking se kar sakte hain. Dhanyavaad.
+
+- id: benign-bank-branch-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Branch calling about a form
+  text: >-
+    Sir, I am calling from the Andheri branch. Your locker agreement renewal form is
+    ready for signature. You can come in any working day before four, no hurry.
+
+- id: benign-bank-legit-002
+  kind: benign
+  lang: en
+  script: latin
+  title: Bank refusing to take details on a call
+  text: >-
+    I can see the failed transaction on your account. I am not able to take any card
+    or OTP details over the phone. Please raise it in the app under disputes, or visit
+    the branch with your passbook.
+
+- id: benign-telecom-ivr-002
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Recharge reminder
+  text: >-
+    आपका प्लान कल समाप्त हो रहा है। रिचार्ज करने के लिए ऐप खोलें या नज़दीकी स्टोर पर जाएँ।
+    धन्यवाद।
+
+- id: benign-telecom-ivr-003
+  kind: benign
+  lang: en
+  script: latin
+  title: Data usage notice
+  text: >-
+    You have used eighty percent of your monthly data. To check your balance dial star
+    one two three hash. Thank you for choosing us.
+
+- id: benign-insurance-002
+  kind: benign
+  lang: en
+  script: latin
+  title: Policy renewal without pressure
+  text: >-
+    Good afternoon, I am calling about your two wheeler insurance which expires next
+    month. Would you like me to email the renewal quote so you can compare it, or
+    should I call back another time?
+
+- id: benign-insurance-003
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Health policy document
+  text: >-
+    Aapki health policy ka document courier ho gaya hai. Agle hafte tak pahunch
+    jayega. Koi sawaal ho to branch pe aa jaiye.
+
+- id: benign-govt-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Municipal water shutdown notice
+  text: >-
+    This is from the ward office regarding the water supply shutdown on Thursday
+    between ten and four for pipeline work. Please store water in advance.
+
+- id: benign-govt-002
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Vaccination camp
+  text: >-
+    कल सुबह नौ बजे से सामुदायिक केंद्र में टीकाकरण शिविर है। कृपया अपना पहचान पत्र साथ
+    लाएँ।
+
+# --- delivery and logistics --------------------------------------------------
+- id: benign-delivery-004
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Delivery agent at the gate
+  text: >-
+    Bhaiya main delivery ke liye aaya hoon, gate pe khada hoon. Flat number confirm
+    kar dijiye, guard bhej raha hai.
+
+- id: benign-delivery-005
+  kind: benign
+  lang: en
+  script: latin
+  title: Cash on delivery
+  text: >-
+    Your order is out for delivery today, the amount payable is six hundred and forty
+    rupees cash on delivery. Will someone be at home in the afternoon?
+
+- id: benign-delivery-006
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Parcel rescheduled
+  text: >-
+    आपका पार्सल आज नहीं पहुँच पाया। कल दोपहर तक डिलीवरी हो जाएगी। कोई बदलाव हो तो ऐप में
+    बता दीजिए।
+
+- id: benign-delivery-007
+  kind: benign
+  lang: en
+  script: latin
+  title: Courier return pickup
+  text: >-
+    I am calling for the return pickup scheduled at your address. I will be there in
+    about twenty minutes, please keep the item packed with the invoice.
+
+- id: benign-cab-001
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Cab driver arriving
+  text: >-
+    Sir main aapki cab leke aa gaya hoon, society ke main gate pe hoon. Aap aa jaiye,
+    main wahin ruka hoon.
+
+- id: benign-cab-002
+  kind: benign
+  lang: en
+  script: latin
+  title: Driver confirming the drop
+  text: >-
+    Ma'am I have reached the pickup point. Is the drop still airport terminal two?
+    Traffic looks fine, we should make it in forty minutes.
+
+# --- medical -----------------------------------------------------------------
+- id: benign-clinic-002
+  kind: benign
+  lang: en
+  script: latin
+  title: Appointment reminder
+  text: >-
+    This is a reminder for your appointment with Doctor Nair tomorrow at eleven
+    fifteen. Please bring your previous prescription and reports.
+
+- id: benign-clinic-003
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Report ready for collection
+  text: >-
+    Aapki blood report taiyaar hai, aap kabhi bhi collect kar sakte hain. Chahein to
+    hum email bhi kar dete hain.
+
+- id: benign-clinic-004
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Doctor rescheduling
+  text: >-
+    डॉक्टर साहब आज देर से आएँगे, इसलिए आपका समय शाम पाँच बजे कर दिया है। अगर ठीक न हो तो
+    बता दीजिए।
+
+- id: benign-hospital-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine hospital admission call
+  text: >-
+    I am calling from the hospital front desk. Your father has been admitted to ward
+    four for observation after a fall. He is stable and talking. You can come any time
+    during visiting hours, and the doctor will be here till eight if you want to speak
+    to him directly.
+
+- id: benign-pharmacy-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Medicine back in stock
+  text: >-
+    Jo dawai aap poochh rahe the wo aa gayi hai. Aap aake le jaiye ya hum ghar bhej
+    dein, jaise aapko theek lage.
+
+# --- family and friends ------------------------------------------------------
+- id: benign-family-005
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Leaving the office
+  text: >-
+    Ma main nikal gaya hoon office se, ek ghante mein ghar pahunch jaunga. Khana mat
+    banao, main raaste se le aata hoon.
+
+- id: benign-family-006
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Weekend plan
+  text: >-
+    इस इतवार को सब लोग घर आ रहे हैं। तुम भी आ जाओ, बच्चों को भी लेते आना। खाना यहीं बनेगा।
+
+- id: benign-family-007
+  kind: benign
+  lang: en
+  script: latin
+  title: Checking in on a parent
+  text: >-
+    Did you take your tablets this morning? I will call again after dinner. If you
+    feel dizzy again, call me or go next door and ask them to phone me.
+
+- id: benign-family-008
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Train running late
+  text: >-
+    Train do ghante late hai, station pe mat aana. Main cab kar ke aa jaunga, tum so
+    jao.
+
+- id: benign-family-009
+  kind: benign
+  lang: en
+  script: latin
+  title: Sibling about a shared expense
+  text: >-
+    I paid the electrician for the bathroom work, it came to four thousand two
+    hundred. Send me half whenever you get a chance, there is no rush at all.
+
+- id: benign-family-010
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Going to the market
+  text: >-
+    बाज़ार जा रही हूँ, कुछ चाहिए तो बता दो। शाम तक लौट आऊँगी।
+
+- id: benign-friend-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Friend making plans
+  text: >-
+    Are you free Saturday evening? A few of us are meeting at the usual place around
+    seven. Let me know by Friday so I can book a table.
+
+- id: benign-friend-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Friend borrowing a tool
+  text: >-
+    Yaar tera drill machine mil jayega do din ke liye? Main kal aake le jaunga aur
+    weekend tak wapas kar dunga.
+
+# --- genuine but unusual: money, urgency, identity, without fraud ------------
+# These are the hardest negatives in the set. Each involves a real payment request
+# and each invites verification, which is what separates them from a scam script.
+
+- id: benign-unusual-request-004
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine urgent money request, verifiable
+  text: >-
+    I am at the hospital with Meera, the admission counter wants twelve thousand as a
+    deposit before they will start. Can you transfer it? Call me back on this number
+    if you want to check, or speak to the duty nurse, I will hand her the phone.
+
+- id: benign-unusual-request-005
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Flat token amount
+  text: >-
+    Bhai flat ka token amount aaj dena padega warna owner kisi aur ko de dega. Pachas
+    hazaar bhej sakta hai? Tu chahe to broker se baat kar le, main number bhej deta
+    hoon.
+
+- id: benign-unusual-request-006
+  kind: benign
+  lang: en
+  script: latin
+  title: Card not working while travelling
+  text: >-
+    My card is not working here and I have got no cash. Can you send something to my
+    UPI? Papa knows I am travelling, ask him if you want. I will settle it when I am
+    back next week.
+
+- id: benign-unusual-request-007
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: School fee deadline
+  text: >-
+    स्कूल की फ़ीस कल आख़िरी तारीख़ है। पैसे भेज दो तो मैं जमा कर दूँगी। रसीद भेज दूँगी, और
+    प्रिंसिपल ऑफ़िस का नंबर भी है अगर पूछना हो।
+
+- id: benign-unusual-request-008
+  kind: benign
+  lang: en
+  script: latin
+  title: Contractor asking for an advance
+  text: >-
+    For the tiles I will need an advance of fifteen thousand to place the order. You
+    can pay at the shop directly if you prefer, I will send you their address and GST
+    number.
+
+# --- work and services -------------------------------------------------------
+- id: benign-office-002
+  kind: benign
+  lang: en
+  script: latin
+  title: Meeting moved
+  text: >-
+    The review has been pushed to four thirty because the client is running late.
+    Same link, I have updated the invite already.
+
+- id: benign-office-003
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Colleague about a document
+  text: >-
+    Wo report ka final version bhej diya hai mail pe. Ek baar dekh lena, agar theek
+    hai to main client ko forward kar deta hoon.
+
+- id: benign-office-004
+  kind: benign
+  lang: en
+  script: latin
+  title: Legitimate recruiter
+  text: >-
+    I am calling about the application you submitted last week. Would you be available
+    for a technical round on Tuesday? There is no registration fee or anything, just
+    the interview.
+
+- id: benign-office-005
+  kind: benign
+  lang: en
+  script: latin
+  title: Vendor invoice query
+  text: >-
+    We have not received the purchase order number for last month's invoice. Could you
+    check with accounts and send it across when you can?
+
+- id: benign-service-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Plumber scheduling
+  text: >-
+    Aaj shaam ko aa jaun paanch baje? Tap ka washer badalna hai, dus minute ka kaam
+    hai.
+
+- id: benign-service-003
+  kind: benign
+  lang: en
+  script: latin
+  title: Salon confirming
+  text: >-
+    Just confirming your appointment for Sunday at noon. If you need to change it,
+    message us on WhatsApp any time.
+
+- id: benign-service-004
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Gas cylinder booking
+  text: >-
+    आपका सिलेंडर बुक हो गया है, कल सुबह डिलीवरी होगी। कृपया घर पर कोई मौजूद रहे।
+
+- id: benign-service-005
+  kind: benign
+  lang: en
+  script: latin
+  title: Internet outage update
+  text: >-
+    There is a fibre cut in your area affecting broadband since this morning. Our team
+    is working on it and service should be restored by evening. No action is needed
+    from your side.
+
+- id: benign-service-006
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Electrician following up
+  text: >-
+    Kal jo fan lagaya tha wo theek chal raha hai na? Koi awaaz aaye to bata dijiyega,
+    main aake dekh lunga.
+
+# --- school and community ----------------------------------------------------
+- id: benign-school-002
+  kind: benign
+  lang: en
+  script: latin
+  title: Parent teacher meeting
+  text: >-
+    The parent teacher meeting is on Friday between nine and twelve. You can come any
+    time in that window, no appointment needed.
+
+- id: benign-school-003
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Bus route changed
+  text: >-
+    कल से स्कूल बस का रास्ता बदल गया है। बच्चे को दस मिनट पहले स्टॉप पर भेज दीजिए।
+
+- id: benign-school-004
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Child unwell at school
+  text: >-
+    Aapke bete ko thodi tabiyat kharab lag rahi hai, bukhaar nahi hai lekin sust hai.
+    Aap aa sakte hain lene? Hum medical room mein hain.
+
+- id: benign-community-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Society maintenance due
+  text: >-
+    The society maintenance for this quarter is due by the fifteenth. You can pay at
+    the office or by bank transfer, the details are on the notice board.
+
+- id: benign-community-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Neighbour about parking
+  text: >-
+    Aapki gaadi thodi aage kar dijiye, meri car nikal nahi pa rahi. Bas do minute ka
+    kaam hai.
+
+# --- wrong numbers and short calls -------------------------------------------
+- id: benign-wrong-number-003
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Wrong number
+  text: >-
+    Hello, Sharma ji hain? Nahi? Sorry sorry, galat number lag gaya.
+
+- id: benign-wrong-number-004
+  kind: benign
+  lang: en
+  script: latin
+  title: Wrong number, apologetic
+  text: >-
+    Sorry, I was trying to reach the clinic. I must have saved the wrong number.
+    Apologies for disturbing you.
+
+- id: benign-shortcall-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Bad line
+  text: >-
+    Hello? Hello, can you hear me? I will call you back, the line is bad.
+
+- id: benign-shortcall-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Call cut short
+  text: >-
+    Haan bolo. Awaaz nahi aa rahi. Main phir se call karta hoon.
+
+# --- retail, travel and misc -------------------------------------------------
+- id: benign-retail-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Order confirmation
+  text: >-
+    Your order has been confirmed and will ship tomorrow. You will get a tracking link
+    on this number once it leaves the warehouse.
+
+- id: benign-retail-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Phone repaired
+  text: >-
+    Aapka phone ready hai, screen badal di hai. Bill aath sau ka bana hai, aake le
+    jaiye.
+
+- id: benign-retail-003
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: Tailor
+  text: >-
+    कपड़े सिल गए हैं, कल शाम तक आकर ले जाइए। नाप ठीक न लगे तो बदल देंगे।
+
+- id: benign-restaurant-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Table booking
+  text: >-
+    We have a table for four at eight thirty on Saturday. Should I hold it under your
+    name?
+
+- id: benign-landlord-001
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Landlord about rent
+  text: >-
+    Is mahine ka rent aa gaya kya? Koi jaldi nahi hai, jab time mile tab kar dijiye.
+    Receipt main WhatsApp pe bhej dunga.
+
+- id: benign-gym-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Membership expiring
+  text: >-
+    Your membership expires at the end of this month. If you would like to renew you
+    can do it at the desk, otherwise no problem at all.
+
+- id: benign-travel-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Flight rescheduled
+  text: >-
+    Your flight on the twelfth has been rescheduled by ninety minutes. The new
+    departure is at six forty. No action is required, your booking stands.
+
+- id: benign-travel-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Hotel confirming a booking
+  text: >-
+    Aapki booking confirm hai, check in do baje se hai. Agar late pahunch rahe hain to
+    bata dijiye, room hold kar lenge.
