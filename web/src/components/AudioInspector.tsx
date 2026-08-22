@@ -27,42 +27,42 @@ export default function AudioInspector({ data }: AudioInspectorProps) {
   }, [isPlaying, totalDuration]);
 
   return (
-    <div className="hud-panel p-4">
-      <div className="flex items-center justify-between mb-3 font-mono">
+    <div className="sec-card-subtle p-4 font-mono text-xs">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+          <span className="w-2 h-2 rounded-full bg-[var(--accent)]"></span>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
             AUDIO PROBE WAVEFORM & TIME-SERIES SCRUBBER
           </h3>
         </div>
 
-        <div className="text-[11px] text-zinc-400">
+        <div className="text-[11px] text-[var(--text-muted)]">
           <span>CHANNEL: 16 kHz Mono (SPEAKERPHONE)</span>
         </div>
       </div>
 
-      {/* Futuristic Audio Waveform Player */}
-      <div className="p-3 rounded bg-[#050505] border border-white/10">
-        <div className="flex items-center gap-4 mb-2">
+      {/* Audio Waveform Player */}
+      <div className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border-default)]">
+        <div className="flex items-center gap-3.5 mb-2">
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            className="w-8 h-8 rounded bg-white text-black flex items-center justify-center font-bold text-xs font-mono transition-all hover:bg-zinc-200 cursor-pointer shrink-0"
+            className="w-8 h-8 rounded bg-[var(--text-primary)] text-[var(--bg-primary)] flex items-center justify-center font-bold text-xs transition-opacity hover:opacity-90 cursor-pointer shrink-0"
             title={isPlaying ? "Pause Probe" : "Play Probe"}
           >
             {isPlaying ? "❚❚" : "▶"}
           </button>
 
           <div className="flex-1">
-            <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 mb-1">
+            <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] mb-1">
               <span>AUDIO PROBE PLAYBACK</span>
-              <span className="text-white font-bold">
+              <span className="text-[var(--text-primary)] font-bold">
                 {currentTime.toFixed(1)}s / {totalDuration.toFixed(1)}s
               </span>
             </div>
 
             {/* Interactive Progress Bar with Waveform */}
             <div
-              className="h-8 rounded bg-[#000000] border border-white/10 relative overflow-hidden flex items-center px-1 cursor-pointer select-none"
+              className="h-8 rounded bg-[var(--bg-secondary)] border border-[var(--border-default)] relative overflow-hidden flex items-center px-1 cursor-pointer select-none"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
@@ -70,13 +70,11 @@ export default function AudioInspector({ data }: AudioInspectorProps) {
                 setCurrentTime(pct * totalDuration);
               }}
             >
-              {/* Playback progress background */}
               <div
-                className="absolute top-0 bottom-0 left-0 bg-white/10 border-r border-white"
+                className="absolute top-0 bottom-0 left-0 bg-[var(--accent)] opacity-20 border-r border-[var(--accent)]"
                 style={{ width: `${(currentTime / totalDuration) * 100}%` }}
               />
 
-              {/* Waveform Bars */}
               <div className="w-full flex items-center justify-between gap-[2px] h-5 z-10 px-1">
                 {Array.from({ length: 48 }).map((_, i) => {
                   const progressPct = i / 48;
@@ -86,10 +84,10 @@ export default function AudioInspector({ data }: AudioInspectorProps) {
                   return (
                     <div
                       key={i}
-                      className="flex-1 rounded-none transition-all"
+                      className="flex-1 transition-all"
                       style={{
                         height: `${Math.max(15, Math.min(95, pseudoHeight))}%`,
-                        backgroundColor: isCurrent ? "#FFFFFF" : "rgba(255, 255, 255, 0.2)",
+                        backgroundColor: isCurrent ? "var(--accent)" : "var(--border-strong)",
                       }}
                     />
                   );
@@ -100,22 +98,22 @@ export default function AudioInspector({ data }: AudioInspectorProps) {
         </div>
 
         {/* Telephony Specs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/10 text-[10px] font-mono text-zinc-400">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)]">
           <div>
             <span>CODEC: </span>
-            <span className="text-white font-bold">PCM 16-bit / Opus</span>
+            <span className="text-[var(--text-primary)] font-bold">PCM 16-bit / Opus</span>
           </div>
           <div>
             <span>ACTIVE SPEECH: </span>
-            <span className="text-white font-bold">{data.quality.speech_duration_s.toFixed(2)}s</span>
+            <span className="text-[var(--text-primary)] font-bold">{data.quality.speech_duration_s.toFixed(2)}s</span>
           </div>
           <div>
             <span>SNR ESTIMATE: </span>
-            <span className="text-white font-bold">+{data.quality.snr_db.toFixed(1)} dB</span>
+            <span className="text-[var(--text-primary)] font-bold">+{data.quality.snr_db.toFixed(1)} dB</span>
           </div>
           <div>
             <span>QUALITY GATE: </span>
-            <span className={data.quality.passed ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+            <span className={data.quality.passed ? "text-[var(--success-text)] font-bold" : "text-[var(--warning-text)] font-bold"}>
               {data.quality.passed ? "PASSED" : "FAILED"}
             </span>
           </div>

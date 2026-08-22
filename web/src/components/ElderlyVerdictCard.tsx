@@ -32,7 +32,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
       }
       const utterance = new SpeechSynthesisUtterance(fusion.vernacular_warning);
       utterance.lang = "hi-IN";
-      utterance.rate = 0.9; // slightly slower for elderly clarity
+      utterance.rate = 0.9;
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
       setIsSpeaking(true);
@@ -44,27 +44,27 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
     <div className="space-y-6">
       {/* ── 1. GIANT UNAMBIGUOUS VERDICT CARD (MAIN FOCUS) ── */}
       <div
-        className={`p-6 sm:p-8 rounded-2xl border-2 shadow-2xl text-center space-y-6 transition-all ${
+        className={`p-6 sm:p-8 rounded-xl border text-center space-y-5 transition-colors ${
           isHighRisk
-            ? "bg-[#7F1D1D]/30 border-red-500 text-white"
+            ? "bg-[var(--danger-bg)] border-[var(--danger-border)] text-[var(--text-primary)]"
             : isVerified
-            ? "bg-[#14532D]/30 border-emerald-500 text-white"
+            ? "bg-[var(--success-bg)] border-[var(--success-border)] text-[var(--text-primary)]"
             : isUnverified
-            ? "bg-[#1E293B] border-slate-600 text-white"
-            : "bg-[#1F2937] border-zinc-600 text-white"
+            ? "bg-[var(--bg-primary)] border-[var(--border-default)] text-[var(--text-primary)]"
+            : "bg-[var(--bg-secondary)] border-[var(--border-default)] text-[var(--text-primary)]"
         }`}
       >
         {/* Giant Status Icon */}
         <div className="flex justify-center">
           <div
-            className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center font-extrabold text-4xl sm:text-5xl shadow-lg border-4 ${
+            className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center font-extrabold text-3xl sm:text-4xl shadow-sm border-2 ${
               isHighRisk
-                ? "bg-red-600 border-red-300 text-white animate-bounce"
+                ? "bg-[var(--danger)] border-[var(--danger-border)] text-white"
                 : isVerified
-                ? "bg-emerald-600 border-emerald-300 text-white"
+                ? "bg-[var(--success)] border-[var(--success-border)] text-white"
                 : isUnverified
-                ? "bg-slate-600 border-slate-400 text-white"
-                : "bg-zinc-600 border-zinc-400 text-white"
+                ? "bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-primary)]"
+                : "bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-muted)]"
             }`}
           >
             {isHighRisk && "✕"}
@@ -77,14 +77,14 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
         {/* Huge Unambiguous Headline (Max 6-8 Words) */}
         <div className="space-y-2 max-w-2xl mx-auto">
           <h1
-            className={`text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight ${
+            className={`text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight ${
               isHighRisk
-                ? "text-red-400"
+                ? "text-[var(--danger)]"
                 : isVerified
-                ? "text-emerald-400"
+                ? "text-[var(--success)]"
                 : isUnverified
-                ? "text-slate-200"
-                : "text-zinc-300"
+                ? "text-[var(--text-primary)]"
+                : "text-[var(--text-muted)]"
             }`}
           >
             {isHighRisk && "FAKE VOICE DETECTED — DO NOT SEND MONEY"}
@@ -94,7 +94,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
           </h1>
 
           {/* Plain Single-Sentence Explanation (Zero Jargon) */}
-          <p className="text-lg sm:text-xl text-slate-200 leading-relaxed font-medium">
+          <p className="text-base sm:text-lg text-[var(--text-secondary)] leading-relaxed font-medium">
             {isHighRisk &&
               "The voice sounds like Rahul, but our AI detected it was artificially created to trick you into transferring money."}
             {isVerified &&
@@ -111,14 +111,17 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
           <div className="pt-2">
             <button
               onClick={handlePlayVoiceWarning}
-              className="w-full max-w-md mx-auto py-4 px-6 rounded-2xl bg-red-700 hover:bg-red-600 text-white font-bold text-lg shadow-lg flex items-center justify-center gap-3 transition-all cursor-pointer border-2 border-red-400"
+              className="w-full max-w-md mx-auto py-3.5 px-6 rounded-lg bg-[var(--danger)] hover:opacity-90 text-white font-bold text-base shadow-sm flex items-center justify-center gap-2.5 transition-opacity cursor-pointer border border-[var(--danger-border)]"
             >
-              <span className="text-2xl">{isSpeaking ? "⏹" : "🔊"}</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
               <span>
                 {isSpeaking ? "Stop Hindi Warning" : "Listen to Warning in Hindi (चेतावनी सुनिए)"}
               </span>
             </button>
-            <p className="text-xs text-slate-300 mt-2 italic">
+            <p className="text-xs text-[var(--danger-text)] mt-2 font-medium">
               "{fusion.vernacular_warning}"
             </p>
           </div>
@@ -127,12 +130,12 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
 
       {/* ── 3. STEP-BY-STEP ACTION WIZARD (ONE CLEAR STEP AT A TIME) ── */}
       {isHighRisk && (
-        <div className="p-6 sm:p-8 rounded-2xl bg-[#111827] border border-red-500/40 shadow-xl space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-              <span>What to Do Right Now</span>
+        <div className="sec-card p-6 sm:p-7 space-y-4">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
+              What to Do Right Now
             </h2>
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-950 text-red-300 border border-red-800">
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]">
               Step {currentStep} of 3
             </span>
           </div>
@@ -140,21 +143,21 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
           {/* Wizard Step 1: Hang Up */}
           {currentStep === 1 && (
             <div className="space-y-4">
-              <div className="p-5 rounded-xl bg-[#1F2937] border border-slate-600 space-y-2">
-                <div className="text-xs font-bold text-red-400 uppercase tracking-wider">
+              <div className="sec-card-subtle p-4 space-y-1.5">
+                <div className="text-xs font-bold text-[var(--danger)] uppercase tracking-wider">
                   Step 1 of 3:
                 </div>
-                <div className="text-xl sm:text-2xl font-bold text-white">
+                <div className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
                   Hang up the call immediately.
                 </div>
-                <p className="text-base text-slate-300 leading-relaxed">
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                   Do not argue, do not send any money, and do not enter any UPI PIN. Simply disconnect the call.
                 </p>
               </div>
 
               <button
                 onClick={() => setCurrentStep(2)}
-                className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base transition-colors shadow cursor-pointer"
+                className="w-full py-3.5 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] font-bold text-sm transition-colors shadow-sm cursor-pointer"
               >
                 I Have Hung Up → Next Step
               </button>
@@ -164,28 +167,28 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
           {/* Wizard Step 2: Call Back on Saved Number */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <div className="p-5 rounded-xl bg-[#1F2937] border border-slate-600 space-y-2">
-                <div className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+              <div className="sec-card-subtle p-4 space-y-1.5">
+                <div className="text-xs font-bold text-[var(--accent)] uppercase tracking-wider">
                   Step 2 of 3:
                 </div>
-                <div className="text-xl sm:text-2xl font-bold text-white">
+                <div className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
                   Call {speaker.matched_person_name || "your family member"} on your regular phone.
                 </div>
-                <p className="text-base text-slate-300 leading-relaxed">
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                   Dial their saved number directly from your contacts list. You will find they are safe and this call was a scam.
                 </p>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-2.5">
                 <button
                   onClick={() => setCurrentStep(1)}
-                  className="w-1/3 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm cursor-pointer"
+                  className="w-1/3 py-2.5 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-default)] font-semibold text-xs cursor-pointer"
                 >
                   ← Back
                 </button>
                 <button
                   onClick={() => setCurrentStep(3)}
-                  className="w-2/3 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base cursor-pointer"
+                  className="w-2/3 py-2.5 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] font-bold text-sm cursor-pointer"
                 >
                   Next: Challenge Question →
                 </button>
@@ -196,31 +199,31 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
           {/* Wizard Step 3: Ask Challenge Question */}
           {currentStep === 3 && (
             <div className="space-y-4">
-              <div className="p-5 rounded-xl bg-amber-950/40 border border-amber-500/50 space-y-2">
-                <div className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+              <div className="p-4 rounded-lg bg-[var(--warning-bg)] border border-[var(--warning-border)] space-y-1.5">
+                <div className="text-xs font-bold text-[var(--warning-text)] uppercase tracking-wider">
                   Step 3 of 3 (If They Call Again):
                 </div>
-                <div className="text-lg sm:text-xl font-bold text-amber-200">
+                <div className="text-base font-bold text-[var(--warning-text)]">
                   Ask them this secret question:
                 </div>
-                <div className="text-xl sm:text-2xl font-extrabold text-white p-3 rounded-lg bg-black/40 border border-amber-500/30">
+                <div className="text-lg font-extrabold text-[var(--text-primary)] p-3 rounded bg-[var(--bg-primary)] border border-[var(--warning-border)]">
                   "{fusion.challenge_question?.question_text || "What was our first pet's name?"}"
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
+                <p className="text-xs text-[var(--warning-text)] leading-relaxed">
                   Your real family member will know the answer instantly. A scammer or AI system will not know.
                 </p>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-2.5">
                 <button
                   onClick={() => setCurrentStep(2)}
-                  className="w-1/3 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm cursor-pointer"
+                  className="w-1/3 py-2.5 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-default)] font-semibold text-xs cursor-pointer"
                 >
                   ← Back
                 </button>
                 <Link
                   to="/report"
-                  className="w-2/3 py-3 rounded-xl bg-red-700 hover:bg-red-600 text-white font-bold text-base flex items-center justify-center no-underline cursor-pointer"
+                  className="w-2/3 py-2.5 rounded-lg bg-[var(--danger)] hover:opacity-90 text-white font-bold text-sm flex items-center justify-center no-underline cursor-pointer"
                 >
                   File Complaint on 1930 Portal →
                 </Link>
@@ -231,21 +234,21 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
       )}
 
       {/* ── 4. CHECK ANOTHER CALL BUTTON ── */}
-      <div className="text-center pt-2">
+      <div className="text-center pt-1">
         <button
           onClick={onReset}
-          className="py-3 px-8 rounded-xl bg-[#1F2937] hover:bg-[#374151] text-white font-semibold text-base border border-slate-600 transition-colors cursor-pointer"
+          className="py-2.5 px-6 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] font-semibold text-sm border border-[var(--border-default)] transition-colors cursor-pointer"
         >
           ← Check Another Call
         </button>
       </div>
 
-      {/* ── 5. OPTIONAL: SHOW TECHNICAL FORENSICS TOGGLE (COLLAPSED BY DEFAULT) ── */}
-      <div className="pt-4 border-t border-slate-800">
+      {/* ── 5. OPTIONAL: SHOW TECHNICAL FORENSICS TOGGLE ── */}
+      <div className="pt-3 border-t border-[var(--border-subtle)]">
         <div className="text-center">
           <button
             onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-            className="text-xs text-slate-400 hover:text-slate-200 font-mono underline cursor-pointer bg-transparent border-none py-2 px-4"
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] font-mono underline cursor-pointer bg-transparent border-none py-1.5 px-3"
           >
             {showTechnicalDetails
               ? "▲ Hide Technical & Forensic Data"
@@ -254,7 +257,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
         </div>
 
         {showTechnicalDetails && (
-          <div className="mt-5 p-6 rounded-2xl bg-[#0F172A] border border-slate-700 space-y-6">
+          <div className="mt-4 p-5 rounded-lg sec-card space-y-5">
             <AudioInspector data={data} />
             <SignalForensics data={data} />
             <SpoofTimeline timeline={data.spoof.timeline} />

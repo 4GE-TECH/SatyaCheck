@@ -67,31 +67,31 @@ export default function EnrollPage() {
     <div className="space-y-6 pb-12">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
           My Family Voice Vault
         </h1>
-        <p className="text-base text-slate-300 mt-1">
-          Save a 30-second voice recording of your children and family. If you ever receive a suspicious call claiming to be them, SatyaCheck checks if the voice is authentic.
+        <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-1">
+          Save a 30-second voice recording of your family. If you receive a suspicious emergency call, SatyaCheck verifies if the voice is authentic.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Enrollment Form (5 Cols) */}
         <div className="lg:col-span-5">
-          <div className="p-6 rounded-2xl bg-[#111827] border border-slate-700 space-y-4 shadow-lg">
-            <h2 className="text-lg font-bold text-white pb-3 border-b border-slate-800 flex items-center gap-2">
+          <div className="sec-card p-6 space-y-4">
+            <h2 className="text-base font-bold text-[var(--text-primary)] pb-3 border-b border-[var(--border-subtle)] flex items-center gap-2">
               <span>Add a Family Member</span>
             </h2>
 
             {isSuccess && (
-              <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-500 text-sm text-emerald-200">
-                ✓ Voice recording saved safely to your family vault!
+              <div className="p-3.5 rounded-lg bg-[var(--success-bg)] border border-[var(--success-border)] text-xs text-[var(--success-text)] font-semibold">
+                ✓ Voice recording saved safely to your local vault!
               </div>
             )}
 
-            <form onSubmit={handleEnroll} className="space-y-4 text-sm">
+            <form onSubmit={handleEnroll} className="space-y-3.5 text-sm">
               <div>
-                <label className="block text-sm font-semibold text-slate-200 mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
                   Full Name *
                 </label>
                 <input
@@ -100,19 +100,19 @@ export default function EnrollPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Rahul, Mother, Papa"
-                  className="w-full px-4 py-3 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-base focus:border-blue-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-200 mb-1.5">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
                     Relationship *
                   </label>
                   <select
                     value={relation}
                     onChange={(e) => setRelation(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-base focus:border-blue-500 outline-none"
+                    className="w-full px-3 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none"
                   >
                     <option value="Son">Son</option>
                     <option value="Daughter">Daughter</option>
@@ -125,7 +125,7 @@ export default function EnrollPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-200 mb-1.5">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
                     Phone Number
                   </label>
                   <input
@@ -133,24 +133,24 @@ export default function EnrollPage() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+91 98765 43210"
-                    className="w-full px-4 py-3 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-base focus:border-blue-500 outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none"
                   />
                 </div>
               </div>
 
               {/* Audio Reference Ingestion */}
               <div>
-                <label className="block text-sm font-semibold text-slate-200 mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
                   Voice Note or Audio Recording (30s)
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-5 rounded-xl border-2 border-dashed border-slate-600 bg-[#1F2937] hover:bg-[#374151] cursor-pointer text-center space-y-1 transition-all"
+                  className="p-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] cursor-pointer text-center space-y-1 transition-colors"
                 >
-                  <div className="text-base font-bold text-blue-400">
-                    {file ? file.name : "📁 Tap to Choose Voice Recording"}
+                  <div className="text-sm font-semibold text-[var(--accent)]">
+                    {file ? file.name : "Tap to Choose Voice Recording"}
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--text-muted)]">
                     WAV, MP3, or WhatsApp Voice Note
                   </div>
                   <input
@@ -164,33 +164,29 @@ export default function EnrollPage() {
               </div>
 
               {/* Secret Question Setup */}
-              <div className="pt-3 border-t border-slate-800 space-y-3">
-                <div className="text-sm font-bold text-slate-200">
+              <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                <div className="text-xs font-bold text-[var(--text-secondary)]">
                   Secret Family Question (Optional)
                 </div>
-                <p className="text-xs text-slate-400">
-                  Set a question only this person knows. SatyaCheck will prompt you to ask this if a scam occurs.
-                </p>
-
                 <input
                   type="text"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   placeholder="e.g. What is our hometown dog's name?"
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-sm focus:border-blue-500 outline-none"
+                  className="w-full px-3.5 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] text-[var(--text-primary)] text-xs focus:border-[var(--accent)] outline-none"
                 />
                 <input
                   type="text"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder="Answer (encrypted on device)"
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#1F2937] border border-slate-600 text-white text-sm focus:border-blue-500 outline-none"
+                  className="w-full px-3.5 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] text-[var(--text-primary)] text-xs focus:border-[var(--accent)] outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base transition-all cursor-pointer shadow-md mt-2"
+                className="w-full py-3 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] font-bold text-sm transition-colors cursor-pointer shadow-sm mt-2"
               >
                 Save to Family Vault →
               </button>
@@ -200,42 +196,42 @@ export default function EnrollPage() {
 
         {/* Right: Enrolled Members (7 Cols) */}
         <div className="lg:col-span-7">
-          <div className="p-6 rounded-2xl bg-[#111827] border border-slate-700 space-y-4 shadow-lg">
-            <h2 className="text-lg font-bold text-white pb-3 border-b border-slate-800 flex items-center justify-between">
+          <div className="sec-card p-6 space-y-4">
+            <h2 className="text-base font-bold text-[var(--text-primary)] pb-3 border-b border-[var(--border-subtle)] flex items-center justify-between">
               <span>Enrolled Family Contacts ({members.length})</span>
-              <span className="text-xs text-emerald-400 font-medium">100% Private on Device</span>
+              <span className="text-xs text-[var(--success-text)] font-medium">100% Private on Device</span>
             </h2>
 
             <div className="space-y-3">
               {members.map((m) => (
                 <div
                   key={m.id}
-                  className="p-5 rounded-xl bg-[#1F2937] border border-slate-600 space-y-2"
+                  className="p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-11 h-11 rounded-full bg-blue-600 text-white font-bold text-lg flex items-center justify-center shadow">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[var(--accent)] text-[var(--accent-text)] font-bold text-base flex items-center justify-center shadow-sm">
                         {m.name.slice(0, 1)}
                       </div>
                       <div>
-                        <div className="font-bold text-base text-white">
+                        <div className="font-bold text-sm text-[var(--text-primary)]">
                           {m.name}
                         </div>
-                        <div className="text-sm text-slate-300">
+                        <div className="text-xs text-[var(--text-muted)] font-mono">
                           {m.phone}
                         </div>
                       </div>
                     </div>
 
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-700/60">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--success-bg)] text-[var(--success-text)] border border-[var(--success-border)]">
                       {m.relation}
                     </span>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-700 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
+                  <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between text-xs text-[var(--text-muted)] gap-2">
                     <div>
                       <span>Secret: </span>
-                      <span className="text-slate-200 italic font-medium">"{m.secretQuestion}"</span>
+                      <span className="text-[var(--text-secondary)] italic font-medium">"{m.secretQuestion}"</span>
                     </div>
                     <span>Saved: {m.enrolledDate}</span>
                   </div>

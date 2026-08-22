@@ -1,33 +1,34 @@
 import { NavLink } from "react-router-dom";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
   return (
-    <header className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-4 sm:px-8 py-3.5 select-none">
-      <div className="max-w-4xl mx-auto flex items-center justify-between">
+    <header className="border-b border-[var(--border-default)] bg-[var(--bg-primary)] px-4 sm:px-8 py-3 select-none transition-colors">
+      <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
         {/* Brand */}
         <NavLink to="/" className="flex items-center gap-3 text-inherit no-underline">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-md">
+          <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center font-bold text-base text-[var(--accent-text)] shadow-sm">
             S
           </div>
           <div>
-            <span className="font-bold text-lg tracking-tight text-white block leading-tight">
+            <span className="font-bold text-base tracking-tight text-[var(--text-primary)] block leading-tight">
               SatyaCheck
             </span>
-            <span className="text-xs text-slate-300 font-medium">
-              Family Voice Protection
+            <span className="text-xs text-[var(--text-muted)] font-medium">
+              Voice Fraud Defense
             </span>
           </div>
         </NavLink>
 
         {/* Navigation Tabs */}
-        <nav className="flex items-center gap-2">
+        <nav className="flex items-center gap-1.5 sm:gap-2">
           <NavLink
             to="/"
             className={({ isActive }) =>
-              `px-3.5 py-2 rounded-xl text-sm font-semibold transition-all no-underline flex items-center gap-2 cursor-pointer ${
+              `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-white text-black shadow-sm"
-                  : "text-slate-200 hover:text-white hover:bg-slate-800"
+                  ? "bg-[var(--accent)] text-[var(--accent-text)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }
           >
@@ -37,38 +38,40 @@ export default function Navbar() {
           <NavLink
             to="/enroll"
             className={({ isActive }) =>
-              `px-3.5 py-2 rounded-xl text-sm font-semibold transition-all no-underline flex items-center gap-2 cursor-pointer ${
+              `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-white text-black shadow-sm"
-                  : "text-slate-200 hover:text-white hover:bg-slate-800"
+                  ? "bg-[var(--accent)] text-[var(--accent-text)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }
           >
-            My Family
+            Family Vault
           </NavLink>
 
           <NavLink
             to="/report"
             className={({ isActive }) =>
-              `px-3.5 py-2 rounded-xl text-sm font-semibold transition-all no-underline flex items-center gap-2 cursor-pointer ${
+              `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-white text-black shadow-sm"
-                  : "text-slate-200 hover:text-white hover:bg-slate-800"
+                  ? "bg-[var(--accent)] text-[var(--accent-text)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }
           >
-            Help & Report
+            Report Fraud
           </NavLink>
         </nav>
 
-        {/* Emergency Call Helpline */}
-        <div className="hidden md:flex items-center">
+        {/* Right Controls: Helpline + Theme Toggle */}
+        <div className="flex items-center gap-2.5">
           <a
             href="tel:1930"
-            className="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-600 text-white text-sm font-bold no-underline flex items-center gap-2 transition-colors shadow-md"
+            className="hidden md:flex px-3 py-1.5 rounded-md bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] hover:opacity-90 text-xs font-bold no-underline items-center gap-1.5 transition-all"
           >
-            <span>Call Helpline 1930</span>
+            Helpline: 1930
           </a>
+
+          <ThemeToggle />
         </div>
       </div>
     </header>

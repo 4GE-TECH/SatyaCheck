@@ -30,35 +30,35 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-900/60 text-red-300 border border-red-700/60">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]">
               OFFICIAL FRAUD REPORT
             </span>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-[var(--text-muted)] font-mono">
               #{reportId}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)]">
             Cybercrime Incident Report (1930)
           </h1>
-          <p className="text-base text-slate-300 mt-1">
+          <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-1">
             Official evidence document formatted for the National Cybercrime Portal (1930) or your bank.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleCopy}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#1F2937] hover:bg-[#374151] border border-slate-600 text-white transition-all cursor-pointer"
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] border border-[var(--border-default)] text-[var(--text-primary)] transition-colors cursor-pointer"
           >
             {copied ? "✓ Copied" : "Copy Text"}
           </button>
 
           <button
             onClick={() => window.print()}
-            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all cursor-pointer shadow-md"
+            className="px-4 py-2 rounded-lg text-xs font-bold bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] transition-colors cursor-pointer shadow-sm"
           >
             Print / Save PDF
           </button>
@@ -66,44 +66,44 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
       </div>
 
       {/* Main Dossier Card */}
-      <div className="p-6 sm:p-8 rounded-2xl bg-[#111827] border border-slate-700 space-y-6 shadow-xl text-base">
+      <div className="sec-card p-6 sm:p-8 space-y-6 text-sm">
         {/* Incident Summary Card */}
-        <div className="p-5 rounded-xl bg-[#1F2937] border border-slate-600 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <div className="text-xs text-slate-400 uppercase font-semibold">Incident Type</div>
-            <div className="font-bold text-red-400 mt-1">AI Voice Extortion</div>
+            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold">Incident Type</div>
+            <div className="font-bold text-[var(--danger)] mt-0.5 text-base">AI Voice Extortion</div>
           </div>
           <div>
-            <div className="text-xs text-slate-400 uppercase font-semibold">Suspect Caller</div>
-            <div className="font-bold text-white mt-1">+91 70428 19043</div>
+            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold">Suspect Caller</div>
+            <div className="font-bold text-[var(--text-primary)] mt-0.5 font-mono text-base">+91 70428 19043</div>
           </div>
           <div>
-            <div className="text-xs text-slate-400 uppercase font-semibold">Targeted Member</div>
-            <div className="font-bold text-white mt-1">Rahul Verma (Son)</div>
+            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold">Targeted Member</div>
+            <div className="font-bold text-[var(--text-primary)] mt-0.5 text-base">Rahul Verma (Son)</div>
           </div>
         </div>
 
         {/* Forensic Evidence Breakdown */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+        <div className="space-y-2.5">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
             1. Evidence Findings & AI Voice Detection
           </h2>
 
-          <div className="space-y-3">
-            <div className="p-4 rounded-xl bg-[#1F2937] border border-slate-600 space-y-1">
-              <strong className="text-red-300 block font-bold text-base">
+          <div className="space-y-2">
+            <div className="p-3.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
+              <strong className="text-[var(--danger-text)] block font-bold text-sm">
                 Synthetic Speech Detected (98% Confidence):
               </strong>
-              <p className="text-slate-300 text-sm leading-relaxed">
+              <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
                 Neural vocoder acoustic artifacts confirm the caller's voice was generated by an AI cloning system rather than a real human.
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#1F2937] border border-slate-600 space-y-1">
-              <strong className="text-red-300 block font-bold text-base">
+            <div className="p-3.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
+              <strong className="text-[var(--danger-text)] block font-bold text-sm">
                 Extortion & Isolation Demand:
               </strong>
-              <p className="text-slate-300 text-sm leading-relaxed">
+              <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
                 Caller demanded strict isolation ("Don't hand phone to anyone") and immediate Rs 50,000 UPI transfer under a fake police arrest claim.
               </p>
             </div>
@@ -112,43 +112,43 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
 
         {/* Verbatim Audio Transcript */}
         <div className="space-y-2">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
             2. Call Transcript (Hindi / Devanagari)
           </h2>
-          <div className="p-4 rounded-xl bg-[#1F2937] border border-slate-600 space-y-2">
-            <div className="italic text-white text-base">
+          <div className="p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] space-y-1.5">
+            <div className="italic text-[var(--text-primary)] text-sm">
               "Papa emergency ho gaya hai, police ne pakad liya hai! Phone kisi ko mat dena, turant 50000 bhejo is UPI ID pe!"
             </div>
-            <div className="text-xs text-slate-400 pt-2 border-t border-slate-700">
+            <div className="text-xs text-[var(--text-muted)] pt-2 border-t border-[var(--border-subtle)]">
               English translation: "Papa an emergency happened, police have caught me! Don't give the phone to anyone, send 50,000 immediately to this UPI ID!"
             </div>
           </div>
         </div>
 
         {/* Next Steps for the User */}
-        <div className="p-6 rounded-xl bg-blue-950/40 border border-blue-600/50 space-y-3">
-          <div className="font-bold text-blue-200 text-base">
+        <div className="p-5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] space-y-2.5">
+          <div className="font-bold text-[var(--text-primary)] text-sm">
             How to File This Report with Authorities:
           </div>
-          <ol className="list-decimal pl-5 space-y-2 text-slate-200 text-sm">
+          <ol className="list-decimal pl-5 space-y-1.5 text-[var(--text-secondary)] text-xs leading-relaxed">
             <li>
-              <strong>Call Helpline 1930 immediately:</strong> Quote this incident to freeze the scammer's bank account or UPI ID.
+              <strong className="text-[var(--text-primary)]">Call Helpline 1930 immediately:</strong> Quote this incident to freeze the scammer's bank account or UPI ID.
             </li>
             <li>
-              <strong>Submit online at cybercrime.gov.in:</strong> Upload this printed PDF under "Financial Fraud / Impersonation".
+              <strong className="text-[var(--text-primary)]">Submit online at cybercrime.gov.in:</strong> Upload this printed PDF under "Financial Fraud / Impersonation".
             </li>
             <li>
-              <strong>Report on Chakshu (sancharsaathi.gov.in):</strong> Blocks the scammer's SIM card across all telecom networks.
+              <strong className="text-[var(--text-primary)]">Report on Chakshu (sancharsaathi.gov.in):</strong> Blocks the scammer's SIM card across all telecom networks.
             </li>
           </ol>
         </div>
 
         {/* Back Link */}
-        <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-sm">
-          <Link to="/" className="text-blue-400 hover:underline font-semibold no-underline">
+        <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
+          <Link to="/" className="text-[var(--accent)] hover:underline font-semibold no-underline">
             ← Return to Call Checking
           </Link>
-          <span className="text-slate-400 text-xs">
+          <span className="text-[var(--text-muted)]">
             SatyaCheck Secure Evidence System
           </span>
         </div>

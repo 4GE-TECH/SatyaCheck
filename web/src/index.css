@@ -1,48 +1,96 @@
 /* ── Google Fonts ────────────────────────────────────────────── */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap");
 
 @import "tailwindcss";
 
-/* ── Warm, High-Contrast Accessible Dark Theme (Elderly-Friendly) ── */
+/* ── Centralized Dual-Theme Token System (WCAG AA Compliant) ── */
+
+:root {
+  color-scheme: light;
+
+  /* Light Theme Tokens */
+  --bg-root: #F6F8FA;
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F0F2F5;
+  --bg-card: #FFFFFF;
+  --bg-surface: #E5E8EC;
+  --bg-hover: #D8DCE2;
+
+  --border-subtle: #E1E4E8;
+  --border-default: #D0D7DE;
+  --border-strong: #8C959F;
+
+  --text-primary: #1F2328;
+  --text-secondary: #424A53;
+  --text-muted: #57606A;
+
+  /* Status Tokens - Light Mode */
+  --danger: #CF222E;
+  --danger-bg: #FFEBE9;
+  --danger-border: #FF8182;
+  --danger-text: #82071E;
+
+  --success: #1A7F37;
+  --success-bg: #DAFBE1;
+  --success-border: #4AC26B;
+  --success-text: #116329;
+
+  --warning: #9A6700;
+  --warning-bg: #FFF8C5;
+  --warning-border: #D4A72C;
+  --warning-text: #664400;
+
+  --accent: #0969DA;
+  --accent-hover: #0854C2;
+  --accent-text: #FFFFFF;
+}
+
+html.dark {
+  color-scheme: dark;
+
+  /* Dark Theme Tokens (Near-black, not harsh #000) */
+  --bg-root: #0D1117;
+  --bg-primary: #161B22;
+  --bg-secondary: #21262D;
+  --bg-card: #161B22;
+  --bg-surface: #30363D;
+  --bg-hover: #3C444D;
+
+  --border-subtle: #21262D;
+  --border-default: #30363D;
+  --border-strong: #6E7681;
+
+  --text-primary: #F0F6FC;
+  --text-secondary: #C9D1D9;
+  --text-muted: #8B949E;
+
+  /* Status Tokens - Dark Mode */
+  --danger: #F85149;
+  --danger-bg: #3E1014;
+  --danger-border: #B62324;
+  --danger-text: #FF7B72;
+
+  --success: #3FB950;
+  --success-bg: #12261A;
+  --success-border: #238636;
+  --success-text: #7EE787;
+
+  --warning: #D29922;
+  --warning-bg: #341F0A;
+  --warning-border: #9E6A03;
+  --warning-text: #F2CC60;
+
+  --accent: #2F81F7;
+  --accent-hover: #1F6FEB;
+  --accent-text: #FFFFFF;
+}
+
+/* ── Typography & Base Styles ────────────────────────────────── */
+
 @theme {
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
-
-  /* Warm Dark Slate Palette (Calm & Authoritative like a Bank App) */
-  --color-bg-root: #0B0F17;
-  --color-bg-primary: #111827;
-  --color-bg-secondary: #1F2937;
-  --color-bg-card: #1E293B;
-  --color-bg-surface: #334155;
-  --color-bg-hover: #475569;
-
-  /* Accessible High-Contrast Borders */
-  --color-border-subtle: rgba(255, 255, 255, 0.10);
-  --color-border-default: rgba(255, 255, 255, 0.18);
-  --color-border-strong: rgba(255, 255, 255, 0.35);
-
-  /* High-Contrast Legible Text */
-  --color-text-primary: #FFFFFF;
-  --color-text-secondary: #E2E8F0;
-  --color-text-muted: #94A3B8;
-
-  /* Protective Status Colors */
-  --color-danger: #DC2626;
-  --color-danger-bg: #7F1D1D;
-  --color-danger-light: #FCA5A5;
-
-  --color-safe: #16A34A;
-  --color-safe-bg: #14532D;
-  --color-safe-light: #86EFAC;
-
-  --color-warning: #D97706;
-  --color-warning-bg: #78350F;
-  --color-warning-light: #FCD34D;
-
-  --color-neutral: #475569;
 }
-
-/* ── Global Styles ──────────────────────────────────────────── */
 
 *,
 *::before,
@@ -54,18 +102,17 @@ html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0B0F17;
-  color-scheme: dark;
 }
 
 body {
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
-  background-color: #0B0F17;
-  color: #FFFFFF;
+  background-color: var(--bg-root);
+  color: var(--text-primary);
   line-height: 1.6;
   min-height: 100dvh;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 #root {
@@ -74,14 +121,28 @@ body {
   flex-direction: column;
 }
 
-/* ── Custom Touch Targets & Accessibility ───────────────────── */
+/* ── Flat, Clean Utilitarian Components (No AI Bloat/Glow) ───── */
 
+.sec-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sec-card-subtle {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+}
+
+/* Accessible tap targets */
 button, a {
-  min-height: 48px;
+  min-height: 44px;
   touch-action: manipulation;
 }
 
 :focus-visible {
-  outline: 3px solid #3B82F6;
-  outline-offset: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
