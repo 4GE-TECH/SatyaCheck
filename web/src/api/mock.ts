@@ -1,6 +1,6 @@
 /**
  * Mock fixtures ported from contracts.py create_mock_fixture().
- * Four scenarios: green, red, unverified, insufficient.
+ * Six scenarios covering all TrustBands: green, red, caution, suspicious, unverified, insufficient.
  */
 
 import {
@@ -17,7 +17,7 @@ const NOW_ISO = new Date().toISOString();
 const DUMMY_SHA =
   "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
-// ── Scenario 1: Genuine enrolled family member ─────────────────
+// ── Scenario 1: Genuine enrolled family member (VERIFIED) ─────
 
 const GREEN_FIXTURE: ScreeningResponse = {
   session_id: "session_mock_green",
@@ -137,7 +137,255 @@ const GREEN_FIXTURE: ScreeningResponse = {
   timestamp: NOW_ISO,
 };
 
-// ── Scenario 4: Cloned family emergency extortion ──────────────
+// ── Scenario 2: Moderate Risk / Unusual Request (CAUTION) ─────
+
+const CAUTION_FIXTURE: ScreeningResponse = {
+  session_id: "session_mock_caution",
+  audio_sha256: DUMMY_SHA,
+  quality: {
+    passed: true,
+    speech_duration_s: 7.0,
+    snr_db: 19.5,
+    min_speech_threshold_s: 1.5,
+    min_snr_threshold_db: 5.0,
+    reason: null,
+  },
+  speaker: {
+    verdict: SpeakerVerdict.MATCH,
+    matched_person_id: "p_rahul_01",
+    matched_person_name: "Rahul (Son)",
+    claimed_person_id: null,
+    raw_score: 0.65,
+    norm_score: 1.45,
+    risk: 0.28,
+    is_replay: false,
+    confidence: 0.76,
+    details: { margin: 0.2 },
+  },
+  spoof: {
+    median_score: 0.18,
+    peak_score: 0.32,
+    max_synth_run_s: 0.8,
+    raw_score: 0.22,
+    norm_score: -0.4,
+    risk: 0.24,
+    is_synthetic: false,
+    timeline: [
+      { start_s: 0.0, end_s: 3.0, score: 0.15, is_synthetic: false },
+      { start_s: 2.0, end_s: 5.0, score: 0.32, is_synthetic: false },
+    ],
+    details: {},
+  },
+  transcript: {
+    text: "Mummy, please send 2000 rupees for medicine delivery right now on GPay. Urgent.",
+    segments: [
+      {
+        start_s: 0.0,
+        end_s: 5.0,
+        text: "Mummy, please send 2000 rupees for medicine delivery right now on GPay. Urgent.",
+        language: "en",
+      },
+    ],
+    detected_language: "en",
+    confidence: 0.94,
+  },
+  script: {
+    risk: 0.42,
+    incriminating_markers: [
+      {
+        marker_id: "MK_FINANCIAL_URGENCY",
+        marker_type: MarkerType.INCRIMINATING,
+        category: "payment",
+        matched_text: "send 2000 rupees right now",
+        weight: 0.45,
+        description: "Unplanned urgency payment request",
+      },
+    ],
+    exculpatory_markers: [
+      {
+        marker_id: "MK_SPECIFIC_FAMILY_CONTEXT",
+        marker_type: MarkerType.EXCULPATORY,
+        category: "relationship",
+        matched_text: "Mummy",
+        weight: -0.15,
+        description: "Natural familial address without strict isolation demands",
+      },
+    ],
+    playbooks: [],
+    intent_summary: "Mild financial urgency from enrolled voice with minor acoustic distortion",
+    details: {},
+  },
+  fusion: {
+    trust_score: 62.0,
+    risk_score: 0.38,
+    band: TrustBand.CAUTION,
+    mode: OperatingMode.IDENTITY_CHECK,
+    weights_used: { asv_weight: 0.4, cm_weight: 0.35, text_weight: 0.25 },
+    identity_risk: 0.28,
+    authenticity_risk: 0.24,
+    authenticity_risk_effective: 0.24,
+    intent_risk: 0.42,
+    reason_codes: [
+      {
+        code: "RC_UNUSUAL_FINANCIAL_DEMAND",
+        signal: SignalType.INTENT,
+        value: "Urgent Payment (Rs 2,000)",
+        threshold: "Moderate Intent Risk",
+        explanation: "Voice matches Rahul, but unexpected urgency for immediate funds detected.",
+        citation_title: "Financial Verification Checklist",
+        citation_url: "https://cybercrime.gov.in",
+        severity: SeverityLevel.MEDIUM,
+      },
+      {
+        code: "RC_ACOUSTIC_ANOMALY_LOW",
+        signal: SignalType.AUTHENTICITY,
+        value: "Peak Synth 32%",
+        threshold: "< 40%",
+        explanation: "Minor spectral artifacts detected; likely noisy microphone or mild line compression.",
+        citation_title: null,
+        citation_url: null,
+        severity: SeverityLevel.LOW,
+      },
+    ],
+    recommended_actions: [
+      "Confirm purpose by asking a simple personal question before transferring funds.",
+      "Call Rahul back on normal cellular connection if anything feels unusual.",
+    ],
+    challenge_question: {
+      question_id: "CQ_RAHUL_PET_01",
+      question_text: "Ask: 'What is our hometown dog's name?'",
+      relation_context: "Known only to immediate family",
+      expected_answer_hash: "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+    },
+    vernacular_warning: null,
+  },
+  processing_time_ms: 18.4,
+  timestamp: NOW_ISO,
+};
+
+// ── Scenario 3: Elevated Threat / Unconfirmed Clone (SUSPICIOUS) ─
+
+const SUSPICIOUS_FIXTURE: ScreeningResponse = {
+  session_id: "session_mock_suspicious",
+  audio_sha256: DUMMY_SHA,
+  quality: {
+    passed: true,
+    speech_duration_s: 9.0,
+    snr_db: 17.0,
+    min_speech_threshold_s: 1.5,
+    min_snr_threshold_db: 5.0,
+    reason: null,
+  },
+  speaker: {
+    verdict: SpeakerVerdict.UNKNOWN,
+    matched_person_id: null,
+    matched_person_name: null,
+    claimed_person_id: "p_rahul_01",
+    raw_score: 0.42,
+    norm_score: 0.8,
+    risk: 0.65,
+    is_replay: false,
+    confidence: 0.6,
+    details: { margin: 0.1 },
+  },
+  spoof: {
+    median_score: 0.68,
+    peak_score: 0.82,
+    max_synth_run_s: 3.2,
+    raw_score: 0.72,
+    norm_score: 1.6,
+    risk: 0.75,
+    is_synthetic: true,
+    timeline: [
+      { start_s: 0.0, end_s: 3.0, score: 0.65, is_synthetic: true },
+      { start_s: 2.0, end_s: 5.0, score: 0.82, is_synthetic: true },
+    ],
+    details: {},
+  },
+  transcript: {
+    text: "Hello sir, I am calling regarding your son's hospital admission deposit. Transfer immediately.",
+    segments: [
+      {
+        start_s: 0.0,
+        end_s: 6.0,
+        text: "Hello sir, I am calling regarding your son's hospital admission deposit. Transfer immediately.",
+        language: "en",
+      },
+    ],
+    detected_language: "en",
+    confidence: 0.92,
+  },
+  script: {
+    risk: 0.78,
+    incriminating_markers: [
+      {
+        marker_id: "MK_THIRD_PARTY_EXTORTION",
+        marker_type: MarkerType.INCRIMINATING,
+        category: "extortion",
+        matched_text: "hospital admission deposit transfer immediately",
+        weight: 0.8,
+        description: "Third-party medical urgency deposit claim",
+      },
+    ],
+    exculpatory_markers: [],
+    playbooks: [
+      {
+        playbook_id: "PB_HOSPITAL_SCAM_01",
+        title: "Fake Medical Emergency & Hospital Bail Scam Advisory",
+        category: "Emergency Extortion",
+        similarity_score: 0.88,
+        matched_excerpt: "Fraudsters call parents claiming their child met with an accident and demands hospital fee deposits.",
+        source_url: "https://cybercrime.gov.in/Webform/Crime_Advisory.aspx",
+        source_agency: "I4C Cybercrime Advisory",
+      },
+    ],
+    intent_summary: "Suspicious medical emergency demand from unenrolled synthetic voice",
+    details: {},
+  },
+  fusion: {
+    trust_score: 34.0,
+    risk_score: 0.66,
+    band: TrustBand.SUSPICIOUS,
+    mode: OperatingMode.AUTHORITY_CHECK,
+    weights_used: { asv_weight: 0.1, cm_weight: 0.45, text_weight: 0.45 },
+    identity_risk: 0.65,
+    authenticity_risk: 0.75,
+    authenticity_risk_effective: 0.65,
+    intent_risk: 0.78,
+    reason_codes: [
+      {
+        code: "RC_SYNTHETIC_SPEECH_LIKELY",
+        signal: SignalType.AUTHENTICITY,
+        value: "Peak Synth 82%",
+        threshold: "> 60%",
+        explanation: "Elevated neural vocoder synthesis signatures detected in caller's voice stream.",
+        citation_title: "Deepfake Detection Advisory",
+        citation_url: "https://cybercrime.gov.in",
+        severity: SeverityLevel.HIGH,
+      },
+      {
+        code: "RC_UNVERIFIED_THIRD_PARTY",
+        signal: SignalType.IDENTITY,
+        value: "Unverified Stranger",
+        threshold: "Authority Mode",
+        explanation: "Caller claims relation to Rahul but voice does not match enrolled biometric vault.",
+        citation_title: null,
+        citation_url: null,
+        severity: SeverityLevel.HIGH,
+      },
+    ],
+    recommended_actions: [
+      "Do NOT send any money or hospital deposits.",
+      "Call Rahul directly to verify his safety.",
+    ],
+    challenge_question: null,
+    vernacular_warning: "सावधान! यह एक संदिग्ध कॉल है। तुरंत अपने परिजन को सीधे फ़ोन करके पुष्टि करें।",
+  },
+  processing_time_ms: 18.4,
+  timestamp: NOW_ISO,
+};
+
+// ── Scenario 4: Cloned family emergency extortion (HIGH_RISK) ──
 
 const RED_FIXTURE: ScreeningResponse = {
   session_id: "session_mock_red",
@@ -292,7 +540,7 @@ const RED_FIXTURE: ScreeningResponse = {
   timestamp: NOW_ISO,
 };
 
-// ── Scenario: Legitimate Bank IVR (unverified stranger) ────────
+// ── Scenario 5: Legitimate Bank IVR (UNVERIFIED) ───────────────
 
 const UNVERIFIED_FIXTURE: ScreeningResponse = {
   session_id: "session_mock_unverified",
@@ -406,7 +654,7 @@ const UNVERIFIED_FIXTURE: ScreeningResponse = {
   timestamp: NOW_ISO,
 };
 
-// ── Scenario: Insufficient audio ───────────────────────────────
+// ── Scenario 6: Insufficient audio (INSUFFICIENT) ──────────────
 
 const INSUFFICIENT_FIXTURE: ScreeningResponse = {
   session_id: "session_mock_insufficient",
@@ -491,10 +739,18 @@ const INSUFFICIENT_FIXTURE: ScreeningResponse = {
 
 // ── Public API ─────────────────────────────────────────────────
 
-export type MockScenario = "green" | "red" | "unverified" | "insufficient";
+export type MockScenario =
+  | "green"
+  | "caution"
+  | "suspicious"
+  | "red"
+  | "unverified"
+  | "insufficient";
 
 const FIXTURES: Record<MockScenario, ScreeningResponse> = {
   green: GREEN_FIXTURE,
+  caution: CAUTION_FIXTURE,
+  suspicious: SUSPICIOUS_FIXTURE,
   red: RED_FIXTURE,
   unverified: UNVERIFIED_FIXTURE,
   insufficient: INSUFFICIENT_FIXTURE,
@@ -505,8 +761,10 @@ export function getMockFixture(scenario: MockScenario): ScreeningResponse {
 }
 
 export const SCENARIO_LABELS: Record<MockScenario, string> = {
-  green: "Genuine call — Rahul (Son)",
-  red: "Cloned voice — Emergency extortion",
-  unverified: "Bank IVR — Legitimate stranger",
+  green: "Verified — Rahul (Son)",
+  caution: "Caution — Urgent money request",
+  suspicious: "Suspicious — Third-party claim",
+  red: "High Risk — Cloned extortion",
+  unverified: "Bank IVR — Automated call",
   insufficient: "Insufficient audio",
 };

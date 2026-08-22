@@ -21,56 +21,12 @@ const COLOR_VARIANTS = {
     glow: "rgba(6, 182, 212, 0.35)",
     text: "text-cyan-600 dark:text-cyan-400",
     dot: "bg-cyan-500 dark:bg-cyan-400",
-    gradient: "from-cyan-500/20 to-teal-500/10",
-  },
-  secondary: {
-    border: "border-sky-500/40 dark:border-sky-400/50",
-    glow: "rgba(56, 189, 248, 0.35)",
-    text: "text-sky-600 dark:text-sky-400",
-    dot: "bg-sky-500 dark:bg-sky-400",
-    gradient: "from-sky-500/20 to-blue-500/10",
-  },
-  tertiary: {
-    border: "border-emerald-500/40 dark:border-emerald-400/50",
-    glow: "rgba(16, 185, 129, 0.35)",
-    text: "text-emerald-600 dark:text-emerald-400",
-    dot: "bg-emerald-500 dark:bg-emerald-400",
-    gradient: "from-emerald-500/20 to-teal-500/10",
-  },
-  quaternary: {
-    border: "border-amber-500/40 dark:border-amber-400/50",
-    glow: "rgba(245, 158, 11, 0.35)",
-    text: "text-amber-600 dark:text-amber-400",
-    dot: "bg-amber-500 dark:bg-amber-400",
-    gradient: "from-amber-500/20 to-orange-500/10",
   },
   quinary: {
     border: "border-red-500/40 dark:border-red-400/50",
     glow: "rgba(239, 68, 68, 0.35)",
     text: "text-red-600 dark:text-red-400",
     dot: "bg-red-500 dark:bg-red-400",
-    gradient: "from-red-500/20 to-rose-500/10",
-  },
-  senary: {
-    border: "border-blue-500/40 dark:border-blue-400/50",
-    glow: "rgba(59, 130, 246, 0.35)",
-    text: "text-blue-600 dark:text-blue-400",
-    dot: "bg-blue-500 dark:bg-blue-400",
-    gradient: "from-blue-500/20 to-indigo-500/10",
-  },
-  septenary: {
-    border: "border-slate-500/40 dark:border-slate-400/50",
-    glow: "rgba(100, 116, 139, 0.35)",
-    text: "text-slate-600 dark:text-slate-400",
-    dot: "bg-slate-500 dark:bg-slate-400",
-    gradient: "from-slate-500/20 to-zinc-500/10",
-  },
-  octonary: {
-    border: "border-teal-500/40 dark:border-teal-400/50",
-    glow: "rgba(20, 184, 166, 0.35)",
-    text: "text-teal-600 dark:text-teal-400",
-    dot: "bg-teal-500 dark:bg-teal-400",
-    gradient: "from-teal-500/20 to-emerald-500/10",
   },
 } as const;
 
@@ -95,12 +51,11 @@ export function BackgroundCircles({
   description = "Received an unexpected call asking for money? Put the phone on speakerphone or upload an audio note to verify against deepfake AI voice cloning.",
   className,
   variant = "primary",
-  isSpeaking: externalIsSpeaking,
-  audioLevel: externalAudioLevel,
+  isSpeaking = false,
+  audioLevel,
   onMicClick,
 }: BackgroundCirclesProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [internalSpeaking] = useState(false);
   const [simulatedLevel, setSimulatedLevel] = useState(0.4);
 
   useEffect(() => {
@@ -109,12 +64,9 @@ export function BackgroundCircles({
     }
   }, []);
 
-  const isSpeaking = externalIsSpeaking !== undefined ? externalIsSpeaking : internalSpeaking;
-  const audioLevel = externalAudioLevel !== undefined ? externalAudioLevel : simulatedLevel;
-
+  const activeAudioLevel = audioLevel !== undefined ? audioLevel : simulatedLevel;
   const variantStyles = COLOR_VARIANTS[variant] || COLOR_VARIANTS.primary;
 
-  // Subtle simulated breathing audio-level oscillation when speaking
   useEffect(() => {
     if (!isSpeaking) return;
     const interval = setInterval(() => {
@@ -123,7 +75,7 @@ export function BackgroundCircles({
     return () => clearInterval(interval);
   }, [isSpeaking]);
 
-  const scaleMultiplier = isSpeaking ? 1 + (audioLevel || 0.4) * 0.12 : 1;
+  const scaleMultiplier = isSpeaking ? 1 + (activeAudioLevel || 0.4) * 0.12 : 1;
 
   return (
     <div
@@ -148,7 +100,7 @@ export function BackgroundCircles({
 
       {/* ── CENTRAL MICROPHONE & EXPANDING AUDIO WAVES ── */}
       <div className="relative flex items-center justify-center my-6 h-56 w-56 sm:h-64 sm:w-64">
-        {/* 3 to 4 Expanding Circular Audio Waves (Active when isSpeaking) */}
+        {/* 4 Expanding Circular Audio Waves (Active when isSpeaking) */}
         {!reducedMotion &&
           isSpeaking &&
           [0, 1, 2, 3].map((index) => (
@@ -160,7 +112,7 @@ export function BackgroundCircles({
               )}
               initial={{ scale: 0.9, opacity: 0.6 }}
               animate={{
-                scale: [0.95, 1.8 + index * 0.4 + (audioLevel || 0.4) * 0.3],
+                scale: [0.95, 1.8 + index * 0.4 + (activeAudioLevel || 0.4) * 0.3],
                 opacity: [0.7, 0.3, 0],
               }}
               transition={{

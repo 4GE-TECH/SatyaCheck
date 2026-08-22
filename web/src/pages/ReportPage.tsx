@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PearlButton } from "@/components/ui/pearl-button";
+import { Copy, Check, Printer } from "lucide-react";
 
 export default function ReportPage() {
   const [copied, setCopied] = useState(false);
@@ -54,7 +55,8 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
             onClick={handleCopy}
             variant="secondary"
             size="sm"
-            label={copied ? "✓ Copied" : "Copy Text"}
+            label={copied ? "Copied" : "Copy Text"}
+            icon={copied ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
           />
 
           <PearlButton
@@ -62,6 +64,7 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
             variant="default"
             size="sm"
             label="Print / Save PDF"
+            icon={<Printer className="w-3.5 h-3.5 mr-1" />}
           />
         </div>
       </div>

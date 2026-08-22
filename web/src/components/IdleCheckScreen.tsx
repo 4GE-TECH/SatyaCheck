@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import type { MockScenario } from "../api/mock";
 import { PearlButton } from "@/components/ui/pearl-button";
 import { BackgroundCircles } from "@/components/ui/background-circles";
+import { UploadCloud } from "lucide-react";
 
 interface IdleCheckScreenProps {
   onSelectScenario: (scenario: MockScenario) => void;
@@ -79,7 +80,7 @@ export default function IdleCheckScreen({
             size="md"
             className="w-full font-mono"
             label="Upload WhatsApp Audio or Recording"
-            icon={<span className="mr-1">📁</span>}
+            icon={<UploadCloud className="w-4 h-4 mr-1.5" />}
           />
 
           <input
@@ -95,39 +96,53 @@ export default function IdleCheckScreen({
         </div>
       </div>
 
-      {/* ── Discrete Demo Case Selector for Testing ─────────── */}
+      {/* ── Discrete Demo Case Selector for Testing (All 6 Bands) ──── */}
       <div className="sec-card-subtle p-5 sm:p-6 text-center space-y-3.5">
         <div className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">
-          Or Test with an Example Incident Probe:
+          Test All 6 Verification Bands (Judge Evaluation Presets):
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-2.5">
-          <PearlButton
-            onClick={() => onSelectScenario("red")}
-            variant="danger"
-            size="sm"
-            label="Test: Fake Son Extortion Call"
-          />
-
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <PearlButton
             onClick={() => onSelectScenario("green")}
             variant="success"
             size="sm"
-            label="Test: Real Son Calling"
+            label="1. Verified (Safe Son)"
+          />
+
+          <PearlButton
+            onClick={() => onSelectScenario("caution")}
+            variant="secondary"
+            size="sm"
+            label="2. Caution (Money Demand)"
+          />
+
+          <PearlButton
+            onClick={() => onSelectScenario("suspicious")}
+            variant="danger"
+            size="sm"
+            label="3. Suspicious (Stranger Claim)"
+          />
+
+          <PearlButton
+            onClick={() => onSelectScenario("red")}
+            variant="danger"
+            size="sm"
+            label="4. High Risk (Cloned Extortion)"
           />
 
           <PearlButton
             onClick={() => onSelectScenario("unverified")}
             variant="secondary"
             size="sm"
-            label="Test: Automated Bank Call"
+            label="5. Unverified (Bank IVR)"
           />
 
           <PearlButton
             onClick={() => onSelectScenario("insufficient")}
             variant="secondary"
             size="sm"
-            label="Test: Short / Unclear Audio"
+            label="6. Insufficient (Short Audio)"
           />
         </div>
       </div>

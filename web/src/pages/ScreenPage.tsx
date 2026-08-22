@@ -1,5 +1,6 @@
 import useScreening from "../hooks/useScreening";
 import type { MockScenario } from "../api/mock";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 import IdleCheckScreen from "../components/IdleCheckScreen";
 import ElderlyVerdictCard from "../components/ElderlyVerdictCard";
@@ -23,21 +24,22 @@ export default function ScreenPage() {
     <div className="space-y-6 pb-12">
       {/* ── 1. LOADING STATE ─────────────────────────────── */}
       {loading && (
-        <div className="p-12 rounded-2xl bg-[#111827] border border-slate-700 text-center space-y-4 shadow-xl">
-          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
-          <div className="text-xl font-bold text-white">
+        <div className="sec-card p-12 text-center space-y-4 shadow-xl max-w-xl mx-auto" role="status" aria-live="polite">
+          <Loader2 className="w-10 h-10 text-[var(--accent)] animate-spin mx-auto" />
+          <div className="text-xl font-bold text-[var(--text-primary)] font-mono">
             Checking voice authenticity…
           </div>
-          <p className="text-sm text-slate-300">
-            Listening for AI voice cloning and suspicious emergency patterns.
+          <p className="text-sm text-[var(--text-secondary)] font-sans">
+            Listening for AI voice cloning and suspicious emergency extortion patterns.
           </p>
         </div>
       )}
 
       {/* ── 2. ERROR STATE ───────────────────────────────── */}
       {error && (
-        <div className="p-5 rounded-2xl bg-amber-950/60 border border-amber-500/50 text-sm text-amber-200">
-          ⚠️ {error}
+        <div className="p-4 rounded-xl bg-[var(--danger-bg)] border border-[var(--danger-border)] text-xs text-[var(--danger-text)] flex items-center gap-2 max-w-xl mx-auto">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="font-mono">{error}</span>
         </div>
       )}
 

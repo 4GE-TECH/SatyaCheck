@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { PearlButton } from "@/components/ui/pearl-button";
+import { CheckCircle2 } from "lucide-react";
 
 interface EnrolledMember {
   id: string;
@@ -85,8 +86,9 @@ export default function EnrollPage() {
             </h2>
 
             {isSuccess && (
-              <div className="p-3.5 rounded-lg bg-[var(--success-bg)] border border-[var(--success-border)] text-xs text-[var(--success-text)] font-semibold">
-                ✓ Voice recording saved safely to your local vault!
+              <div className="p-3.5 rounded-lg bg-[var(--success-bg)] border border-[var(--success-border)] text-xs text-[var(--success-text)] font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Voice recording saved safely to your local vault!</span>
               </div>
             )}
 

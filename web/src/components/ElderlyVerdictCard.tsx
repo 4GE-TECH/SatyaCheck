@@ -13,8 +13,10 @@ interface ElderlyVerdictCardProps {
 }
 
 export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCardProps) {
-  const { fusion, speaker } = data;
+  const { fusion, speaker, script } = data;
   const isHighRisk = fusion.band === TrustBand.HIGH_RISK;
+  const isSuspicious = fusion.band === TrustBand.SUSPICIOUS;
+  const isCaution = fusion.band === TrustBand.CAUTION;
   const isVerified = fusion.band === TrustBand.VERIFIED;
   const isUnverified = fusion.band === TrustBand.UNVERIFIED;
   const isInsufficient = fusion.band === TrustBand.INSUFFICIENT;
@@ -41,13 +43,19 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
     }
   };
 
+  const getMatchedName = () => {
+    return speaker.matched_person_name || "Rahul";
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* ── 1. GIANT UNAMBIGUOUS VERDICT CARD (MAIN FOCUS) ── */}
       <div
         className={`relative overflow-hidden p-6 sm:p-10 rounded-2xl border text-center space-y-6 transition-all shadow-2xl ${
-          isHighRisk
+          isHighRisk || isSuspicious
             ? "bg-[var(--danger-bg)] border-[var(--danger-border)] shadow-[0_0_50px_-12px_rgba(255,59,48,0.25)]"
+            : isCaution
+            ? "bg-[var(--warning-bg)] border-[var(--warning-border)] shadow-[0_0_50px_-12px_rgba(255,159,10,0.2)]"
             : isVerified
             ? "bg-[var(--success-bg)] border-[var(--success-border)] shadow-[0_0_50px_-12px_rgba(48,209,88,0.2)]"
             : isUnverified
@@ -61,13 +69,20 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
         {/* Giant Status Icon with Pulsing Halo */}
         <div className="flex justify-center">
           <div className="relative">
-            {isHighRisk && (
+            {(isHighRisk || isSuspicious) && (
               <div className="absolute inset-0 rounded-full bg-red-600 blur-xl opacity-40 animate-pulse pointer-events-none" />
+            )}
+            {isCaution && (
+              <div className="absolute inset-0 rounded-full bg-amber-500 blur-xl opacity-35 animate-pulse pointer-events-none" />
             )}
             <div
               className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center font-black text-4xl sm:text-5xl shadow-2xl border-2 ${
                 isHighRisk
                   ? "bg-gradient-to-b from-red-500 to-red-700 border-red-300 text-white"
+                  : isSuspicious
+                  ? "bg-gradient-to-b from-orange-500 to-red-600 border-orange-300 text-white"
+                  : isCaution
+                  ? "bg-gradient-to-b from-amber-500 to-yellow-600 border-amber-300 text-black"
                   : isVerified
                   ? "bg-gradient-to-b from-emerald-500 to-emerald-700 border-emerald-300 text-white"
                   : isUnverified
@@ -76,9 +91,11 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
               }`}
             >
               {isHighRisk && "✕"}
+              {isSuspicious && "▲"}
+              {isCaution && "!"}
               {isVerified && "✓"}
               {isUnverified && "ℹ"}
-              {isInsufficient && "!"}
+              {isInsufficient && "…"}
             </div>
           </div>
         </div>
@@ -87,13 +104,27 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
         <div className="space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/40 border border-white/10 text-xs font-mono font-bold tracking-wider uppercase text-[var(--text-secondary)]">
             <span>REAL-TIME THREAT VERDICT</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-ping" />
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isHighRisk || isSuspicious
+                  ? "bg-[var(--danger)] animate-ping"
+                  : isCaution
+                  ? "bg-[var(--warning-text)] animate-ping"
+                  : isVerified
+                  ? "bg-[var(--success)]"
+                  : "bg-slate-400"
+              }`}
+            />
           </div>
 
           <h1
             className={`text-2xl sm:text-4xl font-black tracking-tight leading-tight uppercase font-mono ${
               isHighRisk
                 ? "text-[var(--danger)] drop-shadow-sm"
+                : isSuspicious
+                ? "text-[var(--danger)]"
+                : isCaution
+                ? "text-[var(--warning-text)]"
                 : isVerified
                 ? "text-[var(--success)]"
                 : isUnverified
@@ -102,7 +133,9 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
             }`}
           >
             {isHighRisk && "FAKE VOICE DETECTED — DO NOT SEND MONEY"}
-            {isVerified && "SAFE CALL — VERIFIED AS RAHUL"}
+            {isSuspicious && "SUSPICIOUS CALL — HIGH PROBABILITY OF AI SCAM"}
+            {isCaution && "EXERCISE CAUTION — UNUSUAL MONEY DEMAND"}
+            {isVerified && `SAFE CALL — VERIFIED AS ${getMatchedName().toUpperCase()}`}
             {isUnverified && "AUTOMATED CALL — NO SCAM DETECTED"}
             {isInsufficient && "COULD NOT VERIFY — PLEASE TRY AGAIN"}
           </h1>
@@ -110,13 +143,17 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
           {/* Plain Single-Sentence Explanation (Zero Jargon) */}
           <p className="text-base sm:text-xl text-[var(--text-secondary)] leading-relaxed font-medium max-w-2xl mx-auto">
             {isHighRisk &&
-              "The voice sounds like Rahul, but our AI detected it was artificially created to trick you into transferring money."}
+              `The voice sounds like ${getMatchedName()}, but our AI detected it was artificially created to trick you into transferring money.`}
+            {isSuspicious &&
+              "Caller is claiming an emergency or deposit demand from an unverified synthetic voice. Do not transfer funds."}
+            {isCaution &&
+              `The voice matches ${getMatchedName()}, but an unexpected urgent money demand was detected. Double check with a secret question.`}
             {isVerified &&
-              "The voice matches your enrolled family voiceprint for Rahul. It is safe to talk."}
+              `The voice matches your enrolled family voiceprint for ${getMatchedName()}. It is safe to talk.`}
             {isUnverified &&
-              "This caller is an automated service (like a bank IVR). No scam or emergency demands were detected."}
+              "This caller is an automated service (like a bank notification). No emergency scam demands were detected."}
             {isInsufficient &&
-              "The audio was too short to check reliably. Ask the caller to speak for a few seconds and try again."}
+              "The audio was too short or noisy to evaluate reliably. Ask the caller to speak clearly for a few seconds and try again."}
           </p>
         </div>
 
@@ -152,7 +189,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
       </div>
 
       {/* ── 3. STEP-BY-STEP ACTION WIZARD (ONE CLEAR STEP AT A TIME) ── */}
-      {isHighRisk && (
+      {(isHighRisk || isSuspicious || isCaution) && (
         <div className="sec-card p-6 sm:p-8 space-y-5">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
             <div>
@@ -169,7 +206,9 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                   key={step}
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold transition-all ${
                     currentStep === step
-                      ? "bg-[var(--danger)] text-white ring-2 ring-red-500/40"
+                      ? isCaution
+                        ? "bg-[var(--warning-text)] text-black ring-2 ring-amber-500/40"
+                        : "bg-[var(--danger)] text-white ring-2 ring-red-500/40"
                       : currentStep > step
                       ? "bg-[var(--success)] text-white"
                       : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-default)]"
@@ -181,18 +220,32 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
             </div>
           </div>
 
-          {/* Wizard Step 1: Hang Up */}
+          {/* Wizard Step 1: Hang Up or Pause */}
           {currentStep === 1 && (
             <div className="space-y-4">
-              <div className="sec-card-subtle p-5 space-y-2 border border-red-500/20 bg-red-950/20">
-                <div className="text-xs font-bold text-[var(--danger)] uppercase font-mono tracking-wider">
+              <div
+                className={`sec-card-subtle p-5 space-y-2 border ${
+                  isCaution
+                    ? "border-amber-500/30 bg-amber-950/20"
+                    : "border-red-500/20 bg-red-950/20"
+                }`}
+              >
+                <div
+                  className={`text-xs font-bold uppercase font-mono tracking-wider ${
+                    isCaution ? "text-[var(--warning-text)]" : "text-[var(--danger)]"
+                  }`}
+                >
                   Step 1 of 3:
                 </div>
                 <div className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
-                  Hang up the call immediately.
+                  {isCaution
+                    ? "Do not rush to transfer any money."
+                    : "Hang up the call immediately."}
                 </div>
                 <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                  Do not argue, do not send any money, and do not enter any UPI PIN. Simply disconnect the call.
+                  {isCaution
+                    ? "Never send money immediately under pressure. Take a moment to verify before clicking any payment link or entering a UPI PIN."
+                    : "Do not argue, do not send any money, and do not enter any UPI PIN. Simply disconnect the call."}
                 </p>
               </div>
 
@@ -201,7 +254,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                 variant="default"
                 size="lg"
                 className="w-full font-mono font-bold"
-                label="I Have Hung Up → Next Step"
+                label={isCaution ? "I Paused Payment → Next Step" : "I Have Hung Up → Next Step"}
               />
             </div>
           )}
@@ -214,10 +267,10 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                   Step 2 of 3:
                 </div>
                 <div className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
-                  Call {speaker.matched_person_name || "your family member"} on your regular phone.
+                  Call {getMatchedName()} directly from your contacts list.
                 </div>
                 <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                  Dial their saved number directly from your contacts list. You will find they are safe and this call was an AI scam.
+                  Dial their saved number directly from your phone's contact book to confirm if they actually requested funds.
                 </p>
               </div>
 
@@ -240,21 +293,21 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
             </div>
           )}
 
-          {/* Wizard Step 3: Ask Challenge Question */}
+          {/* Wizard Step 3: Ask Challenge Question or File Report */}
           {currentStep === 3 && (
             <div className="space-y-4">
               <div className="p-5 rounded-xl bg-[var(--warning-bg)] border border-[var(--warning-border)] space-y-2">
                 <div className="text-xs font-bold text-[var(--warning-text)] uppercase font-mono tracking-wider">
-                  Step 3 of 3 (If They Call Again):
+                  Step 3 of 3:
                 </div>
                 <div className="text-base font-bold text-[var(--warning-text)]">
-                  Ask them this secret question:
+                  Ask them your secret family question:
                 </div>
                 <div className="text-xl font-extrabold text-[var(--text-primary)] p-4 rounded-lg bg-[var(--bg-primary)] border border-[var(--warning-border)] font-mono">
                   "{fusion.challenge_question?.question_text || "What was our first pet's name?"}"
                 </div>
                 <p className="text-xs text-[var(--warning-text)] leading-relaxed">
-                  Your real family member will know the answer instantly. A scammer or AI system will not know.
+                  Your real family member will know the answer instantly. A scammer or AI system will fail.
                 </p>
               </div>
 
@@ -268,10 +321,10 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                 />
                 <Link to="/report" className="w-2/3 no-underline">
                   <PearlButton
-                    variant="danger"
+                    variant={isCaution ? "default" : "danger"}
                     size="md"
                     className="w-full font-mono font-bold"
-                    label="File Complaint on 1930 Portal →"
+                    label="View 1930 Cybercrime Dossier →"
                   />
                 </Link>
               </div>
@@ -311,7 +364,9 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
             <SpoofTimeline timeline={data.spoof.timeline} />
             <EvidencePanel
               reasonCodes={data.fusion.reason_codes}
-              playbooks={data.script.playbooks}
+              incriminatingMarkers={script.incriminating_markers}
+              exculpatoryMarkers={script.exculpatory_markers}
+              playbooks={script.playbooks}
             />
           </div>
         )}

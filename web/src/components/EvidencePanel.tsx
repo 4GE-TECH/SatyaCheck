@@ -1,5 +1,6 @@
 import type { ReasonCode, MarkerMatch, RetrievedPlaybook } from "../types/contracts";
 import { SeverityLevel } from "../types/contracts";
+import { ExternalLink, ShieldCheck, AlertOctagon } from "lucide-react";
 
 interface EvidencePanelProps {
   reasonCodes: ReasonCode[];
@@ -46,6 +47,8 @@ const SEVERITY_BADGES: Record<
 
 export default function EvidencePanel({
   reasonCodes,
+  incriminatingMarkers = [],
+  exculpatoryMarkers = [],
   playbooks,
 }: EvidencePanelProps) {
   return (
@@ -62,10 +65,14 @@ export default function EvidencePanel({
         </span>
       </div>
 
-      {/* Reason Codes Stream */}
+      {/* ── 1. Structured Reason Codes ─────────────────── */}
       <div className="space-y-2">
         {reasonCodes.map((rc) => {
           const badge = SEVERITY_BADGES[rc.severity] || SEVERITY_BADGES[SeverityLevel.INFO];
+          const isExculpatory =
+            rc.code.includes("BONAFIDE") ||
+            rc.code.includes("VERIFIED") ||
+            rc.code.includes("LEGIT");
 
           return (
             <div
@@ -75,12 +82,21 @@ export default function EvidencePanel({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase border ${badge.bg} ${badge.text} ${badge.border}`}
+                    className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase border ${badge.bg} ${badge.text} ${badge.border}`}
                   >
                     {badge.label}
                   </span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
                     {rc.signal.toUpperCase()}
+                  </span>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase border ${
+                      isExculpatory
+                        ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/30"
+                        : "bg-red-950/40 text-red-400 border-red-500/30"
+                    }`}
+                  >
+                    {isExculpatory ? "[+] LOWERS RISK" : "[-] RAISES RISK"}
                   </span>
                   <span className="text-xs font-bold text-[var(--text-primary)]">
                     {rc.code}
@@ -110,9 +126,10 @@ export default function EvidencePanel({
                     href={rc.citation_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[var(--accent)] hover:underline font-bold no-underline"
+                    className="text-[var(--accent)] hover:underline font-bold no-underline inline-flex items-center gap-1"
                   >
-                    <span>{rc.citation_title || "Official Crime Advisory"} →</span>
+                    <span>{rc.citation_title || "Official Crime Advisory"}</span>
+                    <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
               )}
@@ -121,7 +138,66 @@ export default function EvidencePanel({
         })}
       </div>
 
-      {/* Matched Playbooks */}
+      {/* ── 2. NLP Linguistic Markers (Incriminating vs Exculpatory) ── */}
+      {(incriminatingMarkers.length > 0 || exculpatoryMarkers.length > 0) && (
+        <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+          <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
+            NLP SCRIPT LINGUISTIC PATTERN DISCOVERY:
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {/* Incriminating Markers */}
+            {incriminatingMarkers.map((m) => (
+              <div
+                key={m.marker_id}
+                className="p-2.5 rounded bg-[var(--danger-bg)] border border-[var(--danger-border)] space-y-1 text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[var(--danger-text)] font-bold">
+                    <AlertOctagon className="w-3.5 h-3.5 shrink-0" />
+                    <span>[-] {m.category.toUpperCase()}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-[var(--danger-text)] font-mono">
+                    WT: +{(m.weight * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="text-[11px] text-[var(--text-primary)] font-mono italic">
+                  "{m.matched_text}"
+                </div>
+                <p className="text-[10px] text-[var(--text-secondary)] font-sans">
+                  {m.description}
+                </p>
+              </div>
+            ))}
+
+            {/* Exculpatory Markers */}
+            {exculpatoryMarkers.map((m) => (
+              <div
+                key={m.marker_id}
+                className="p-2.5 rounded bg-[var(--success-bg)] border border-[var(--success-border)] space-y-1 text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[var(--success-text)] font-bold">
+                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                    <span>[+] {m.category.toUpperCase()}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-[var(--success-text)] font-mono">
+                    WT: {(m.weight * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="text-[11px] text-[var(--text-primary)] font-mono italic">
+                  "{m.matched_text}"
+                </div>
+                <p className="text-[10px] text-[var(--text-secondary)] font-sans">
+                  {m.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. Matched Playbooks (RAG Citations) ──────── */}
       {playbooks.length > 0 && (
         <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
           <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
@@ -137,7 +213,7 @@ export default function EvidencePanel({
                 <h4 className="text-xs font-bold text-[var(--text-primary)] font-sans">
                   {pb.title}
                 </h4>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-default)] font-bold shrink-0">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-default)] font-bold shrink-0">
                   {(pb.similarity_score * 100).toFixed(0)}% MATCH
                 </span>
               </div>
@@ -152,9 +228,10 @@ export default function EvidencePanel({
                   href={pb.source_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[var(--accent)] hover:underline font-bold no-underline"
+                  className="text-[var(--accent)] hover:underline font-bold no-underline inline-flex items-center gap-1"
                 >
-                  VERIFY ADVISORY →
+                  <span>VERIFY ADVISORY</span>
+                  <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
             </div>
