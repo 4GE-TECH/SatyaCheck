@@ -43,6 +43,9 @@ class RetrievalResult:
     #: Markers the top-scoring document exemplifies. Scoring suppresses these from the
     #: marker delta, because the retrieval score already reflects them.
     top_doc_markers: list[str] = field(default_factory=list)
+    #: Scam family of the top-scoring document. Reason codes use it to select the one
+    #: fact that defuses that family; scoring itself does not read it.
+    top_doc_family: str = "none"
 
     @classmethod
     def empty(cls) -> RetrievalResult:
@@ -143,6 +146,7 @@ class Retriever:
             top_similarity=hits[0][1],
             top_doc_id=hits[0][0],
             top_doc_markers=self._corpus.markers_for(hits[0][0]),
+            top_doc_family=self._corpus.get(hits[0][0]).scam_family,
         )
 
     @property

@@ -194,3 +194,84 @@ def test_malformed_input_degrades_instead_of_raising():
         quality=None, speaker=None, spoof=None, script=None, mode=None  # type: ignore[arg-type]
     )
     assert codes == []
+
+
+# --- per-family guidance ------------------------------------------------------
+# "Matches a documented scam playbook" tells the reader nothing they can act on. Each
+# family has one fact that defuses it — no agency arrests over a video call, a bank never
+# asks for an OTP — and that fact is what a protected person needs in the panel.
+#
+# PLAN.md §11 Block 3 asks for "reason-code templates per scam family". Until now the
+# template was one generic sentence for all ten.
+
+from contracts import RetrievedPlaybook, ScriptAnalysisResult
+from nlp_rag.corpus_loader import VALID_FAMILIES
+from nlp_rag.reason_codes import FAMILY_GUIDANCE, build_intent_reason_codes
+
+
+def _matched(family: str) -> ScriptAnalysisResult:
+    """A corroborated playbook hit attributed to `family`."""
+    return ScriptAnalysisResult(
+        risk=0.92,
+        incriminating_markers=[],
+        exculpatory_markers=[],
+        playbooks=[
+            RetrievedPlaybook(
+                playbook_id="anch-x",
+                title="An advisory",
+                category="Impersonation",
+                similarity_score=0.91,
+                matched_excerpt="...",
+                source_url="https://cybercrime.gov.in/x",
+                source_agency="I4C",
+            )
+        ],
+        intent_summary="matched",
+        details={"available": True, "scam_family": family},
+    )
+
+
+def test_every_scam_family_has_guidance():
+    """A family in the corpus with no guidance line falls back to generic text, which is
+    the thing this replaces. `none` is the benign label and needs none."""
+    missing = sorted(VALID_FAMILIES - {"none", "reporting"} - set(FAMILY_GUIDANCE))
+    assert not missing, f"no guidance for: {missing}"
+
+
+def test_guidance_appears_in_the_matched_script_code():
+    code = next(
+        c for c in build_intent_reason_codes(_matched("digital_arrest"))
+        if c.code == "RC_SCAM_SCRIPT_MATCH"
+    )
+    assert FAMILY_GUIDANCE["digital_arrest"] in code.explanation
+
+
+def test_different_families_get_different_guidance():
+    def explain(family: str) -> str:
+        return next(
+            c for c in build_intent_reason_codes(_matched(family))
+            if c.code == "RC_SCAM_SCRIPT_MATCH"
+        ).explanation
+
+    assert explain("digital_arrest") != explain("kyc_update")
+
+
+def test_an_unknown_family_still_produces_a_code():
+    """Guidance is additive. A family the map has never heard of must not lose the code."""
+    codes = build_intent_reason_codes(_matched("something_new"))
+    assert any(c.code == "RC_SCAM_SCRIPT_MATCH" for c in codes)
+
+
+def test_a_missing_family_still_produces_a_code():
+    script = _matched("digital_arrest")
+    script.details.pop("scam_family")
+    assert any(c.code == "RC_SCAM_SCRIPT_MATCH" for c in build_intent_reason_codes(script))
+
+
+def test_guidance_never_accuses():
+    """PRD NG2: a score with evidence, never 'this is a scammer'. The panel copy is read
+    by a family member about a caller who may be genuine."""
+    for family, text in FAMILY_GUIDANCE.items():
+        lowered = text.lower()
+        for banned in ("scammer", "fraudster", "criminal", "they are lying"):
+            assert banned not in lowered, f"{family}: {banned!r}"

@@ -93,8 +93,13 @@ def _identity_codes(
                 "RC_UNKNOWN_CALLER_UNVERIFIED",
                 SignalType.IDENTITY,
                 "Unenrolled caller",
-                "Caller does not match any enrolled contact. This is the normal state "
-                "for a genuine stranger and is not itself a risk signal.",
+                # A asked for neutral wording here and was right to. "Unidentified
+                # caller detected" reads as an accusation; unknown is the normal state
+                # for every real bank, delivery driver and doctor. The closing clause
+                # redirects the reader to the evidence that does discriminate.
+                "This voice does not match anyone enrolled, which is normal for a "
+                "genuine stranger. Identity cannot be confirmed either way, so judge "
+                "this call on what the caller is asking for.",
                 SeverityLevel.INFO,
                 threshold="N/A",
             )
@@ -187,6 +192,71 @@ def _authenticity_codes(
     ]
 
 
+#: The one fact that defuses each scam family, written for the person on the call.
+#:
+#: "Matches a documented scam playbook" is true and useless — it tells a frightened
+#: relative nothing they can act on. Each of these is the single sentence that collapses
+#: that specific script, drawn from the advisory the citation points at.
+#:
+#: Advisory, never accusatory. The caller may be genuine, the reader is often family, and
+#: PRD NG2 forbids emitting a verdict. Each line says what is true of the *tactic*, so it
+#: is safe to show even when the call turns out to be legitimate.
+FAMILY_GUIDANCE: dict[str, str] = {
+    "digital_arrest": (
+        "There is no provision for digital arrest in Indian law. No police, CBI, customs "
+        "or judicial officer arrests a person over a video call or asks for a payment to "
+        "avoid arrest."
+    ),
+    "family_emergency": (
+        "A voice can be cloned from a few seconds of audio. Hang up and call the family "
+        "member back on the number you already have saved for them."
+    ),
+    "kyc_update": (
+        "Banks do not complete KYC over a phone call or a link, and never ask for an OTP, "
+        "PIN or CVV. KYC is updated at a branch or in the bank's own app."
+    ),
+    "financial_fraud": (
+        "No bank, payment provider or government office asks for an OTP, PIN, CVV or card "
+        "number, or asks you to install a screen-sharing app."
+    ),
+    "parcel_customs": (
+        "Customs does not telephone people about seized parcels or take payment over a "
+        "call. A real case arrives as a written notice."
+    ),
+    "utility_disconnection": (
+        "Electricity and water boards do not take payment through a link or an app sent "
+        "over a call. Pay at the board office or in its official app."
+    ),
+    "telecom_impersonation": (
+        "TRAI and the telecom department do not call subscribers about disconnecting "
+        "numbers, and do not transfer callers to police officers."
+    ),
+    "lottery_advance_fee": (
+        "A genuine prize is never released against a fee paid first. A request to deposit "
+        "tax, conversion or processing charges before receiving money is the fraud itself."
+    ),
+    "qr_code_fraud": (
+        "Scanning a QR code and entering a UPI PIN authorises money leaving your account. "
+        "No PIN is ever needed to receive a payment."
+    ),
+    "sms_fraud": (
+        "Links in messages about refunds, redelivery, blocked accounts or expiring points "
+        "lead to fake pages. Open the organisation's own app instead."
+    ),
+}
+
+
+def _matched_explanation(title: str, family: str | None) -> str:
+    """Name the advisory, then give the fact that defuses this family.
+
+    Guidance is additive: an unrecognised or missing family still produces the code with
+    the citation, because losing the evidence is worse than losing the advice.
+    """
+    base = f"The caller's request matches a documented scam playbook: {title}."
+    guidance = FAMILY_GUIDANCE.get(family or "")
+    return f"{base} {guidance}" if guidance else base
+
+
 def _intent_codes(script: ScriptAnalysisResult) -> list[ReasonCode]:
     codes: list[ReasonCode] = []
 
@@ -203,7 +273,7 @@ def _intent_codes(script: ScriptAnalysisResult) -> list[ReasonCode]:
                 "RC_SCAM_SCRIPT_MATCH",
                 SignalType.INTENT,
                 f"Script risk {script.risk:.0%}" + (f" ({markers})" if markers else ""),
-                f"The caller's request matches a documented scam playbook: {top.title}.",
+                _matched_explanation(top.title, script.details.get("scam_family")),
                 severity,
                 threshold=f"> {thresholds.CORROBORATION_FLOOR:.0%}",
                 citation_title=top.title,
