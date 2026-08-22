@@ -22,9 +22,10 @@ Build with::
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import pickle
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -33,7 +34,12 @@ logger = logging.getLogger(__name__)
 
 #: Bumped whenever the on-disk layout changes. A mismatch is rejected, never coerced —
 #: silently reading a stale cache would serve embeddings from a different model.
-FORMAT = "SATYACHECK_IPINDEX_V1"
+#:
+#: V2 adds per-document content hashes. Without them the cache is keyed on document id
+#: alone, so editing a document's text under the same id serves the embedding of the
+#: previous wording forever, with no error. Corpus work *is* rewriting bodies, which
+#: made that the normal case rather than an edge one.
+FORMAT = "SATYACHECK_IPINDEX_V2"
 
 
 @dataclass(frozen=True)
@@ -43,15 +49,34 @@ class CachedIndex:
     format: str
     vectors: dict[str, np.ndarray]
     texts: dict[str, str]
+    #: `{doc_id: sha256(text)}`. Empty for a cache written before V2.
+    hashes: dict[str, str] = field(default_factory=dict)
+    #: Which encoder produced these vectors. Empty for a cache written before V2.
+    encoder: str = ""
+
+
+def text_hash(text: str) -> str:
+    """Stable content fingerprint for one document body."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _cacheable(corpus) -> list:
+    """The documents that get a vector: indexed scam text plus the benign cohort."""
+    return list(corpus.retrievable) + list(corpus.benign)
 
 
 def vectors_for(encoder, corpus) -> dict[str, np.ndarray]:
     """Encode every indexable document, returning `{doc_id: vector}`."""
-    docs = list(corpus.retrievable) + list(corpus.benign)
+    docs = _cacheable(corpus)
     if not docs:
         return {}
     encoded = encoder.encode([d.text for d in docs])
     return {d.id: np.asarray(v, dtype=np.float32) for d, v in zip(docs, encoded)}
+
+
+def hashes_for(corpus) -> dict[str, str]:
+    """`{doc_id: content hash}` for the same documents `vectors_for` encodes."""
+    return {d.id: text_hash(d.text) for d in _cacheable(corpus)}
 
 
 def save(
@@ -60,6 +85,8 @@ def save(
     index_path: str | Path,
     docstore_path: str | Path,
     format_override: str | None = None,
+    hashes: dict[str, str] | None = None,
+    encoder: str | None = None,
 ) -> None:
     """Write both artefacts. Creates parent directories as needed."""
     index_path, docstore_path = Path(index_path), Path(docstore_path)
@@ -84,11 +111,35 @@ def save(
             vectors=matrix,
         )
     with docstore_path.open("wb") as fh:
-        pickle.dump({"format": fmt, "texts": texts}, fh)
+        pickle.dump(
+            {
+                "format": fmt,
+                "texts": texts,
+                "hashes": hashes or {},
+                "encoder": encoder or "",
+                "dim": int(matrix.shape[1]) if matrix.size else 0,
+            },
+            fh,
+        )
 
 
-def load(index_path: str | Path, docstore_path: str | Path) -> CachedIndex | None:
-    """Read both artefacts back, or None if absent, corrupt or stale. Never raises."""
+def encoder_id(encoder) -> str:
+    """Identity recorded with a cache, and checked before one is reused."""
+    return type(encoder).__name__
+
+
+def load(
+    index_path: str | Path,
+    docstore_path: str | Path,
+    expect_encoder: str | None = None,
+) -> CachedIndex | None:
+    """Read both artefacts back, or None if absent, corrupt or stale. Never raises.
+
+    `expect_encoder` rejects a cache produced by a different model. `FORMAT` guards the
+    on-disk layout only — it cannot tell 1024-dim BGE-m3 vectors from the 256-dim
+    stand-in, and mixing them does not degrade gracefully: the mismatch surfaces as a
+    matmul shape error from inside a live request.
+    """
     index_path, docstore_path = Path(index_path), Path(docstore_path)
     if not index_path.is_file() or not docstore_path.is_file():
         return None
@@ -104,10 +155,23 @@ def load(index_path: str | Path, docstore_path: str | Path) -> CachedIndex | Non
             logger.warning("index cache format %s != %s; rebuilding", fmt, FORMAT)
             return None
 
+        # An unrecorded encoder is advisory, like the hashes: an older artefact degrades
+        # to the previous behaviour rather than being thrown away.
+        written_by = docstore.get("encoder", "") or ""
+        if expect_encoder and written_by and written_by != expect_encoder:
+            logger.warning(
+                "index cache was written by %s, this process uses %s; rebuilding",
+                written_by,
+                expect_encoder,
+            )
+            return None
+
         return CachedIndex(
             format=fmt,
             vectors={i: np.asarray(v, dtype=np.float32) for i, v in zip(ids, matrix)},
             texts=docstore.get("texts", {}),
+            hashes=docstore.get("hashes", {}) or {},
+            encoder=written_by,
         )
     except Exception as exc:  # noqa: BLE001 - a bad cache degrades to a rebuild
         logger.warning("index cache unreadable (%s); rebuilding", exc)
@@ -145,7 +209,14 @@ if __name__ == "__main__":  # pragma: no cover - build the artefacts
         sys.exit(1)
 
     vectors = vectors_for(encoder, corpus)
-    texts = {d.id: d.text for d in list(corpus.retrievable) + list(corpus.benign)}
+    texts = {d.id: d.text for d in _cacheable(corpus)}
     index_path, docstore_path = default_paths()
-    save(vectors, texts, index_path, docstore_path)
+    save(
+        vectors,
+        texts,
+        index_path,
+        docstore_path,
+        hashes=hashes_for(corpus),
+        encoder=encoder_id(encoder),
+    )
     print(f"{len(vectors)} vectors → {index_path}\n{len(texts)} docs → {docstore_path}")

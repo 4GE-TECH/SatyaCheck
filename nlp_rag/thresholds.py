@@ -44,10 +44,18 @@ RAG_SIMILARITY_THRESHOLD: float = _get("RAG_SIMILARITY_THRESHOLD", 0.60)
 #: 0.39, which is the over-flagging this system exists to avoid. A benign transcript
 #: sitting a little above the mean is the *normal* case, not a weak signal.
 #:
-#: RECALIBRATE WHEN BGE-M3 LANDS. These values were fitted against a lexical stand-in
-#: encoder, not the real embedding space. `nlp_rag/tests/test_score.py` asserts the
-#: §5.1 targets, so recalibration is verified rather than guessed.
-SCRIPT_Z0: float = _get("SCRIPT_Z0", 4.0)
+#: Raised 4.0 -> 5.5 when the corpus grew from 26 to 56 indexed documents.
+#:
+#: This is not a taste adjustment, it is arithmetic. `z` compares the best scam match
+#: against the benign background: growing the scam index raises `max_scam_cos` for every
+#: query, including benign ones, while `mean(benign_cos)` and `std(benign_cos)` are
+#: computed over an unchanged cohort. So *every* benign z drifts upward with corpus
+#: growth, and z0 has to follow it. At 4.0 the grown corpus put 14.6% of the benign
+#: cohort above the amber floor; at 5.5 it is 1.2%, with every §5.1 target intact.
+#:
+#: **Re-run `python -m nlp_rag.eval_retrieval` after any corpus growth.** The number to
+#: watch is the benign false-positive rate, and the direction it moves is predictable.
+SCRIPT_Z0: float = _get("SCRIPT_Z0", 5.5)
 
 #: Temperature of that logistic. Larger is softer.
 SCRIPT_TAU: float = _get("SCRIPT_TAU", 1.0)
@@ -81,6 +89,22 @@ SCRIPT_HIGH_RISK: float = _get("SCRIPT_HIGH_RISK", 0.75)
 RISK_FLOOR: float = _get("RISK_FLOOR", 0.01)
 
 
+def _amber_floor(default: float = 0.15) -> float:
+    """Lower bound of the `caution` band, read from C's `BAND_THRESHOLDS`."""
+    bands = _get("BAND_THRESHOLDS", None)
+    try:
+        return float(bands["caution"][0])
+    except (TypeError, KeyError, IndexError, ValueError):
+        return default
+
+
+#: Where amber begins. `BAND_THRESHOLDS` maps *fused* risk, not intent risk, but the
+#: intent branch's false-positive rate is only meaningful against the boundary a user
+#: would actually see, so `eval_retrieval` reads the same number rather than inventing
+#: its own. Owned by C; never hardcode it at a call site.
+AMBER_FLOOR: float = _amber_floor()
+
+
 # --- ASR gate ----------------------------------------------------------------
 
 #: Whisper segment-level no-speech probability above which the transcript is discarded.
@@ -94,3 +118,12 @@ ASR_MIN_TOKENS: int = _get("ASR_MIN_TOKENS", 3)
 
 #: An n-gram repeated more than this many times marks a decoder loop.
 ASR_MAX_NGRAM_REPEATS: int = _get("ASR_MAX_NGRAM_REPEATS", 3)
+
+#: Below this, Whisper's own language detection is not trusted and `config.WHISPER_LANGUAGE`
+#: is reported instead — as the prior it is documented to be ("Primary language").
+#:
+#: Measured on real audio: clean English detects at p=1.00, while code-switched Hinglish
+#: lands at p=0.54-0.57 — genuinely uncertain, and exactly the case where the deployment's
+#: primary language is the better label. This affects the REPORTED label only. Decoding is
+#: always auto-detected; see the note in `asr.py`.
+ASR_MIN_LANGUAGE_PROB: float = _get("ASR_MIN_LANGUAGE_PROB", 0.60)

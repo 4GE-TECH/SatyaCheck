@@ -43,7 +43,7 @@
   kind: heldout
   scam_family: digital_arrest
   expected_anchor: anch-digital-arrest-001
-  lang: hi
+  lang: hi_latn
   script: latin
   text: >-
     Main CBI se bol raha hoon. Aapke naam par ek parcel aur ek bank account mila hai
@@ -56,7 +56,7 @@
   kind: heldout
   scam_family: family_emergency
   expected_anchor: anch-family-emergency-001
-  lang: hi
+  lang: hi_latn
   script: latin
   text: >-
     Papa, mera accident ho gaya hai, main hospital mein hoon. Police case ban gaya hai
@@ -102,7 +102,7 @@
   kind: heldout
   scam_family: kyc_update
   expected_anchor: anch-kyc-update-001
-  lang: hi
+  lang: hi_latn
   script: latin
   text: >-
     Aapka bank account KYC pending hai, aaj raat tak block ho jayega. Ek application
@@ -137,7 +137,7 @@
   kind: heldout
   scam_family: telecom_impersonation
   expected_anchor: anch-utility-disconnection-002
-  lang: hi
+  lang: hi_latn
   script: latin
   text: >-
     Ye call telecom department se hai. Aapke Aadhaar par jo mobile numbers registered
@@ -196,7 +196,7 @@
   kind: heldout
   scam_family: qr_code_fraud
   expected_anchor: anch-qr-code-001
-  lang: hi
+  lang: hi_latn
   script: latin
   text: >-
     Main aapka furniture kharidna chahta hoon, advance bhej raha hoon. Ye QR code scan

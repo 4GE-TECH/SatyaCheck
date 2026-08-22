@@ -128,7 +128,7 @@
   kind: variant
   anchor_id: anch-utility-disconnection-001
   derived: true
-  scam_family: electricity_disconnection
+  scam_family: utility_disconnection
   lang: hi_latn
   script: latin
   title: Electricity disconnection, Latin Hinglish

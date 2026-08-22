@@ -7,6 +7,9 @@ Documents live in `nlp_rag/corpus/` as YAML. Four kinds:
 - `benign`   an ordinary call transcript. The cohort scoring normalises against.
 - `heldout`  a real excerpt reserved for evaluation. Never indexed.
 
+Citability and retrievability are separate. `indexed: false` keeps an anchor available as
+a citation while removing it from the scam index — see `CorpusDoc.indexed`.
+
 `RetrievedPlaybook` has no `derived` field, so the anchor/variant distinction must
 never leak past this module: a retrieved variant resolves to its anchor *before* the
 contract object is built. One fabricated URL and `PRD.md` §4.6 stops being true.
@@ -28,6 +31,27 @@ from contracts import RetrievedPlaybook
 DocKind = Literal["anchor", "variant", "benign", "heldout"]
 VALID_KINDS: frozenset[str] = frozenset({"anchor", "variant", "benign", "heldout"})
 VALID_LANGS: frozenset[str] = frozenset({"en", "hi", "hi_latn"})
+
+#: Closed set, because `scam_family` is what `eval_retrieval` scores family-level P@3
+#: against. Two spellings of one concept ("electricity_disconnection" alongside
+#: "utility_disconnection") split the metric across both and read as a retrieval failure.
+#: Adding a family is deliberate: add it here, in the same commit as the document.
+VALID_FAMILIES: frozenset[str] = frozenset(
+    {
+        "none",  # benign transcripts carry no family
+        "digital_arrest",
+        "family_emergency",
+        "kyc_update",
+        "utility_disconnection",
+        "telecom_impersonation",
+        "parcel_customs",
+        "lottery_advance_fee",
+        "qr_code_fraud",
+        "financial_fraud",
+        "sms_fraud",
+        "reporting",
+    }
+)
 
 
 class CorpusError(Exception):
@@ -60,7 +84,13 @@ class CorpusDoc:
     anchor_id: str | None = None
     derived: bool = False
     markers: list[str] = field(default_factory=list)
-    severity: float = 0.5
+    #: Whether this document is indexed as scam text. An anchor may be citable without
+    #: being retrievable: the reporting advisories ("report it on 1930") describe what a
+    #: victim should do, not what a caller says, so they can only ever compete for top-k
+    #: against a transcript that mentions reporting — a false positive with no matching
+    #: held-out item to justify it. They stay anchors, keep their citation obligations,
+    #: and leave the index.
+    indexed: bool = True
     #: heldout only — the anchor this excerpt should retrieve. Ground truth for P@3.
     expected_anchor: str | None = None
 
@@ -73,8 +103,25 @@ class Corpus:
 
     @property
     def retrievable(self) -> list[CorpusDoc]:
-        """Anchors and variants — the only documents that may be indexed as scam text."""
-        return [d for d in self._docs.values() if d.kind in ("anchor", "variant")]
+        """Anchors and variants that are indexed as scam text.
+
+        `indexed: false` excludes a document from the index without excluding it from the
+        corpus — it can still be resolved to and cited. See `CorpusDoc.indexed`.
+        """
+        return [
+            d
+            for d in self._docs.values()
+            if d.kind in ("anchor", "variant") and d.indexed
+        ]
+
+    @property
+    def anchors(self) -> list[CorpusDoc]:
+        """Every anchor, indexed or not.
+
+        Citation integrity is an obligation of being an anchor, not of being retrievable:
+        an un-indexed anchor still owes a deep link and a named agency.
+        """
+        return [d for d in self._docs.values() if d.kind == "anchor"]
 
     @property
     def benign(self) -> list[CorpusDoc]:
@@ -153,6 +200,14 @@ def _coerce(raw: dict[str, Any], origin: Path) -> CorpusDoc:
     if lang not in VALID_LANGS:
         raise CorpusError(f"{raw['id']}: unknown lang {lang!r}, expected one of {sorted(VALID_LANGS)}")
 
+    family = raw.get("scam_family", "none")
+    if family not in VALID_FAMILIES:
+        raise CorpusError(
+            f"{raw['id']}: unknown scam_family {family!r}. Add it to VALID_FAMILIES "
+            f"deliberately, or use the existing name — a near-duplicate label splits "
+            f"family-level P@3 across two families. Known: {sorted(VALID_FAMILIES)}"
+        )
+
     if kind == "anchor" and not raw.get("source_url"):
         raise CorpusError(
             f"{raw['id']}: anchor has no source_url. Every anchor must cite a page "
@@ -171,7 +226,7 @@ def _coerce(raw: dict[str, Any], origin: Path) -> CorpusDoc:
         kind=kind,
         text=str(raw["text"]).strip(),
         title=raw.get("title", ""),
-        scam_family=raw.get("scam_family", "none"),
+        scam_family=family,
         lang=lang,
         script=raw.get("script", "latin"),
         category=raw.get("category", "Uncategorised"),
@@ -180,7 +235,7 @@ def _coerce(raw: dict[str, Any], origin: Path) -> CorpusDoc:
         anchor_id=raw.get("anchor_id"),
         derived=bool(raw.get("derived", False)),
         markers=list(raw.get("markers", []) or []),
-        severity=float(raw.get("severity", 0.5)),
+        indexed=bool(raw.get("indexed", True)),
         expected_anchor=raw.get("expected_anchor"),
     )
 
@@ -213,7 +268,9 @@ def load_corpus(root: str | Path) -> Corpus:
 
     corpus = Corpus(docs.values())
 
-    for doc in corpus.retrievable:
+    # Every document, not just the indexed ones — an un-indexed variant with a dangling
+    # anchor is still a build-time bug, and it would escape a check over `retrievable`.
+    for doc in docs.values():
         if doc.anchor_id and doc.anchor_id not in docs:
             raise CorpusError(f"{doc.id}: anchor_id refers to a missing anchor: {doc.anchor_id}")
 

@@ -99,6 +99,43 @@ def test_a_stale_artefact_is_rejected_rather_than_silently_used(paths):
     assert index_store.load(index_path, docstore_path) is None
 
 
+# --- a cache belongs to the encoder that wrote it ----------------------------
+# FORMAT guards the on-disk *layout*. It says nothing about which model produced the
+# numbers, and BGE-m3 vectors are 1024-dim while the stand-in encoder's are 256 — so a
+# cache written by one and read by the other does not degrade, it raises a matmul shape
+# error out of the middle of a request.
+
+def test_a_cache_written_by_another_encoder_is_rejected(paths):
+    index_path, docstore_path = paths
+    index_store.save(
+        {"a": np.array([1.0], dtype=np.float32)},
+        {"a": "t"},
+        index_path,
+        docstore_path,
+        encoder="BGEM3Encoder",
+    )
+    assert index_store.load(index_path, docstore_path, expect_encoder="FakeEncoder") is None
+
+
+def test_a_cache_written_by_the_same_encoder_is_accepted(paths):
+    index_path, docstore_path = paths
+    index_store.save(
+        {"a": np.array([1.0], dtype=np.float32)},
+        {"a": "t"},
+        index_path,
+        docstore_path,
+        encoder="FakeEncoder",
+    )
+    assert index_store.load(index_path, docstore_path, expect_encoder="FakeEncoder")
+
+
+def test_a_cache_with_no_recorded_encoder_is_still_readable(paths):
+    """Advisory, like the hashes. An older artefact degrades rather than failing."""
+    index_path, docstore_path = paths
+    index_store.save({"a": np.array([1.0], dtype=np.float32)}, {"a": "t"}, index_path, docstore_path)
+    assert index_store.load(index_path, docstore_path, expect_encoder="FakeEncoder")
+
+
 # --- the retriever uses it --------------------------------------------------
 
 def test_a_cached_retriever_returns_the_same_results_as_an_encoding_one():
@@ -131,6 +168,92 @@ def test_a_document_missing_from_the_cache_is_still_encoded():
     encoder = CountingEncoder()
     Retriever(encoder, corpus, vectors=vectors)
     assert len(encoder.encoded) == 1
+
+
+# --- editing a document must invalidate its vector ---------------------------
+# The failure this guards is silent and total: a cache keyed on document id alone
+# serves the embedding of the *previous* wording forever. Rewriting corpus bodies is
+# exactly what corpus work is, so the stale vector would be the normal case, and
+# nothing would report it.
+
+def _edited(corpus, doc_id: str, text: str):
+    """A copy of `corpus` with one document's text replaced, id unchanged."""
+    import dataclasses
+
+    from nlp_rag.corpus_loader import Corpus
+
+    return Corpus(
+        dataclasses.replace(d, text=text) if d.id == doc_id else d
+        for d in list(corpus.retrievable) + list(corpus.benign) + list(corpus.heldout)
+    )
+
+
+def test_editing_a_documents_text_re_encodes_it():
+    corpus = load_corpus(CORPUS_DIR)
+    cache = index_store.vectors_for(FakeEncoder(), corpus)
+    hashes = index_store.hashes_for(corpus)
+
+    target = corpus.retrievable[0].id
+    rewritten = _edited(corpus, target, "completely different wording than before")
+
+    encoder = CountingEncoder()
+    Retriever(encoder, rewritten, vectors=cache, hashes=hashes)
+    assert len(encoder.encoded) == 1, (
+        "an edited document was served from its stale vector"
+    )
+
+
+def test_the_re_encoded_vector_is_the_one_actually_used():
+    """Counting the encode call is not enough — the fresh vector must also win.
+
+    A stale document is present in both the cache and the freshly-encoded map. Reading
+    the cache first re-serves exactly the vector the re-encode was meant to replace,
+    and the encode-count assertion above would still pass.
+    """
+    corpus = load_corpus(CORPUS_DIR)
+    cache = index_store.vectors_for(FakeEncoder(), corpus)
+    hashes = index_store.hashes_for(corpus)
+
+    target = corpus.retrievable[0].id
+    marker = "zzqqxx unmistakable rewritten wording"
+    rewritten = _edited(corpus, target, marker)
+
+    retriever = Retriever(FakeEncoder(), rewritten, vectors=cache, hashes=hashes)
+    hits = retriever.search(marker, k=1).playbooks
+    assert hits, "the rewritten document did not retrieve on its own new text"
+    assert hits[0].playbook_id == rewritten.resolve_citation(target).playbook_id
+
+
+def test_an_unedited_document_is_still_served_from_cache():
+    corpus = load_corpus(CORPUS_DIR)
+    cache = index_store.vectors_for(FakeEncoder(), corpus)
+    hashes = index_store.hashes_for(corpus)
+
+    encoder = CountingEncoder()
+    Retriever(encoder, corpus, vectors=cache, hashes=hashes)
+    assert encoder.encoded == []
+
+
+def test_hashes_survive_the_round_trip(paths):
+    index_path, docstore_path = paths
+    index_store.save(
+        {"a": np.array([1.0], dtype=np.float32)},
+        {"a": "some text"},
+        index_path,
+        docstore_path,
+        hashes={"a": "deadbeef"},
+    )
+    assert index_store.load(index_path, docstore_path).hashes == {"a": "deadbeef"}
+
+
+def test_a_cache_without_hashes_still_loads():
+    """Hashes are advisory. A cache that predates them degrades to id-only matching."""
+    corpus = load_corpus(CORPUS_DIR)
+    cache = index_store.vectors_for(FakeEncoder(), corpus)
+
+    encoder = CountingEncoder()
+    Retriever(encoder, corpus, vectors=cache, hashes=None)
+    assert encoder.encoded == []
 
 
 def test_an_uncached_retriever_still_works():

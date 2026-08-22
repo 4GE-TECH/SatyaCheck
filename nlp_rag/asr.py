@@ -22,6 +22,7 @@ from pathlib import Path
 import numpy as np
 
 from contracts import TranscriptResult, TranscriptSegment
+from nlp_rag import thresholds
 from nlp_rag.gate import evaluate_transcript
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,34 @@ def prepare_audio(source: str | Path | Sequence[float]):
     return samples
 
 
+def _reported_language(info, requested: str | None) -> str:
+    """The label C sees in `TranscriptResult.detected_language`.
+
+    An explicit request wins. Otherwise Whisper's own detection, unless it is not
+    confident enough to be worth trusting — code-switched Hinglish lands around p=0.55 —
+    in which case `config.WHISPER_LANGUAGE` is reported as the deployment's prior. That is
+    the "primary language" role the config comment describes, applied to the label rather
+    than to decoding, where it does real damage.
+
+    C reads this to pick vernacular warning copy, so a wrong label means a Hindi warning
+    on an English call.
+    """
+    if requested:
+        return requested
+
+    detected = getattr(info, "language", None)
+    probability = getattr(info, "language_probability", 1.0) or 0.0
+    if not detected:
+        return DEFAULT_LANGUAGE or "unknown"
+    if probability < thresholds.ASR_MIN_LANGUAGE_PROB:
+        logger.info(
+            "language detection weak (%s p=%.2f); reporting configured primary %s",
+            detected, probability, DEFAULT_LANGUAGE,
+        )
+        return DEFAULT_LANGUAGE or detected
+    return detected
+
+
 def transcribe_file(
     audio_path: str | Path | Sequence[float], language: str | None = None
 ) -> TranscriptResult:
@@ -108,9 +137,29 @@ def transcribe_file(
         if model is None:
             return TranscriptResult.empty()
 
+        # `language=None` means auto-detect. Do NOT pass DEFAULT_LANGUAGE here.
+        #
+        # `config.WHISPER_LANGUAGE = "hi"` is commented "Primary language; Whisper
+        # auto-detects Hinglish", but passing the parameter is exactly what *prevents*
+        # auto-detection -- it forces the decoder into that language. Measured on real
+        # audio, forcing "hi" on English speech is:
+        #
+        #   ~10x slower       1.65-1.82x realtime vs 0.16-0.18x
+        #   nondeterministic  identical input, identical settings, different output
+        #   lower quality     one run produced Devanagari and CJK characters as a
+        #                     transcript of clean English speech
+        #
+        # All three are the same cause: a forced mismatched language fails Whisper's
+        # logprob and compression-ratio checks, which triggers temperature fallback --
+        # repeated decodes at rising temperature, and temperature > 0 is sampling.
+        #
+        # Auto-detection is better for Hindi too, not a trade: on code-switched Hinglish
+        # it still returns "hi" and was faster there as well (6.4s vs 16.6s).
+        #
+        # An explicit `language=` from the caller is still honoured; C never passes one.
         segments, info = model.transcribe(
             source,
-            language=language or DEFAULT_LANGUAGE,
+            language=language,
             beam_size=1,
             vad_filter=True,
             condition_on_previous_text=False,
@@ -136,7 +185,7 @@ def transcribe_file(
                 )
                 for s in segments
             ],
-            detected_language=getattr(info, "language", "unknown") or "unknown",
+            detected_language=_reported_language(info, language),
             confidence=verdict.confidence,
         )
     except Exception as exc:  # noqa: BLE001 - rule 5: degrade, never raise into C

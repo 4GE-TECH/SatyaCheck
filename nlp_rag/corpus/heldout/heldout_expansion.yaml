@@ -1,0 +1,441 @@
+# Held-out expansion — 16 to 50 queries, at least 5 per scam family.
+#
+# WHY THIS FILE EXISTS
+# At 16 queries each one moved P@3 by 6.25%, so the difference between 85% and 100% was
+# a single document. P@3 reported 100% while `sms_fraud` had *no* held-out query at all
+# and three unvalidated variants. A metric that saturates has stopped measuring.
+#
+# NEVER INDEXED. `Corpus.retrievable` and `Corpus.benign` both exclude kind: heldout.
+#
+# Written in call register — mid-call, code-switched, with the hesitation and repetition
+# of real speech. Some deliberately carry the artefacts faster-whisper actually produces:
+# filler words, self-corrections, a repeated clause, a dropped subject. Retrieval has to
+# survive transcription, not just clean prose.
+#
+# Ids ending -adv are ADVERSARIAL: a caller running a known playbook while avoiding the
+# marker phrases. They are expected to be harder, and a miss on one is informative rather
+# than embarrassing — it says the score is leaning on markers where retrieval should be
+# carrying it.
+
+# =============================================================================
+# digital arrest
+# =============================================================================
+
+- id: held-digital-arrest-004
+  kind: heldout
+  scam_family: digital_arrest
+  expected_anchor: anch-digital-arrest-002
+  lang: en
+  script: latin
+  text: >-
+    Ma'am please, please listen, do not, do not cut the call. I am, I am speaking from
+    the crime branch. Your Aadhaar is linked to a account in Mumbai, twenty two lakh has
+    come. Sir will join the call now. Keep the camera on. You cannot go out of the room
+    till the officer says.
+
+- id: held-digital-arrest-005
+  kind: heldout
+  scam_family: digital_arrest
+  expected_anchor: anch-digital-arrest-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Dekhiye madam, ye matter court tak ja sakta hai. Aapke naam pe FIR ready hai. Hum
+    abhi custody mein rakhenge is call pe. Ghar mein koi hai to unko kuch mat boliye,
+    warna investigation influence hoga aur charge aur badh jayega.
+
+# =============================================================================
+# family emergency and voice cloning
+# =============================================================================
+
+- id: held-family-emergency-004
+  kind: heldout
+  scam_family: family_emergency
+  expected_anchor: anch-family-emergency-001
+  lang: en
+  script: latin
+  text: >-
+    Uncle, uncle it's me. There's been an issue, the car hit someone near the highway.
+    The man's family is here and the constable says if we settle it now no case will be
+    filed. Forty thousand. Please don't call my father, I will tell him myself after.
+
+- id: held-family-emergency-005
+  kind: heldout
+  scam_family: family_emergency
+  expected_anchor: anch-voice-clone-001
+  lang: hi
+  script: devanagari
+  text: >-
+    दीदी, मैं हूँ, आवाज़ में फ़र्क़ लग रहा है क्योंकि गला ख़राब है। एक दिक्कत हो गई है और
+    अभी पैसे की ज़रूरत है। बाद में सब बता दूँगा, अभी किसी से पूछने मत जाना, बस भेज दो।
+
+# =============================================================================
+# KYC
+# =============================================================================
+
+- id: held-kyc-update-003
+  kind: heldout
+  scam_family: kyc_update
+  expected_anchor: anch-kyc-update-001
+  lang: en
+  script: latin
+  text: >-
+    Sir your net banking will be deactivated from tomorrow because the annual re-KYC was
+    not submitted. I am from the verification desk. I will send a link, fill your
+    customer ID and the password there, then confirm the code that comes on your
+    registered mobile.
+
+- id: held-kyc-update-004
+  kind: heldout
+  scam_family: kyc_update
+  expected_anchor: anch-kyc-update-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Haan ji, aapka account dormant category mein chala gaya hai, KYC due hai. Ek chhota
+    sa form hai bas. Apna debit card ka number aur peeche ke teen digit bata dijiye, main
+    system mein daal deta hoon, aaj hi active ho jayega.
+
+- id: held-kyc-update-005
+  kind: heldout
+  scam_family: kyc_update
+  expected_anchor: anch-kyc-update-001
+  lang: hi
+  script: devanagari
+  text: >-
+    सर, आपके खाते की केवाईसी अपडेट नहीं है, इसलिए आज शाम तक लेन-देन बंद कर दिया जाएगा।
+    मैं शाखा से बोल रहा हूँ। आपके मोबाइल पर एक कोड भेजा है, वही बता दीजिए, मैं यहीं से
+    प्रक्रिया पूरी कर देता हूँ।
+
+# =============================================================================
+# telecom impersonation
+# =============================================================================
+
+- id: held-telecom-002
+  kind: heldout
+  scam_family: telecom_impersonation
+  expected_anchor: anch-telecom-impersonation-002
+  lang: en
+  script: latin
+  text: >-
+    We are calling regarding a regulatory notice issued against your connection. There is
+    a licensing violation recorded and a penalty amount is outstanding. Kindly confirm
+    your name and address for verification, and then the settlement has to be made today
+    itself to the account we provide.
+
+- id: held-telecom-003
+  kind: heldout
+  scam_family: telecom_impersonation
+  expected_anchor: anch-telecom-impersonation-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Aapke number se spam messages ja rahe hain, uske against complaint aayi hai
+    authority ke paas. Do ghante mein number band kar diya jayega. Agar galat complaint
+    hai to hamare officer se baat kar lijiye, main line transfer kar raha hoon.
+
+- id: held-telecom-004
+  kind: heldout
+  scam_family: telecom_impersonation
+  expected_anchor: anch-utility-disconnection-002
+  lang: hi
+  script: devanagari
+  text: >-
+    दूरसंचार विभाग से बोल रहा हूँ। आपके पहचान पत्र पर कई सिम जारी हुए हैं और उनमें से एक
+    का ग़लत इस्तेमाल हुआ है। आज रात तक आपके नाम के सारे नंबर बंद हो जाएँगे। मैं साइबर सेल
+    के अधिकारी से बात करवा देता हूँ।
+
+# =============================================================================
+# parcel and customs
+# =============================================================================
+
+- id: held-parcel-customs-003
+  kind: heldout
+  scam_family: parcel_customs
+  expected_anchor: anch-parcel-customs-001
+  lang: en
+  script: latin
+  text: >-
+    This is regarding consignment number, uh, ending seven four one, booked from your
+    number to Hong Kong. On scanning it was found to contain expired passports and some
+    tablets. The case is now with the enforcement wing. Until the clearance amount is
+    paid the FIR will proceed.
+
+- id: held-parcel-customs-004
+  kind: heldout
+  scam_family: parcel_customs
+  expected_anchor: anch-parcel-customs-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Sir aapke naam ka ek courier airport pe hold hua hai. Usme kuch aisa saman hai jo
+    allowed nahi hai. Narcotics wale involve ho gaye hain. Abhi clearance charge jama
+    karwa dijiye to matter yahin close ho jayega, warna case register hoga.
+
+- id: held-parcel-customs-005
+  kind: heldout
+  scam_family: parcel_customs
+  expected_anchor: anch-parcel-customs-001
+  lang: hi
+  script: devanagari
+  text: >-
+    कस्टम विभाग से बात कर रहे हैं। आपके नाम से आया एक पैकेट जाँच में पकड़ा गया है, उसमें
+    प्रतिबंधित दवाइयाँ मिली हैं। मामला आगे बढ़ने से पहले शुल्क जमा करना होगा, नहीं तो
+    गिरफ़्तारी का वारंट जारी हो जाएगा।
+
+# =============================================================================
+# financial fraud and credential harvesting
+# =============================================================================
+
+- id: held-credential-002
+  kind: heldout
+  scam_family: financial_fraud
+  expected_anchor: anch-financial-fraud-001
+  lang: en
+  script: latin
+  text: >-
+    I can see a pending debit of nineteen thousand on your account from a merchant in
+    Delhi. If this is not you, I will block it right now. For that I need to verify the
+    card, so read me the number on the front and the three digits at the back, and the
+    code I am sending.
+
+- id: held-credential-003
+  kind: heldout
+  scam_family: financial_fraud
+  expected_anchor: anch-financial-fraud-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Aapke account se galat transaction ho gaya hai, main reverse kar deta hoon. Ek
+    support app install kar lijiye taki main screen dekh sakun. Jo number screen pe aa
+    raha hai wo bata dijiye, tabhi refund process aage badhega.
+
+- id: held-credential-004
+  kind: heldout
+  scam_family: financial_fraud
+  expected_anchor: anch-financial-fraud-001
+  lang: hi
+  script: devanagari
+  text: >-
+    आपके कार्ड पर एक संदिग्ध भुगतान रोका गया है। उसे रद्द करने के लिए मुझे सत्यापन करना
+    होगा। कार्ड के आगे का नंबर और पीछे के तीन अंक बताइए, और जो कोड अभी आपके फ़ोन पर आया
+    है वो भी पढ़ दीजिए।
+
+- id: held-credential-005-adv
+  kind: heldout
+  scam_family: financial_fraud
+  expected_anchor: anch-financial-fraud-001
+  lang: en
+  script: latin
+  text: >-
+    For the dispute to be registered the system needs the last verification step from
+    your side. I will not ask you for anything confidential. Simply open the application
+    I am guiding you to, allow the screen permission, and read out whatever appears in
+    the grey box so I can enter it here.
+
+# =============================================================================
+# utility disconnection
+# =============================================================================
+
+- id: held-utility-003
+  kind: heldout
+  scam_family: utility_disconnection
+  expected_anchor: anch-utility-disconnection-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Bijli vibhag se message aaya hoga aapko. Pichle mahine ka meter update nahi hua hai
+    isliye aaj raat aath baje connection kaat diya jayega. Abhi is number pe payment kar
+    dijiye ya humein call back kar lijiye, warna supply band ho jayegi.
+
+- id: held-utility-004
+  kind: heldout
+  scam_family: utility_disconnection
+  expected_anchor: anch-utility-disconnection-001
+  lang: hi
+  script: devanagari
+  text: >-
+    बिजली बोर्ड की सूचना है। आपके मीटर की जानकारी अद्यतन नहीं है, इसलिए आज रात आपके घर की
+    आपूर्ति काट दी जाएगी। कनेक्शन बचाने के लिए तुरंत बकाया राशि इस नंबर पर भेज दीजिए।
+
+- id: held-utility-005
+  kind: heldout
+  scam_family: utility_disconnection
+  expected_anchor: anch-utility-disconnection-001
+  lang: en
+  script: latin
+  text: >-
+    Your electricity account shows the last bill as unverified in our new system. The
+    disconnection order has already been generated for tonight. To stop it you have to
+    complete a small verification payment on the link, or the lineman will come and
+    remove the meter.
+
+- id: held-utility-006-adv
+  kind: heldout
+  scam_family: utility_disconnection
+  expected_anchor: anch-utility-disconnection-001
+  lang: en
+  script: latin
+  text: >-
+    Good afternoon. I am from the power distribution office regarding your meter records.
+    There is a discrepancy in the KYC entry from the last billing cycle. If it is not
+    corrected before the cut-off this evening the supply schedule for your address gets
+    revised. I can guide you through the correction on the portal now.
+
+# =============================================================================
+# lottery and advance fee
+# =============================================================================
+
+- id: held-lottery-002
+  kind: heldout
+  scam_family: lottery_advance_fee
+  expected_anchor: anch-lottery-advance-fee-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Badhai ho sir, aapka number hamare quarterly draw mein select hua hai, pandrah lakh
+    ka inaam hai. Amount release karne se pehle sirf processing fee jama karni hoti hai,
+    wo aapko bhejni hogi. Uske baad poora paisa aapke account mein aa jayega.
+
+- id: held-lottery-003
+  kind: heldout
+  scam_family: lottery_advance_fee
+  expected_anchor: anch-lottery-advance-fee-001
+  lang: hi
+  script: devanagari
+  text: >-
+    आपको हमारी योजना में पुरस्कार मिला है। राशि विदेश से आनी है इसलिए पहले कर और
+    रूपांतरण शुल्क जमा करना होगा। यह रकम इस खाते में तुरंत भेजिए, उसके बाद पूरी राशि उसी
+    दिन आपके खाते में भेज दी जाएगी।
+
+- id: held-lottery-004
+  kind: heldout
+  scam_family: lottery_advance_fee
+  expected_anchor: anch-lottery-advance-fee-001
+  lang: en
+  script: latin
+  text: >-
+    Sir, sir one minute. Your number was, was picked in the customer loyalty selection.
+    The prize is a car or the cash equivalent. Most people take the cash. Only the
+    registration and the government levy has to be settled first, that is from your side,
+    then we release it.
+
+- id: held-lottery-005
+  kind: heldout
+  scam_family: lottery_advance_fee
+  expected_anchor: anch-lottery-advance-fee-001
+  lang: en
+  script: latin
+  text: >-
+    A sum has been lying unclaimed in your name from a foreign remittance and we are the
+    agents handling the release. There are legal charges to be cleared before the bank
+    will transfer it. Deposit that amount and the entire sum comes to you within two
+    working days.
+
+# =============================================================================
+# QR code and payment fraud
+# =============================================================================
+
+- id: held-qr-code-002
+  kind: heldout
+  scam_family: qr_code_fraud
+  expected_anchor: anch-qr-code-001
+  lang: en
+  script: latin
+  text: >-
+    I want to book the flat and I am sending the token amount now. The bank is showing it
+    as a request, so you have to accept from your side. Scan the code I sent on WhatsApp
+    and put your UPI PIN, only then the money will come into your account.
+
+- id: held-qr-code-003
+  kind: heldout
+  scam_family: qr_code_fraud
+  expected_anchor: anch-qr-code-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Main army mein hoon, posting ki wajah se aa nahi sakta, isliye advance bhej raha
+    hoon. Ye scanner bhej diya hai, scan karke PIN daal dijiye, paisa credit ho jayega.
+    Jaldi kijiye, mujhe duty pe jaana hai.
+
+- id: held-qr-code-004
+  kind: heldout
+  scam_family: qr_code_fraud
+  expected_anchor: anch-qr-code-001
+  lang: hi
+  script: devanagari
+  text: >-
+    आपका रिफ़ंड मंज़ूर हो गया है लेकिन खाते में तभी आएगा जब आप स्वीकार करेंगे। यह क्यूआर
+    कोड भेजा है, इसे स्कैन कीजिए और अपना पिन डालिए, तभी पैसा आपके खाते में पहुँचेगा।
+
+- id: held-qr-code-005-adv
+  kind: heldout
+  scam_family: qr_code_fraud
+  expected_anchor: anch-qr-code-001
+  lang: en
+  script: latin
+  text: >-
+    The transfer has been initiated from my side but your bank has kept it in a pending
+    state. There is a confirmation step at your end. Open the scanner in your payment
+    application, capture the image I have shared, and authorise it with your usual
+    security number so the credit settles.
+
+# =============================================================================
+# SMS fraud and phishing links
+# =============================================================================
+# This family had ZERO held-out queries while carrying three variants. Everything below
+# is the first measurement it has ever had.
+
+- id: held-sms-fraud-001
+  kind: heldout
+  scam_family: sms_fraud
+  expected_anchor: anch-sms-fraud-001
+  lang: en
+  script: latin
+  text: >-
+    Your parcel could not be delivered as the address was incomplete. A redelivery fee is
+    pending. Use the link in the message to update the address and pay the fee today,
+    otherwise the item goes back to the origin warehouse and the amount is not refunded.
+
+- id: held-sms-fraud-002
+  kind: heldout
+  scam_family: sms_fraud
+  expected_anchor: anch-sms-fraud-001
+  lang: en
+  script: latin
+  text: >-
+    Sir you would have received a message about the pending electricity refund. It is
+    from our department only. Just open that link, put your account number and the mobile
+    number registered, and the refund will be processed to you directly today.
+
+- id: held-sms-fraud-003
+  kind: heldout
+  scam_family: sms_fraud
+  expected_anchor: anch-sms-fraud-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Aapko ek message gaya hai reward points ke bare mein, wo expire ho rahe hain. Us link
+    pe jaake apna card number aur registered mobile daal dijiye, points cash mein convert
+    ho jayenge. Aaj hi karna hoga warna lapse ho jayega.
+
+- id: held-sms-fraud-004
+  kind: heldout
+  scam_family: sms_fraud
+  expected_anchor: anch-sms-fraud-001
+  lang: hi_latn
+  script: latin
+  text: >-
+    Ye message bank ki taraf se hai, aapka account temporarily restrict hua hai. Neeche
+    diye gaye link pe jaake details verify kar lijiye, warna kal se transaction nahi ho
+    payega. Link sirf aaj ke liye valid hai.
+
+- id: held-sms-fraud-005
+  kind: heldout
+  scam_family: sms_fraud
+  expected_anchor: anch-sms-fraud-001
+  lang: hi
+  script: devanagari
+  text: >-
+    आपके नाम पर एक भुगतान अटका हुआ है। संदेश में भेजे गए लिंक पर जाकर अपनी जानकारी भरिए
+    और छोटा सा शुल्क जमा कीजिए, तभी राशि जारी होगी। लिंक आज रात तक ही चलेगा।

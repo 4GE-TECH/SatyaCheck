@@ -1,0 +1,220 @@
+# Second Latin-Hinglish variant per anchor — closing a measured recall gap.
+#
+# THE MEASUREMENT THAT PROMPTED THIS
+# Held-out scam recall at the amber floor, broken down by language, tracked the
+# scam:benign ratio of the corpus monotonically:
+#
+#   lang      scam  benign  ratio   recall
+#   hi          14      17   0.82   83.3%
+#   en          28      52   0.54   73.9%
+#   hi_latn     14      34   0.41   33.3%
+#
+# Hinglish had the thinnest foreground against the thickest background, and the worst
+# recall by a wide margin — at every value of SCRIPT_Z0, not only the current one. This
+# is the same starved-numerator mechanism Devanagari had before its variants existed,
+# and it stayed invisible until the harness gained a recall axis.
+#
+# Fourteen documents, one per indexed anchor, bringing hi_latn to 28 and its ratio to
+# 0.82 — level with Devanagari. Phrasing is distinct from each anchor's first hi_latn
+# variant and from every held-out transcript.
+
+- id: var-digital-arrest-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-digital-arrest-001
+  derived: true
+  scam_family: digital_arrest
+  lang: hi_latn
+  script: latin
+  title: Digital arrest, money laundering framing, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_ISOLATION_DEMAND]
+  text: >-
+    Aapke naam se ek bank account khula hai jisme money laundering ka paisa aaya hai.
+    Enforcement wale case bana rahe hain. Jab tak clearance nahi milta aap is call se
+    hatt nahi sakte aur ghar mein kisi ko bata nahi sakte, warna sabooton se chhedchhad
+    maana jayega.
+
+- id: var-digital-arrest-002-hi-latn-b
+  kind: variant
+  anchor_id: anch-digital-arrest-002
+  derived: true
+  scam_family: digital_arrest
+  lang: hi_latn
+  script: latin
+  title: Digital arrest, fund audit framing, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Court ka order hai ki aapke saare accounts ka audit hoga. Aapko apna balance ek
+    government verification account mein turant transfer karna hoga, audit ke baad poora
+    wapas aa jayega. Jab tak process chal raha hai video call band mat kijiye.
+
+- id: var-family-emergency-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-family-emergency-001
+  derived: true
+  scam_family: family_emergency
+  lang: hi_latn
+  script: latin
+  title: Relative in custody, settlement demand, Latin Hinglish
+  markers: [MK_ISOLATION_DEMAND, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Aunty aapke bete ko station le aaye hain, ek complaint darj hui hai. Abhi settlement
+    ho jaye to FIR nahi hogi. Paisa turant bhej dijiye aur ghar mein kisi ko mat
+    bataiye, baat phail gayi to ladke ka career kharab ho jayega.
+
+- id: var-voice-clone-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-voice-clone-001
+  derived: true
+  scam_family: family_emergency
+  lang: hi_latn
+  script: latin
+  title: Cloned voice, borrowed phone, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI, MK_ISOLATION_DEMAND]
+  text: >-
+    Papa main bol raha hoon, ye number naya hai kyunki mera phone kho gaya. Awaaz
+    pehchan rahe ho na? Ek problem ho gayi hai aur abhi paise chahiye, bees hazaar.
+    Mummy ko mat batana abhi, main khud baad mein baat kar lunga.
+
+- id: var-kyc-update-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-kyc-update-001
+  derived: true
+  scam_family: kyc_update
+  lang: hi_latn
+  script: latin
+  title: KYC dormant account framing, Latin Hinglish
+  markers: [MK_OTP_SOLICITATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Aapka account dormant ho gaya hai kyunki re-KYC nahi hui. Aaj shaam tak activate
+    nahi kiya to sara balance hold ho jayega. Main verification desk se hoon, bas apna
+    customer ID aur jo code abhi aaya hai wo bata dijiye, main turant kar deta hoon.
+
+- id: var-utility-disconnection-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-utility-disconnection-001
+  derived: true
+  scam_family: utility_disconnection
+  lang: hi_latn
+  script: latin
+  title: Electricity meter KYC, app install, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI, MK_CALLBACK_REQUEST]
+  text: >-
+    Bijli board se bol raha hoon, aapke meter ki KYC entry missing hai. Aaj raat
+    disconnection list mein aapka naam hai. Ek app download karke usme details bhar
+    dijiye ya hamare helpline number par call back karke abhi payment kar dijiye.
+
+- id: var-telecom-aadhaar-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-utility-disconnection-002
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi_latn
+  script: latin
+  title: SIMs on your identity, criminal case, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT]
+  text: >-
+    Aapke Aadhaar par jitne sim card issue hue hain, unme se ek se dhamki bhare message
+    gaye hain. Isliye aapke naam ke saare connection aaj raat band ho rahe hain aur
+    police complaint bhi darj hui hai. Line par rahiye, officer se baat karwata hoon.
+
+- id: var-parcel-customs-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-parcel-customs-001
+  derived: true
+  scam_family: parcel_customs
+  lang: hi_latn
+  script: latin
+  title: Courier held, narcotics framing, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Ye customs office se hai. Aapke naam ka ek consignment airport pe rok liya gaya hai,
+    usme prathibandhit dawaiyan aur fake documents mile hain. Narcotics wing ko refer
+    kar diya hai. Verification charge abhi jama karwa dijiye warna arrest warrant nikal
+    jayega.
+
+- id: var-telecom-impersonation-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-telecom-impersonation-001
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi_latn
+  script: latin
+  title: Regulator complaint, number blocking, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_CALLBACK_REQUEST]
+  text: >-
+    Regulatory authority se automated call hai. Aapke mobile number ke against
+    unsolicited marketing ki shikayat darj hui hai aur connection terminate hone wala
+    hai. Objection karna hai to hamare toll free number par call us back kijiye, warna
+    do ghante mein band ho jayega.
+
+- id: var-telecom-impersonation-002-hi-latn-b
+  kind: variant
+  anchor_id: anch-telecom-impersonation-002
+  derived: true
+  scam_family: telecom_impersonation
+  lang: hi_latn
+  script: latin
+  title: Regulator name misuse, penalty demand, Latin Hinglish
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Authority ke naam se aapke connection par ek pending action hai, licence ki
+    formality poori nahi hui. Penalty aaj hi bharni padegi warna number permanently
+    block ho jayega. Apna naam aur pata confirm kijiye, phir diye gaye account mein
+    turant paise bhej dijiye.
+
+- id: var-sms-fraud-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-sms-fraud-001
+  derived: true
+  scam_family: sms_fraud
+  lang: hi_latn
+  script: latin
+  title: Phishing link, account restricted, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Bank ki taraf se message gaya hai ki aapka account restrict ho gaya hai. Us message
+    mein jo link hai usme jaake apni details verify kar lijiye aur chhota sa charge jama
+    kar dijiye, tabhi account chalu hoga. Link aaj raat tak hi valid hai.
+
+- id: var-lottery-advance-fee-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-lottery-advance-fee-001
+  derived: true
+  scam_family: lottery_advance_fee
+  lang: hi_latn
+  script: latin
+  title: Lucky draw, tax clearance first, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Aapka number lucky draw mein select hua hai, dus lakh ka inaam laga hai. Amount
+    release hone se pehle tax clearance charge aapko jama karna hoga, ye rule hai. Is
+    account mein aaj hi bhej dijiye, kal tak poora paisa credit ho jayega.
+
+- id: var-qr-code-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-qr-code-001
+  derived: true
+  scam_family: qr_code_fraud
+  lang: hi_latn
+  script: latin
+  title: Scan to receive, marketplace framing, Latin Hinglish
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Main aapka saman online listing par dekh kar call kar raha hoon, advance bhej deta
+    hoon. Payment request bheji hai, aap scan karke apna UPI PIN daal dijiye tabhi paisa
+    aayega. Mera transfer ho raha hai isliye jaldi kar dijiye.
+
+- id: var-financial-fraud-001-hi-latn-b
+  kind: variant
+  anchor_id: anch-financial-fraud-001
+  derived: true
+  scam_family: financial_fraud
+  lang: hi_latn
+  script: latin
+  title: Screen sharing for a reversal, Latin Hinglish
+  markers: [MK_OTP_SOLICITATION, MK_URGENT_FINANCIAL_UPI]
+  text: >-
+    Aapke card se galat charge lag gaya hai, main abhi reverse karwa deta hoon. Ek
+    screen sharing app install kar lijiye taki main dekh sakun. Phir card ke aage ka
+    number aur peeche ka code bata dijiye, aur jo OTP aaye wo turant batao warna window
+    close ho jayegi.

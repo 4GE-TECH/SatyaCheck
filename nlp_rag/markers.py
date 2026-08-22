@@ -60,13 +60,17 @@ MARKERS: list[MarkerDef] = [
         weight=0.90,
         description="Demanding immediate irreversible fund transfer under time pressure",
         patterns=[
-            r"(?:turant|abhi|jaldi|foran)[^.!?]{0,60}?(?:bhej|transfer|paise|paisa|upi)\w*",
-            r"(?:immediately|right now|urgent|urgently|as soon as possible|asap"
-            r"|within \d+ minutes?)[^.!?]{0,60}?"
-            r"(?:transfer|send|pay|deposit|money|rupees|\d{3,})\w*",
-            r"(?:transfer|send|pay|deposit|need)[^.!?]{0,60}?"
-            r"(?:immediately|right now|urgently|as soon as possible|asap)",
-            r"(?:transfer|send|pay)[^.!?]{0,40}?(?:upi|qr code|gift card)",
+            # Anchored on \b. "kabhi" contains "abhi", so an unanchored alternation
+            # reads "kabhi bhi aake le lena" — "collect it whenever you like", the
+            # opposite of time pressure — as a demand for an immediate transfer.
+            r"\b(?:turant|abhi|jaldi|foran)\b[^.!?]{0,60}?"
+            r"\b(?:bhej|transfer|paise|paisa|upi)\w*",
+            r"\b(?:immediately|right now|urgent|urgently|as soon as possible|asap"
+            r"|within \d+ minutes?)\b[^.!?]{0,60}?"
+            r"\b(?:transfer|send|pay|deposit|money|rupees|\d{3,})\w*",
+            r"\b(?:transfer|send|pay|deposit|need)\b[^.!?]{0,60}?"
+            r"\b(?:immediately|right now|urgently|as soon as possible|asap)\b",
+            r"\b(?:transfer|send|pay)\b[^.!?]{0,40}?\b(?:upi|qr code|gift card)\b",
             r"(?:तुरंत|अभी|जल्दी)[^।!?]{0,60}?(?:भेज|ट्रांसफर|पैसे)\w*",
         ],
     ),

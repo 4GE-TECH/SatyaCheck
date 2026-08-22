@@ -198,3 +198,85 @@ def test_challenge_question_degrades_when_the_lookup_raises():
 
     api.configure(encoder=FakeEncoder(), person_lookup=boom)
     assert api.challenge_question("p_rahul_01") is None
+
+
+# --- the live branch, exactly as C runs it -----------------------------------
+# `server/orchestrator.py::_real_nlp_branch` does:
+#
+#     transcript = transcribe(wav_path or waveform)
+#     script     = analyze_script(transcript)
+#
+# and fusion then reads `script.details["available"]` at orchestrator.py:154. These drive
+# that whole sequence through the real decoder rather than a hand-typed transcript, which
+# is the difference between the contract being right and the branch working.
+#
+# Skipped when the model is absent so the suite still passes without a 461MB download.
+
+import math
+import wave as _wave
+
+import numpy as _np
+
+from nlp_rag import asr as _asr
+
+_requires_model = pytest.mark.skipif(
+    not _asr.MODEL_DIR.exists(), reason="faster-whisper not downloaded"
+)
+
+
+def _wav(path, samples, rate=16000):
+    with _wave.open(str(path), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate)
+        w.writeframes((_np.clip(samples, -1, 1) * 32767).astype("<i2").tobytes())
+    return str(path)
+
+
+def _silence(seconds, rate=16000):
+    return _np.zeros(int(seconds * rate), dtype=_np.float32)
+
+
+def _tone(seconds, hz=440.0, rate=16000):
+    t = _np.arange(int(seconds * rate), dtype=_np.float32) / rate
+    return (0.3 * _np.sin(2 * math.pi * hz * t)).astype(_np.float32)
+
+
+def _branch(source):
+    """The two calls `_real_nlp_branch` makes, in order."""
+    transcript = api.transcribe(source)
+    return transcript, api.analyze_script(transcript)
+
+
+@_requires_model
+def test_silent_audio_marks_the_branch_unavailable(tmp_path):
+    """The sentinel C's fusion depends on. `available` defaults to True, so silence on
+    this path would otherwise read as a genuinely benign call and *raise* trust."""
+    _, script = _branch(_wav(tmp_path / "s.wav", _silence(6.0)))
+    assert script.details.get("available") is False
+
+
+@_requires_model
+def test_non_speech_never_produces_a_scored_transcript(tmp_path):
+    _, script = _branch(_wav(tmp_path / "t.wav", _tone(6.0)))
+    assert script.risk == 0.0 and script.details.get("available") is False
+
+
+@_requires_model
+def test_the_empty_waveform_c_can_pass_degrades_cleanly():
+    """`wav_path or waveform` yields [] when the path is None and the buffer is empty."""
+    transcript, script = _branch([])
+    assert transcript.text == ""
+    assert script.details.get("available") is False
+
+
+@_requires_model
+def test_vernacular_warnings_survive_the_real_abstention_path(tmp_path):
+    """C reads this key unconditionally, including when the branch abstains — fusion can
+    still land on a risky band from the other two branches alone."""
+    _, script = _branch(_wav(tmp_path / "s.wav", _silence(6.0)))
+    assert isinstance(script.details.get("vernacular_warnings"), dict)
+
+
+@_requires_model
+def test_a_missing_file_does_not_raise_into_c(tmp_path):
+    transcript, script = _branch(str(tmp_path / "absent.wav"))
+    assert transcript.text == "" and script.details.get("available") is False

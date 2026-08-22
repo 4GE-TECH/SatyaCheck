@@ -1,0 +1,1506 @@
+{
+  "encoder": "BGEM3Encoder",
+  "k": 3,
+  "amber_floor": 0.15,
+  "corpus_counts": {
+    "anchors_total": 16,
+    "anchors_indexed": 14,
+    "variants": 56,
+    "benign": 103,
+    "heldout": 50,
+    "families": 10
+  },
+  "p_at_k_strict": 0.94,
+  "p_at_k_family": 0.96,
+  "mrr": 0.9,
+  "benign_false_positive_rate": 0.0583,
+  "scam_recall_amber": 0.68,
+  "scam_recall_high_risk": 0.04,
+  "recall_by_lang": {
+    "en": [
+      23,
+      0.7391
+    ],
+    "hi": [
+      12,
+      0.8333
+    ],
+    "hi_latn": [
+      15,
+      0.4667
+    ]
+  },
+  "silent_scams": [
+    "held-digital-arrest-005",
+    "held-kyc-update-004",
+    "held-credential-002",
+    "held-credential-003",
+    "held-credential-004",
+    "held-credential-005-adv",
+    "held-utility-003",
+    "held-lottery-004",
+    "held-qr-code-002",
+    "held-qr-code-003",
+    "held-qr-code-005-adv",
+    "held-sms-fraud-002",
+    "held-sms-fraud-003",
+    "held-sms-fraud-005",
+    "held-kyc-update-002",
+    "held-qr-code-001"
+  ],
+  "misses": [
+    "held-digital-arrest-004",
+    "held-credential-005-adv",
+    "held-sms-fraud-002"
+  ],
+  "false_positives": [
+    "benign-police-001",
+    "benign-hospital-deposit-001",
+    "benign-hospital-002",
+    "benign-utility-real-001",
+    "benign-delivery-real-002",
+    "benign-unusual-request-006"
+  ],
+  "heldout": [
+    {
+      "doc_id": "held-digital-arrest-004",
+      "expected_anchor": "anch-digital-arrest-002",
+      "expected_family": "digital_arrest",
+      "retrieved": [
+        "anch-digital-arrest-001",
+        "anch-digital-arrest-001",
+        "anch-family-emergency-001"
+      ],
+      "rank": null,
+      "strict_hit": false,
+      "family_hit": true,
+      "top_similarity": 0.7188,
+      "risk": 0.2591,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-digital-arrest-005",
+      "expected_anchor": "anch-digital-arrest-001",
+      "expected_family": "digital_arrest",
+      "retrieved": [
+        "anch-family-emergency-001",
+        "anch-digital-arrest-001",
+        "anch-digital-arrest-002"
+      ],
+      "rank": 2,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7688,
+      "risk": 0.1356,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-family-emergency-004",
+      "expected_anchor": "anch-family-emergency-001",
+      "expected_family": "family_emergency",
+      "retrieved": [
+        "anch-family-emergency-001",
+        "anch-family-emergency-001",
+        "anch-family-emergency-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.6895,
+      "risk": 0.2281,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-family-emergency-005",
+      "expected_anchor": "anch-voice-clone-001",
+      "expected_family": "family_emergency",
+      "retrieved": [
+        "anch-voice-clone-001",
+        "anch-voice-clone-001",
+        "anch-sms-fraud-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.6826,
+      "risk": 0.3422,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-kyc-update-003",
+      "expected_anchor": "anch-kyc-update-001",
+      "expected_family": "kyc_update",
+      "retrieved": [
+        "anch-kyc-update-001",
+        "anch-kyc-update-001",
+        "anch-utility-disconnection-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7254,
+      "risk": 0.3569,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-kyc-update-004",
+      "expected_anchor": "anch-kyc-update-001",
+      "expected_family": "kyc_update",
+      "retrieved": [
+        "anch-kyc-update-001",
+        "anch-kyc-update-001",
+        "anch-telecom-impersonation-002"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8184,
+      "risk": 0.1367,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-kyc-update-005",
+      "expected_anchor": "anch-kyc-update-001",
+      "expected_family": "kyc_update",
+      "retrieved": [
+        "anch-kyc-update-001",
+        "anch-kyc-update-001",
+        "anch-utility-disconnection-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8314,
+      "risk": 0.2621,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-telecom-002",
+      "expected_anchor": "anch-telecom-impersonation-002",
+      "expected_family": "telecom_impersonation",
+      "retrieved": [
+        "anch-telecom-impersonation-002",
+        "anch-telecom-impersonation-002",
+        "anch-telecom-impersonation-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8825,
+      "risk": 0.4986,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-telecom-003",
+      "expected_anchor": "anch-telecom-impersonation-001",
+      "expected_family": "telecom_impersonation",
+      "retrieved": [
+        "anch-telecom-impersonation-001",
+        "anch-utility-disconnection-002",
+        "anch-telecom-impersonation-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7933,
+      "risk": 0.1816,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-telecom-004",
+      "expected_anchor": "anch-utility-disconnection-002",
+      "expected_family": "telecom_impersonation",
+      "retrieved": [
+        "anch-utility-disconnection-002",
+        "anch-utility-disconnection-002",
+        "anch-kyc-update-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8645,
+      "risk": 0.5045,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-parcel-customs-003",
+      "expected_anchor": "anch-parcel-customs-001",
+      "expected_family": "parcel_customs",
+      "retrieved": [
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7165,
+      "risk": 0.1859,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-parcel-customs-004",
+      "expected_anchor": "anch-parcel-customs-001",
+      "expected_family": "parcel_customs",
+      "retrieved": [
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001",
+        "anch-digital-arrest-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7934,
+      "risk": 0.3469,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-parcel-customs-005",
+      "expected_anchor": "anch-parcel-customs-001",
+      "expected_family": "parcel_customs",
+      "retrieved": [
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8122,
+      "risk": 0.6607,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-credential-002",
+      "expected_anchor": "anch-financial-fraud-001",
+      "expected_family": "financial_fraud",
+      "retrieved": [
+        "anch-financial-fraud-001",
+        "anch-financial-fraud-001",
+        "anch-qr-code-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7077,
+      "risk": 0.069,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-credential-003",
+      "expected_anchor": "anch-financial-fraud-001",
+      "expected_family": "financial_fraud",
+      "retrieved": [
+        "anch-financial-fraud-001",
+        "anch-financial-fraud-001",
+        "anch-qr-code-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8198,
+      "risk": 0.1421,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-credential-004",
+      "expected_anchor": "anch-financial-fraud-001",
+      "expected_family": "financial_fraud",
+      "retrieved": [
+        "anch-financial-fraud-001",
+        "anch-financial-fraud-001",
+        "anch-telecom-impersonation-002"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7362,
+      "risk": 0.0919,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-credential-005-adv",
+      "expected_anchor": "anch-financial-fraud-001",
+      "expected_family": "financial_fraud",
+      "retrieved": [
+        "anch-telecom-impersonation-002",
+        "anch-digital-arrest-002",
+        "anch-qr-code-001"
+      ],
+      "rank": null,
+      "strict_hit": false,
+      "family_hit": false,
+      "top_similarity": 0.6124,
+      "risk": 0.0431,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-utility-003",
+      "expected_anchor": "anch-utility-disconnection-001",
+      "expected_family": "utility_disconnection",
+      "retrieved": [
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001",
+        "anch-sms-fraud-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7765,
+      "risk": 0.1111,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-utility-004",
+      "expected_anchor": "anch-utility-disconnection-001",
+      "expected_family": "utility_disconnection",
+      "retrieved": [
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8991,
+      "risk": 0.5036,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-utility-005",
+      "expected_anchor": "anch-utility-disconnection-001",
+      "expected_family": "utility_disconnection",
+      "retrieved": [
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7869,
+      "risk": 0.1826,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-utility-006-adv",
+      "expected_anchor": "anch-utility-disconnection-001",
+      "expected_family": "utility_disconnection",
+      "retrieved": [
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.824,
+      "risk": 0.3042,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-lottery-002",
+      "expected_anchor": "anch-lottery-advance-fee-001",
+      "expected_family": "lottery_advance_fee",
+      "retrieved": [
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001",
+        "anch-qr-code-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8394,
+      "risk": 0.182,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-lottery-003",
+      "expected_anchor": "anch-lottery-advance-fee-001",
+      "expected_family": "lottery_advance_fee",
+      "retrieved": [
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7691,
+      "risk": 0.363,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-lottery-004",
+      "expected_anchor": "anch-lottery-advance-fee-001",
+      "expected_family": "lottery_advance_fee",
+      "retrieved": [
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.6775,
+      "risk": 0.13,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-lottery-005",
+      "expected_anchor": "anch-lottery-advance-fee-001",
+      "expected_family": "lottery_advance_fee",
+      "retrieved": [
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7138,
+      "risk": 0.1714,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-qr-code-002",
+      "expected_anchor": "anch-qr-code-001",
+      "expected_family": "qr_code_fraud",
+      "retrieved": [
+        "anch-qr-code-001",
+        "anch-qr-code-001",
+        "anch-qr-code-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7334,
+      "risk": 0.1143,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-qr-code-003",
+      "expected_anchor": "anch-qr-code-001",
+      "expected_family": "qr_code_fraud",
+      "retrieved": [
+        "anch-qr-code-001",
+        "anch-qr-code-001",
+        "anch-kyc-update-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7441,
+      "risk": 0.0671,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-qr-code-004",
+      "expected_anchor": "anch-qr-code-001",
+      "expected_family": "qr_code_fraud",
+      "retrieved": [
+        "anch-qr-code-001",
+        "anch-qr-code-001",
+        "anch-qr-code-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8607,
+      "risk": 0.5712,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-qr-code-005-adv",
+      "expected_anchor": "anch-qr-code-001",
+      "expected_family": "qr_code_fraud",
+      "retrieved": [
+        "anch-qr-code-001",
+        "anch-digital-arrest-002",
+        "anch-qr-code-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.6935,
+      "risk": 0.0732,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-sms-fraud-001",
+      "expected_anchor": "anch-sms-fraud-001",
+      "expected_family": "sms_fraud",
+      "retrieved": [
+        "anch-sms-fraud-001",
+        "anch-sms-fraud-001",
+        "anch-sms-fraud-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.9423,
+      "risk": 0.6275,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-sms-fraud-002",
+      "expected_anchor": "anch-sms-fraud-001",
+      "expected_family": "sms_fraud",
+      "retrieved": [
+        "anch-utility-disconnection-001",
+        "anch-qr-code-001",
+        "anch-utility-disconnection-001"
+      ],
+      "rank": null,
+      "strict_hit": false,
+      "family_hit": false,
+      "top_similarity": 0.6828,
+      "risk": 0.0428,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-sms-fraud-003",
+      "expected_anchor": "anch-sms-fraud-001",
+      "expected_family": "sms_fraud",
+      "retrieved": [
+        "anch-sms-fraud-001",
+        "anch-qr-code-001",
+        "anch-lottery-advance-fee-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7776,
+      "risk": 0.0959,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-sms-fraud-004",
+      "expected_anchor": "anch-sms-fraud-001",
+      "expected_family": "sms_fraud",
+      "retrieved": [
+        "anch-sms-fraud-001",
+        "anch-telecom-impersonation-002",
+        "anch-kyc-update-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8849,
+      "risk": 0.2366,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-sms-fraud-005",
+      "expected_anchor": "anch-sms-fraud-001",
+      "expected_family": "sms_fraud",
+      "retrieved": [
+        "anch-sms-fraud-001",
+        "anch-utility-disconnection-001",
+        "anch-sms-fraud-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7012,
+      "risk": 0.0479,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-digital-arrest-001",
+      "expected_anchor": "anch-digital-arrest-001",
+      "expected_family": "digital_arrest",
+      "retrieved": [
+        "anch-digital-arrest-001",
+        "anch-digital-arrest-001",
+        "anch-digital-arrest-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8579,
+      "risk": 0.9142,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-digital-arrest-002",
+      "expected_anchor": "anch-digital-arrest-002",
+      "expected_family": "digital_arrest",
+      "retrieved": [
+        "anch-digital-arrest-002",
+        "anch-digital-arrest-002",
+        "anch-digital-arrest-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8109,
+      "risk": 0.6137,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-digital-arrest-003",
+      "expected_anchor": "anch-digital-arrest-001",
+      "expected_family": "digital_arrest",
+      "retrieved": [
+        "anch-digital-arrest-001",
+        "anch-digital-arrest-002",
+        "anch-digital-arrest-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7773,
+      "risk": 0.3992,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-family-emergency-001",
+      "expected_anchor": "anch-family-emergency-001",
+      "expected_family": "family_emergency",
+      "retrieved": [
+        "anch-voice-clone-001",
+        "anch-family-emergency-001",
+        "anch-voice-clone-001"
+      ],
+      "rank": 2,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7376,
+      "risk": 0.3432,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-family-emergency-002",
+      "expected_anchor": "anch-family-emergency-001",
+      "expected_family": "family_emergency",
+      "retrieved": [
+        "anch-family-emergency-001",
+        "anch-family-emergency-001",
+        "anch-family-emergency-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.793,
+      "risk": 0.3805,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-family-emergency-003",
+      "expected_anchor": "anch-voice-clone-001",
+      "expected_family": "family_emergency",
+      "retrieved": [
+        "anch-voice-clone-001",
+        "anch-voice-clone-001",
+        "anch-family-emergency-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7352,
+      "risk": 0.4337,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-kyc-update-001",
+      "expected_anchor": "anch-kyc-update-001",
+      "expected_family": "kyc_update",
+      "retrieved": [
+        "anch-kyc-update-001",
+        "anch-kyc-update-001",
+        "anch-kyc-update-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8893,
+      "risk": 0.4257,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-kyc-update-002",
+      "expected_anchor": "anch-kyc-update-001",
+      "expected_family": "kyc_update",
+      "retrieved": [
+        "anch-kyc-update-001",
+        "anch-utility-disconnection-001",
+        "anch-kyc-update-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7871,
+      "risk": 0.1064,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-credential-001",
+      "expected_anchor": "anch-financial-fraud-001",
+      "expected_family": "financial_fraud",
+      "retrieved": [
+        "anch-qr-code-001",
+        "anch-financial-fraud-001",
+        "anch-qr-code-001"
+      ],
+      "rank": 2,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7165,
+      "risk": 0.3792,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-utility-001",
+      "expected_anchor": "anch-utility-disconnection-001",
+      "expected_family": "utility_disconnection",
+      "retrieved": [
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8784,
+      "risk": 0.4289,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-utility-002",
+      "expected_anchor": "anch-utility-disconnection-002",
+      "expected_family": "telecom_impersonation",
+      "retrieved": [
+        "anch-digital-arrest-001",
+        "anch-utility-disconnection-002",
+        "anch-utility-disconnection-002"
+      ],
+      "rank": 2,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.8081,
+      "risk": 0.4807,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "held-telecom-001",
+      "expected_anchor": "anch-telecom-impersonation-001",
+      "expected_family": "telecom_impersonation",
+      "retrieved": [
+        "anch-telecom-impersonation-001",
+        "anch-utility-disconnection-002",
+        "anch-telecom-impersonation-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7585,
+      "risk": 0.2063,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-parcel-customs-001",
+      "expected_anchor": "anch-parcel-customs-001",
+      "expected_family": "parcel_customs",
+      "retrieved": [
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.809,
+      "risk": 0.7505,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-parcel-customs-002",
+      "expected_anchor": "anch-parcel-customs-001",
+      "expected_family": "parcel_customs",
+      "retrieved": [
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7642,
+      "risk": 0.6294,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "held-lottery-001",
+      "expected_anchor": "anch-lottery-advance-fee-001",
+      "expected_family": "lottery_advance_fee",
+      "retrieved": [
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001",
+        "anch-lottery-advance-fee-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7386,
+      "risk": 0.5152,
+      "lang": "en"
+    },
+    {
+      "doc_id": "held-qr-code-001",
+      "expected_anchor": "anch-qr-code-001",
+      "expected_family": "qr_code_fraud",
+      "retrieved": [
+        "anch-qr-code-001",
+        "anch-qr-code-001",
+        "anch-kyc-update-001"
+      ],
+      "rank": 1,
+      "strict_hit": true,
+      "family_hit": true,
+      "top_similarity": 0.7839,
+      "risk": 0.1213,
+      "lang": "hi_latn"
+    }
+  ],
+  "benign": [
+    {
+      "doc_id": "benign-collections-001",
+      "risk": 0.0447,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-collections-002",
+      "risk": 0.0472,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-collections-003",
+      "risk": 0.0304,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-police-001",
+      "risk": 0.2389,
+      "flagged": true,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-police-002",
+      "risk": 0.0561,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-govt-003",
+      "risk": 0.0163,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-hospital-deposit-001",
+      "risk": 0.2771,
+      "flagged": true,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-hospital-002",
+      "risk": 0.292,
+      "flagged": true,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-hospital-003",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-utility-real-001",
+      "risk": 0.2157,
+      "flagged": true,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-utility-real-002",
+      "risk": 0.096,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-telecom-real-001",
+      "risk": 0.0199,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-telecom-real-002",
+      "risk": 0.0242,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-bank-fraud-alert-001",
+      "risk": 0.0628,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-bank-fraud-alert-002",
+      "risk": 0.0651,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-bank-kyc-real-001",
+      "risk": 0.0746,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-bank-kyc-real-002",
+      "risk": 0.0437,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-delivery-real-001",
+      "risk": 0.0425,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-delivery-real-002",
+      "risk": 0.1781,
+      "flagged": true,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-school-fee-001",
+      "risk": 0.0139,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-insurance-renewal-001",
+      "risk": 0.0597,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-bank-ivr-003",
+      "risk": 0.0463,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-bank-ivr-004",
+      "risk": 0.051,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-bank-branch-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-bank-legit-002",
+      "risk": 0.0528,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-telecom-ivr-002",
+      "risk": 0.0176,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-telecom-ivr-003",
+      "risk": 0.0242,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-insurance-002",
+      "risk": 0.0126,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-insurance-003",
+      "risk": 0.0282,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-govt-001",
+      "risk": 0.0511,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-govt-002",
+      "risk": 0.0181,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-delivery-004",
+      "risk": 0.032,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-delivery-005",
+      "risk": 0.023,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-delivery-006",
+      "risk": 0.1219,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-delivery-007",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-cab-001",
+      "risk": 0.0245,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-cab-002",
+      "risk": 0.0178,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-clinic-002",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-clinic-003",
+      "risk": 0.0398,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-clinic-004",
+      "risk": 0.0134,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-hospital-001",
+      "risk": 0.0106,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-pharmacy-002",
+      "risk": 0.0304,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-family-005",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-family-006",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-family-007",
+      "risk": 0.0195,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-family-008",
+      "risk": 0.0233,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-family-009",
+      "risk": 0.0163,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-family-010",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-friend-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-friend-002",
+      "risk": 0.0204,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-unusual-request-004",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-unusual-request-005",
+      "risk": 0.0435,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-unusual-request-006",
+      "risk": 0.3455,
+      "flagged": true,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-unusual-request-007",
+      "risk": 0.0143,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-unusual-request-008",
+      "risk": 0.0196,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-office-002",
+      "risk": 0.0259,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-office-003",
+      "risk": 0.0331,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-office-004",
+      "risk": 0.0114,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-office-005",
+      "risk": 0.0234,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-service-002",
+      "risk": 0.022,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-service-003",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-service-004",
+      "risk": 0.0144,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-service-005",
+      "risk": 0.0619,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-service-006",
+      "risk": 0.0434,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-school-002",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-school-003",
+      "risk": 0.0179,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-school-004",
+      "risk": 0.0267,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-community-001",
+      "risk": 0.0144,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-community-002",
+      "risk": 0.0392,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-wrong-number-003",
+      "risk": 0.0308,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-wrong-number-004",
+      "risk": 0.0201,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-shortcall-001",
+      "risk": 0.0382,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-shortcall-002",
+      "risk": 0.051,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-retail-001",
+      "risk": 0.0208,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-retail-002",
+      "risk": 0.0345,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-retail-003",
+      "risk": 0.0154,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-restaurant-001",
+      "risk": 0.0103,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-landlord-001",
+      "risk": 0.0239,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-gym-001",
+      "risk": 0.0318,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-travel-001",
+      "risk": 0.0155,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-travel-002",
+      "risk": 0.0431,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-bank-ivr-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-bank-ivr-002",
+      "risk": 0.0283,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-insurance-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-telecom-ivr-001",
+      "risk": 0.0302,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-delivery-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-delivery-002",
+      "risk": 0.0313,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-delivery-003",
+      "risk": 0.0143,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-clinic-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-pharmacy-001",
+      "risk": 0.0254,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-family-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-family-002",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-family-003",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "hi"
+    },
+    {
+      "doc_id": "benign-family-004",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-unusual-request-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-unusual-request-002",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-unusual-request-003",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-office-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-school-001",
+      "risk": 0.01,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-service-001",
+      "risk": 0.0253,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-wrong-number-001",
+      "risk": 0.0312,
+      "flagged": false,
+      "lang": "en"
+    },
+    {
+      "doc_id": "benign-wrong-number-002",
+      "risk": 0.0213,
+      "flagged": false,
+      "lang": "hi_latn"
+    },
+    {
+      "doc_id": "benign-utility-001",
+      "risk": 0.0544,
+      "flagged": false,
+      "lang": "en"
+    }
+  ],
+  "calibration": [
+    {
+      "name": "clone_extortion",
+      "risk": 0.92,
+      "target": ">= 0.9",
+      "passed": true
+    },
+    {
+      "name": "family_checkin",
+      "risk": 0.01,
+      "target": "<= 0.1",
+      "passed": true
+    },
+    {
+      "name": "bank_ivr",
+      "risk": 0.01,
+      "target": "<= 0.1",
+      "passed": true
+    }
+  ]
+}

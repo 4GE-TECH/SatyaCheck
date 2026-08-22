@@ -28,7 +28,6 @@
   source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2020570
   source_agency: Press Information Bureau, Ministry of Home Affairs
   verification: indexed
-  severity: 0.95
   markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT, MK_ISOLATION_DEMAND]
   text: >-
     Callers impersonate CBI, ED, Narcotics Bureau or state police and tell the victim a
@@ -46,7 +45,6 @@
   source_url: https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=2082761
   source_agency: Press Information Bureau, Government of India
   verification: indexed
-  severity: 0.95
   markers: [MK_AUTHORITY_IMPERSONATION, MK_ARREST_THREAT]
   text: >-
     There is no provision for digital arrest in Indian law. No police, customs, CBI or
@@ -63,7 +61,6 @@
   source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2158408
   source_agency: Press Information Bureau, Ministry of Home Affairs
   verification: indexed
-  severity: 0.95
   markers: [MK_ISOLATION_DEMAND, MK_URGENT_FINANCIAL_UPI]
   text: >-
     Fraudsters tell the victim that a son, daughter or other close relative has been
@@ -81,7 +78,6 @@
   source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2039647
   source_agency: Press Information Bureau, Ministry of Home Affairs
   verification: indexed
-  severity: 0.90
   markers: [MK_URGENT_FINANCIAL_UPI]
   text: >-
     Short samples of a person's voice taken from social media are enough to synthesise
@@ -98,7 +94,6 @@
   source_url: https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=57244
   source_agency: Reserve Bank of India
   verification: verified
-  severity: 0.85
   markers: [MK_OTP_SOLICITATION]
   text: >-
     Unsolicited calls, SMS or emails claim that KYC is pending and the account will be
@@ -116,16 +111,19 @@
   source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2025970
   source_agency: Department of Telecommunications, Government of India
   verification: indexed
-  severity: 0.80
   markers: []
   text: >-
     A message warns that the electricity connection will be disconnected tonight because
     the meter KYC was not updated, and tells the customer to call a given number or
     install an application to keep the supply on.
 
+  # Filed under "utility" by filename, but the text is telecom impersonation: mobile
+  # numbers registered against an identity, not an electricity meter. `held-utility-002`
+  # labels the same concept correctly, so the mismatch was scoring a correct retrieval
+  # as a family-level miss.
 - id: anch-utility-disconnection-002
   kind: anchor
-  scam_family: utility_disconnection
+  scam_family: telecom_impersonation
   title: DoT does not call citizens threatening disconnection of connections
   category: Impersonation / Phishing
   lang: en
@@ -133,7 +131,6 @@
   source_url: https://www.pib.gov.in/PressReleaseIframePage.aspx?PRID=2020557
   source_agency: Department of Telecommunications, Government of India
   verification: indexed
-  severity: 0.80
   markers: [MK_AUTHORITY_IMPERSONATION]
   text: >-
     Callers claim to be from the telecom department and threaten that all mobile numbers
@@ -150,7 +147,6 @@
   source_url: https://www.pib.gov.in/PressReleasePage.aspx?PRID=2025648
   source_agency: Central Board of Indirect Taxes and Customs
   verification: indexed
-  severity: 0.90
   markers: [MK_AUTHORITY_IMPERSONATION, MK_URGENT_FINANCIAL_UPI]
   text: >-
     A caller says a parcel addressed to the victim has been held by customs because it
@@ -167,7 +163,6 @@
   source_url: https://www.pib.gov.in/PressReleseDetailm.aspx?PRID=2047369
   source_agency: Telecom Regulatory Authority of India
   verification: indexed
-  severity: 0.80
   markers: [MK_AUTHORITY_IMPERSONATION]
   text: >-
     TRAI does not call subscribers about disconnecting their numbers. Callers claiming to
@@ -184,7 +179,6 @@
   source_url: https://www.pib.gov.in/PressReleseDetailm.aspx?PRID=2153153
   source_agency: Telecom Regulatory Authority of India
   verification: indexed
-  severity: 0.75
   markers: [MK_AUTHORITY_IMPERSONATION]
   text: >-
     Fraudulent callers and messages use the regulator's name and logo to demand payment
@@ -201,7 +195,6 @@
   source_url: https://pib.gov.in/PressReleseDetailm.aspx?PRID=2021797
   source_agency: Department of Telecommunications and Ministry of Home Affairs
   verification: indexed
-  severity: 0.75
   markers: []
   text: >-
     Bulk SMS sent through misused commercial headers carries links for fake refunds,
@@ -218,7 +211,6 @@
   source_url: https://www.rbi.org.in/commonman/english/Scripts/PressReleases.aspx?Id=2440
   source_agency: Reserve Bank of India
   verification: verified
-  severity: 0.80
   markers: [MK_URGENT_FINANCIAL_UPI]
   text: >-
     The victim is told they have won a lottery or that funds are waiting for them from
@@ -236,7 +228,6 @@
   source_url: https://cybercrime.gov.in/Webform/theme/resources/advisories/CybercriminalsTamperingwithQRCodestodefraudCitizens.pdf
   source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
   verification: indexed
-  severity: 0.80
   markers: [MK_URGENT_FINANCIAL_UPI]
   text: >-
     A seller or buyer sends a QR code and asks the victim to scan it to receive money.
@@ -253,16 +244,22 @@
   source_url: https://cybercrime.gov.in/UploadMedia/instructions_citizenreportingcyberfrauds.pdf
   source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
   verification: indexed
-  severity: 0.70
   markers: [MK_OTP_SOLICITATION]
   text: >-
     No bank, payment provider or government office asks for an OTP, PIN, CVV or card
     number over a call. Anyone who asks a customer to read out such a code, or to install
     a screen-sharing or remote-access application, is attempting fraud.
 
+  # --- citable, not retrievable ----------------------------------------------
+  # These two describe what a victim should DO, not what a caller SAYS. They can never
+  # be the right answer for a call transcript, and no held-out item expects either — so
+  # in the scam index they are pure false-positive surface: a benign caller saying "you
+  # should report that to 1930" retrieves a scam playbook. `indexed: false` keeps them
+  # available to citations.py while taking them out of top-k.
 - id: anch-fraud-reporting-001
   kind: anchor
   scam_family: reporting
+  indexed: false
   title: Chakshu — reporting suspected fraud communication
   category: Guidance / Reporting
   lang: en
@@ -270,7 +267,6 @@
   source_url: https://sancharsaathi.gov.in/sfc/
   source_agency: Department of Telecommunications, Government of India
   verification: indexed
-  severity: 0.30
   markers: []
   text: >-
     Suspected fraudulent calls, SMS and WhatsApp messages can be reported through the
@@ -280,6 +276,7 @@
 - id: anch-suspect-reporting-001
   kind: anchor
   scam_family: reporting
+  indexed: false
   title: Report a cyber suspect to I4C
   category: Guidance / Reporting
   lang: en
@@ -287,7 +284,6 @@
   source_url: https://cybercrime.gov.in/Webform/cyber_suspect.aspx
   source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
   verification: indexed
-  severity: 0.30
   markers: []
   text: >-
     Details of a suspected fraudulent number, account or identity can be submitted to the
