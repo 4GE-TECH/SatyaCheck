@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import clsx from "clsx";
 import { useState, useEffect } from "react";
 import { Mic } from "lucide-react";
@@ -99,9 +99,15 @@ export function BackgroundCircles({
   audioLevel: externalAudioLevel,
   onMicClick,
 }: BackgroundCirclesProps) {
-  const prefersReducedMotion = useReducedMotion();
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [internalSpeaking] = useState(false);
   const [simulatedLevel, setSimulatedLevel] = useState(0.4);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    }
+  }, []);
 
   const isSpeaking = externalIsSpeaking !== undefined ? externalIsSpeaking : internalSpeaking;
   const audioLevel = externalAudioLevel !== undefined ? externalAudioLevel : simulatedLevel;
@@ -122,7 +128,7 @@ export function BackgroundCircles({
   return (
     <div
       className={clsx(
-        "relative flex flex-col items-center justify-center overflow-hidden py-12 px-4 select-none w-full",
+        "relative flex flex-col items-center justify-center overflow-hidden py-10 px-4 select-none w-full",
         className
       )}
       aria-label="SatyaCheck voice analysis"
@@ -143,7 +149,7 @@ export function BackgroundCircles({
       {/* ── CENTRAL MICROPHONE & EXPANDING AUDIO WAVES ── */}
       <div className="relative flex items-center justify-center my-6 h-56 w-56 sm:h-64 sm:w-64">
         {/* 3 to 4 Expanding Circular Audio Waves (Active when isSpeaking) */}
-        {!prefersReducedMotion &&
+        {!reducedMotion &&
           isSpeaking &&
           [0, 1, 2, 3].map((index) => (
             <motion.div
@@ -204,7 +210,7 @@ export function BackgroundCircles({
               : "border-slate-300 dark:border-slate-800/90 hover:border-cyan-500/50 hover:shadow-[0_0_30px_-8px_rgba(6,182,212,0.4)]"
           )}
           animate={
-            prefersReducedMotion
+            reducedMotion
               ? {}
               : {
                   scale: scaleMultiplier,
