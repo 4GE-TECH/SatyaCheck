@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { PearlButton } from "@/components/ui/pearl-button";
 
 export default function ReportPage() {
   const [copied, setCopied] = useState(false);
@@ -33,14 +34,14 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] font-mono">
               OFFICIAL FRAUD REPORT
             </span>
             <span className="text-xs text-[var(--text-muted)] font-mono">
               #{reportId}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)]">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] font-mono">
             Cybercrime Incident Report (1930)
           </h1>
           <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-1">
@@ -49,19 +50,19 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
+          <PearlButton
             onClick={handleCopy}
-            className="px-4 py-2 rounded-lg text-xs font-semibold bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] border border-[var(--border-default)] text-[var(--text-primary)] transition-colors cursor-pointer"
-          >
-            {copied ? "✓ Copied" : "Copy Text"}
-          </button>
+            variant="secondary"
+            size="sm"
+            label={copied ? "✓ Copied" : "Copy Text"}
+          />
 
-          <button
+          <PearlButton
             onClick={() => window.print()}
-            className="px-4 py-2 rounded-lg text-xs font-bold bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] transition-colors cursor-pointer shadow-sm"
-          >
-            Print / Save PDF
-          </button>
+            variant="default"
+            size="sm"
+            label="Print / Save PDF"
+          />
         </div>
       </div>
 
@@ -70,28 +71,28 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
         {/* Incident Summary Card */}
         <div className="p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold">Incident Type</div>
-            <div className="font-bold text-[var(--danger)] mt-0.5 text-base">AI Voice Extortion</div>
+            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold font-mono">Incident Type</div>
+            <div className="font-bold text-[var(--danger)] mt-0.5 text-base font-mono">AI Voice Extortion</div>
           </div>
           <div>
-            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold">Suspect Caller</div>
+            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold font-mono">Suspect Caller</div>
             <div className="font-bold text-[var(--text-primary)] mt-0.5 font-mono text-base">+91 70428 19043</div>
           </div>
           <div>
-            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold">Targeted Member</div>
-            <div className="font-bold text-[var(--text-primary)] mt-0.5 text-base">Rahul Verma (Son)</div>
+            <div className="text-xs text-[var(--text-muted)] uppercase font-semibold font-mono">Targeted Member</div>
+            <div className="font-bold text-[var(--text-primary)] mt-0.5 text-base font-mono">Rahul Verma (Son)</div>
           </div>
         </div>
 
         {/* Forensic Evidence Breakdown */}
         <div className="space-y-2.5">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] font-mono">
             1. Evidence Findings & AI Voice Detection
           </h2>
 
           <div className="space-y-2">
             <div className="p-3.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <strong className="text-[var(--danger-text)] block font-bold text-sm">
+              <strong className="text-[var(--danger-text)] block font-bold text-sm font-mono">
                 Synthetic Speech Detected (98% Confidence):
               </strong>
               <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
@@ -100,7 +101,7 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
             </div>
 
             <div className="p-3.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] space-y-1">
-              <strong className="text-[var(--danger-text)] block font-bold text-sm">
+              <strong className="text-[var(--danger-text)] block font-bold text-sm font-mono">
                 Extortion & Isolation Demand:
               </strong>
               <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
@@ -112,7 +113,7 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
 
         {/* Verbatim Audio Transcript */}
         <div className="space-y-2">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] font-mono">
             2. Call Transcript (Hindi / Devanagari)
           </h2>
           <div className="p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] space-y-1.5">
@@ -127,7 +128,7 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
 
         {/* Next Steps for the User */}
         <div className="p-5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] space-y-2.5">
-          <div className="font-bold text-[var(--text-primary)] text-sm">
+          <div className="font-bold text-[var(--text-primary)] text-sm font-mono">
             How to File This Report with Authorities:
           </div>
           <ol className="list-decimal pl-5 space-y-1.5 text-[var(--text-secondary)] text-xs leading-relaxed">
@@ -145,10 +146,14 @@ Statutory Filing: National Cybercrime Helpline 1930 & Chakshu (sancharsaathi.gov
 
         {/* Back Link */}
         <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
-          <Link to="/" className="text-[var(--accent)] hover:underline font-semibold no-underline">
-            ← Return to Call Checking
+          <Link to="/" className="no-underline">
+            <PearlButton
+              variant="secondary"
+              size="sm"
+              label="← Return to Call Checking"
+            />
           </Link>
-          <span className="text-[var(--text-muted)]">
+          <span className="text-[var(--text-muted)] font-mono">
             SatyaCheck Secure Evidence System
           </span>
         </div>

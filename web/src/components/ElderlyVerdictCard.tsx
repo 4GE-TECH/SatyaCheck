@@ -5,6 +5,7 @@ import SignalForensics from "./SignalForensics";
 import SpoofTimeline from "./SpoofTimeline";
 import EvidencePanel from "./EvidencePanel";
 import AudioInspector from "./AudioInspector";
+import { PearlButton } from "@/components/ui/pearl-button";
 
 interface ElderlyVerdictCardProps {
   data: ScreeningResponse;
@@ -32,7 +33,7 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
       }
       const utterance = new SpeechSynthesisUtterance(fusion.vernacular_warning);
       utterance.lang = "hi-IN";
-      utterance.rate = 0.88; // clear speech rate
+      utterance.rate = 0.88;
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
       setIsSpeaking(true);
@@ -122,30 +123,27 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
         {/* ── 2. VOICE-FIRST PRIMARY AUDIO WARNING BUTTON ── */}
         {fusion.vernacular_warning && (
           <div className="pt-2 max-w-md mx-auto">
-            <button
+            <PearlButton
               onClick={handlePlayVoiceWarning}
-              className={`w-full py-4 px-6 rounded-xl font-bold text-base shadow-xl flex items-center justify-center gap-3 transition-all cursor-pointer border ${
-                isSpeaking
-                  ? "bg-red-700 text-white border-red-400 animate-pulse"
-                  : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white border-red-400"
-              }`}
-            >
-              {isSpeaking ? (
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-4 bg-white rounded-full animate-bounce" />
-                  <span className="w-1.5 h-6 bg-white rounded-full animate-bounce [animation-delay:0.15s]" />
-                  <span className="w-1.5 h-3 bg-white rounded-full animate-bounce [animation-delay:0.3s]" />
-                </div>
-              ) : (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                </svg>
-              )}
-              <span className="font-mono text-sm sm:text-base">
-                {isSpeaking ? "Stop Hindi Warning" : "Listen to Warning in Hindi (चेतावनी सुनिए)"}
-              </span>
-            </button>
+              variant="danger"
+              size="lg"
+              className="w-full flex items-center justify-center font-mono shadow-2xl"
+              label={isSpeaking ? "Stop Hindi Warning" : "Listen to Warning in Hindi (चेतावनी सुनिए)"}
+              icon={
+                isSpeaking ? (
+                  <div className="flex items-center gap-1 mr-2">
+                    <span className="w-1.5 h-4 bg-white rounded-full animate-bounce" />
+                    <span className="w-1.5 h-6 bg-white rounded-full animate-bounce [animation-delay:0.15s]" />
+                    <span className="w-1.5 h-3 bg-white rounded-full animate-bounce [animation-delay:0.3s]" />
+                  </div>
+                ) : (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                )
+              }
+            />
             <p className="text-xs text-[var(--danger-text)] mt-2.5 font-medium italic">
               "{fusion.vernacular_warning}"
             </p>
@@ -198,12 +196,13 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
                 </p>
               </div>
 
-              <button
+              <PearlButton
                 onClick={() => setCurrentStep(2)}
-                className="w-full py-4 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-black font-bold text-sm sm:text-base transition-colors shadow-md cursor-pointer font-mono"
-              >
-                I Have Hung Up → Next Step
-              </button>
+                variant="default"
+                size="lg"
+                className="w-full font-mono font-bold"
+                label="I Have Hung Up → Next Step"
+              />
             </div>
           )}
 
@@ -223,18 +222,20 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
               </div>
 
               <div className="flex gap-3">
-                <button
+                <PearlButton
                   onClick={() => setCurrentStep(1)}
-                  className="w-1/3 py-3.5 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-default)] font-semibold text-xs font-mono cursor-pointer"
-                >
-                  ← Back
-                </button>
-                <button
+                  variant="secondary"
+                  size="md"
+                  className="w-1/3 font-mono font-semibold"
+                  label="← Back"
+                />
+                <PearlButton
                   onClick={() => setCurrentStep(3)}
-                  className="w-2/3 py-3.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-black font-bold text-sm sm:text-base font-mono cursor-pointer"
-                >
-                  Next: Challenge Question →
-                </button>
+                  variant="default"
+                  size="md"
+                  className="w-2/3 font-mono font-bold"
+                  label="Next: Challenge Question →"
+                />
               </div>
             </div>
           )}
@@ -258,17 +259,20 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
               </div>
 
               <div className="flex gap-3">
-                <button
+                <PearlButton
                   onClick={() => setCurrentStep(2)}
-                  className="w-1/3 py-3.5 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-default)] font-semibold text-xs font-mono cursor-pointer"
-                >
-                  ← Back
-                </button>
-                <Link
-                  to="/report"
-                  className="w-2/3 py-3.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold text-sm sm:text-base flex items-center justify-center no-underline cursor-pointer font-mono"
-                >
-                  File Complaint on 1930 Portal →
+                  variant="secondary"
+                  size="md"
+                  className="w-1/3 font-mono font-semibold"
+                  label="← Back"
+                />
+                <Link to="/report" className="w-2/3 no-underline">
+                  <PearlButton
+                    variant="danger"
+                    size="md"
+                    className="w-full font-mono font-bold"
+                    label="File Complaint on 1930 Portal →"
+                  />
                 </Link>
               </div>
             </div>
@@ -278,12 +282,13 @@ export default function ElderlyVerdictCard({ data, onReset }: ElderlyVerdictCard
 
       {/* ── 4. CHECK ANOTHER CALL BUTTON ── */}
       <div className="text-center pt-2">
-        <button
+        <PearlButton
           onClick={onReset}
-          className="py-3 px-8 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] font-semibold text-sm border border-[var(--border-default)] transition-all cursor-pointer font-mono"
-        >
-          ← Check Another Call
-        </button>
+          variant="secondary"
+          size="md"
+          className="font-mono font-semibold px-8"
+          label="← Check Another Call"
+        />
       </div>
 
       {/* ── 5. OPTIONAL: SHOW TECHNICAL FORENSICS TOGGLE ── */}

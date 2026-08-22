@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { PearlButton } from "@/components/ui/pearl-button";
 
 interface EnrolledMember {
   id: string;
@@ -67,7 +68,7 @@ export default function EnrollPage() {
     <div className="space-y-6 pb-12">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight font-mono">
           My Family Voice Vault
         </h1>
         <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-1">
@@ -79,7 +80,7 @@ export default function EnrollPage() {
         {/* Left: Enrollment Form (5 Cols) */}
         <div className="lg:col-span-5">
           <div className="sec-card p-6 space-y-4">
-            <h2 className="text-base font-bold text-[var(--text-primary)] pb-3 border-b border-[var(--border-subtle)] flex items-center gap-2">
+            <h2 className="text-base font-bold text-[var(--text-primary)] pb-3 border-b border-[var(--border-subtle)] flex items-center gap-2 font-mono">
               <span>Add a Family Member</span>
             </h2>
 
@@ -91,7 +92,7 @@ export default function EnrollPage() {
 
             <form onSubmit={handleEnroll} className="space-y-3.5 text-sm">
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1 font-mono">
                   Full Name *
                 </label>
                 <input
@@ -106,7 +107,7 @@ export default function EnrollPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1 font-mono">
                     Relationship *
                   </label>
                   <select
@@ -125,7 +126,7 @@ export default function EnrollPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1 font-mono">
                     Phone Number
                   </label>
                   <input
@@ -140,14 +141,14 @@ export default function EnrollPage() {
 
               {/* Audio Reference Ingestion */}
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1 font-mono">
                   Voice Note or Audio Recording (30s)
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className="p-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] cursor-pointer text-center space-y-1 transition-colors"
                 >
-                  <div className="text-sm font-semibold text-[var(--accent)]">
+                  <div className="text-sm font-semibold text-[var(--accent)] font-mono">
                     {file ? file.name : "Tap to Choose Voice Recording"}
                   </div>
                   <div className="text-xs text-[var(--text-muted)]">
@@ -165,7 +166,7 @@ export default function EnrollPage() {
 
               {/* Secret Question Setup */}
               <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
-                <div className="text-xs font-bold text-[var(--text-secondary)]">
+                <div className="text-xs font-bold text-[var(--text-secondary)] font-mono">
                   Secret Family Question (Optional)
                 </div>
                 <input
@@ -184,12 +185,13 @@ export default function EnrollPage() {
                 />
               </div>
 
-              <button
+              <PearlButton
                 type="submit"
-                className="w-full py-3 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] font-bold text-sm transition-colors cursor-pointer shadow-sm mt-2"
-              >
-                Save to Family Vault →
-              </button>
+                variant="default"
+                size="lg"
+                className="w-full font-mono font-bold mt-2"
+                label="Save to Family Vault →"
+              />
             </form>
           </div>
         </div>
@@ -197,7 +199,7 @@ export default function EnrollPage() {
         {/* Right: Enrolled Members (7 Cols) */}
         <div className="lg:col-span-7">
           <div className="sec-card p-6 space-y-4">
-            <h2 className="text-base font-bold text-[var(--text-primary)] pb-3 border-b border-[var(--border-subtle)] flex items-center justify-between">
+            <h2 className="text-base font-bold text-[var(--text-primary)] pb-3 border-b border-[var(--border-subtle)] flex items-center justify-between font-mono">
               <span>Enrolled Family Contacts ({members.length})</span>
               <span className="text-xs text-[var(--success-text)] font-medium">100% Private on Device</span>
             </h2>
@@ -210,7 +212,7 @@ export default function EnrollPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[var(--accent)] text-[var(--accent-text)] font-bold text-base flex items-center justify-center shadow-sm">
+                      <div className="w-10 h-10 rounded-full bg-[var(--accent)] text-black font-bold text-base flex items-center justify-center shadow-sm font-mono">
                         {m.name.slice(0, 1)}
                       </div>
                       <div>
@@ -223,7 +225,7 @@ export default function EnrollPage() {
                       </div>
                     </div>
 
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--success-bg)] text-[var(--success-text)] border border-[var(--success-border)]">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--success-bg)] text-[var(--success-text)] border border-[var(--success-border)] font-mono">
                       {m.relation}
                     </span>
                   </div>
@@ -233,7 +235,7 @@ export default function EnrollPage() {
                       <span>Secret: </span>
                       <span className="text-[var(--text-secondary)] italic font-medium">"{m.secretQuestion}"</span>
                     </div>
-                    <span>Saved: {m.enrolledDate}</span>
+                    <span className="font-mono">Saved: {m.enrolledDate}</span>
                   </div>
                 </div>
               ))}

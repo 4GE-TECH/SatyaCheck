@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { ScreeningResponse } from "../types/contracts";
+import { PearlButton } from "@/components/ui/pearl-button";
 
 interface AudioInspectorProps {
   data: ScreeningResponse;
@@ -44,13 +45,15 @@ export default function AudioInspector({ data }: AudioInspectorProps) {
       {/* Audio Waveform Player */}
       <div className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border-default)]">
         <div className="flex items-center gap-3.5 mb-3">
-          <button
+          <PearlButton
             onClick={() => setIsPlaying(!isPlaying)}
-            className="w-8 h-8 rounded bg-[var(--text-primary)] text-[var(--bg-primary)] flex items-center justify-center font-bold text-xs transition-opacity hover:opacity-90 cursor-pointer shrink-0"
+            variant="default"
+            size="sm"
+            className="!p-0 w-9 h-9 !rounded-full shrink-0 font-bold"
             title={isPlaying ? "Pause Probe" : "Play Probe"}
           >
             {isPlaying ? "❚❚" : "▶"}
-          </button>
+          </PearlButton>
 
           <div className="flex-1">
             <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] mb-1">

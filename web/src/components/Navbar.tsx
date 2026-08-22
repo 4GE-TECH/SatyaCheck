@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
+import { PearlButton } from "@/components/ui/pearl-button";
 
 export default function Navbar() {
   return (
@@ -25,9 +26,9 @@ export default function Navbar() {
           <NavLink
             to="/"
             className={({ isActive }) =>
-              `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
+              `px-3 py-1.5 rounded-full text-sm font-semibold transition-all no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-[var(--accent)] text-[var(--accent-text)] font-mono"
+                  ? "bg-[var(--text-primary)] text-[var(--bg-primary)] font-mono shadow-sm"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }
@@ -38,9 +39,9 @@ export default function Navbar() {
           <NavLink
             to="/enroll"
             className={({ isActive }) =>
-              `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
+              `px-3 py-1.5 rounded-full text-sm font-semibold transition-all no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-[var(--accent)] text-[var(--accent-text)] font-mono"
+                  ? "bg-[var(--text-primary)] text-[var(--bg-primary)] font-mono shadow-sm"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }
@@ -51,9 +52,9 @@ export default function Navbar() {
           <NavLink
             to="/report"
             className={({ isActive }) =>
-              `px-3 py-1.5 rounded-md text-sm font-semibold transition-colors no-underline flex items-center gap-1.5 cursor-pointer ${
+              `px-3 py-1.5 rounded-full text-sm font-semibold transition-all no-underline flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? "bg-[var(--accent)] text-[var(--accent-text)] font-mono"
+                  ? "bg-[var(--text-primary)] text-[var(--bg-primary)] font-mono shadow-sm"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
               }`
             }
@@ -64,11 +65,13 @@ export default function Navbar() {
 
         {/* Right Controls: Helpline + Theme Toggle */}
         <div className="flex items-center gap-2.5">
-          <a
-            href="tel:1930"
-            className="hidden md:flex px-3 py-1.5 rounded-md bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] hover:opacity-90 text-xs font-bold no-underline items-center gap-1.5 transition-all"
-          >
-            Helpline: 1930
+          <a href="tel:1930" className="hidden md:inline-block no-underline">
+            <PearlButton
+              variant="danger"
+              size="sm"
+              label="Helpline: 1930"
+              icon={<span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+            />
           </a>
 
           <ThemeToggle />

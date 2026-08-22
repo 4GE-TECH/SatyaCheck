@@ -82,25 +82,32 @@ export default function IdleCheckScreen({
         </div>
 
         {/* Big Pearl Buttons */}
-        <div className="max-w-md mx-auto space-y-4 pt-2 relative z-10 flex flex-col items-center">
+        <div className="max-w-md mx-auto space-y-3.5 pt-2 relative z-10 flex flex-col items-center">
           <PearlButton
             onClick={() => setIsListening(!isListening)}
             disabled={isLoading}
-            className="w-full flex items-center justify-center"
+            variant={isListening ? "danger" : "default"}
+            size="lg"
+            className="w-full flex items-center justify-center font-mono shadow-lg"
             label={
               isListening
                 ? `Listening on Speakerphone (${listenTimer}s)...`
                 : "Listen to Call on Speakerphone"
             }
+            icon={
+              <span className={`w-2 h-2 rounded-full mr-1 ${isListening ? "bg-red-400 animate-ping" : "bg-sky-400"}`} />
+            }
           />
 
-          <button
+          <PearlButton
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
-            className="w-full py-3.5 px-6 rounded-xl text-sm font-semibold bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-default)] transition-colors cursor-pointer flex items-center justify-center gap-2 font-mono"
-          >
-            <span>Upload WhatsApp Audio or Recording</span>
-          </button>
+            variant="secondary"
+            size="md"
+            className="w-full font-mono"
+            label="Upload WhatsApp Audio or Recording"
+            icon={<span>📁</span>}
+          />
 
           <input
             ref={fileInputRef}
@@ -122,33 +129,33 @@ export default function IdleCheckScreen({
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-2.5">
-          <button
+          <PearlButton
             onClick={() => onSelectScenario("red")}
-            className="px-3.5 py-2.5 rounded-lg text-xs font-mono font-bold bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)] hover:opacity-90 transition-all cursor-pointer shadow-sm"
-          >
-            Test: Fake Son Extortion Call
-          </button>
+            variant="danger"
+            size="sm"
+            label="Test: Fake Son Extortion Call"
+          />
 
-          <button
+          <PearlButton
             onClick={() => onSelectScenario("green")}
-            className="px-3.5 py-2.5 rounded-lg text-xs font-mono font-bold bg-[var(--success-bg)] text-[var(--success-text)] border border-[var(--success-border)] hover:opacity-90 transition-all cursor-pointer shadow-sm"
-          >
-            Test: Real Son Calling
-          </button>
+            variant="success"
+            size="sm"
+            label="Test: Real Son Calling"
+          />
 
-          <button
+          <PearlButton
             onClick={() => onSelectScenario("unverified")}
-            className="px-3.5 py-2.5 rounded-lg text-xs font-mono font-bold bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-default)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
-          >
-            Test: Automated Bank Call
-          </button>
+            variant="secondary"
+            size="sm"
+            label="Test: Automated Bank Call"
+          />
 
-          <button
+          <PearlButton
             onClick={() => onSelectScenario("insufficient")}
-            className="px-3.5 py-2.5 rounded-lg text-xs font-mono font-bold bg-[var(--bg-primary)] text-[var(--text-muted)] border border-[var(--border-default)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
-          >
-            Test: Short / Unclear Audio
-          </button>
+            variant="secondary"
+            size="sm"
+            label="Test: Short / Unclear Audio"
+          />
         </div>
       </div>
     </div>
