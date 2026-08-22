@@ -1,0 +1,109 @@
+# Anchor documents — each cites a real advisory page that was opened and read.
+#
+# URLs here are the authoritative landing pages for each agency. Block 0's harvesting
+# task is to replace each with the DEEP LINK to the specific advisory and re-verify it
+# resolves. See corpus/README.md. Never add an anchor whose URL you have not opened.
+
+- id: anch-digital-arrest-001
+  kind: anchor
+  scam_family: digital_arrest
+  lang: en
+  script: latin
+  title: Digital arrest and fake law-enforcement extortion
+  category: Extortion / Impersonation
+  source_url: https://cybercrime.gov.in/
+  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_ISOLATION_DEMAND, MK_ARREST_THREAT]
+  severity: 0.95
+  text: >-
+    Callers impersonating police, CBI or customs officials tell the victim that a
+    warrant has been issued against them or that a parcel in their name contains
+    contraband. The victim is kept on a continuous video or voice call, told they are
+    under "digital arrest", forbidden from contacting family or a lawyer, and pressured
+    into transferring money immediately to a so-called verification account.
+
+- id: anch-family-emergency-001
+  kind: anchor
+  scam_family: family_emergency
+  lang: en
+  script: latin
+  title: Cloned-voice family emergency and urgent transfer demand
+  category: Impersonation / Voice cloning
+  source_url: https://cybercrime.gov.in/
+  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
+  markers: [MK_ISOLATION_DEMAND, MK_URGENT_FINANCIAL_UPI]
+  severity: 0.95
+  text: >-
+    A caller using a cloned voice of a close relative claims to be in an accident, in
+    police custody, or in hospital, and demands an immediate transfer for bail or
+    treatment. The caller insists the recipient must not call anyone else or verify the
+    story, because a single callback to the real relative ends the scam.
+
+- id: anch-kyc-update-001
+  kind: anchor
+  scam_family: kyc_update
+  lang: en
+  script: latin
+  title: KYC-expiry and account-suspension credential harvesting
+  category: Bank fraud / Credential harvesting
+  source_url: https://www.rbi.org.in/
+  source_agency: Reserve Bank of India
+  markers: [MK_OTP_SOLICITATION]
+  severity: 0.85
+  text: >-
+    Callers claiming to represent a bank warn that KYC has expired and the account will
+    be blocked within hours unless it is updated over the phone. The victim is walked
+    through installing a screen-sharing application or asked to read out an OTP, PIN or
+    card verification value. No bank asks for these over a call.
+
+- id: anch-parcel-customs-001
+  kind: anchor
+  scam_family: parcel_customs
+  lang: en
+  script: latin
+  title: Fake courier and customs-seizure call
+  category: Impersonation / Advance fee
+  source_url: https://cybercrime.gov.in/
+  source_agency: Indian Cyber Crime Coordination Centre (I4C), MHA
+  markers: [MK_AUTHORITY_IMPERSONATION, MK_URGENT_FINANCIAL_UPI]
+  severity: 0.85
+  text: >-
+    An automated or live caller states that a courier parcel addressed to the recipient
+    has been seized by customs for containing narcotics or undeclared currency, then
+    transfers the call to a supposed police officer who demands an immediate clearance
+    payment to avoid registration of a case.
+
+- id: anch-fraud-reporting-001
+  kind: anchor
+  scam_family: reporting
+  lang: en
+  script: latin
+  title: Reporting suspected fraud communication and financial loss
+  category: Guidance / Reporting
+  source_url: https://sancharsaathi.gov.in/
+  source_agency: Department of Telecommunications, Government of India
+  markers: []
+  severity: 0.1
+  text: >-
+    Suspected fraud calls and messages can be reported through the Chakshu facility on
+    Sanchar Saathi. Financial cyber fraud should be reported on the national cybercrime
+    helpline 1930 or the national cybercrime reporting portal as early as possible,
+    because the window to freeze a transferred amount is measured in hours.
+
+- id: anch-utility-disconnection-001
+  kind: anchor
+  scam_family: electricity_disconnection
+  lang: en
+  script: latin
+  title: Electricity disconnection threat with payment link
+  category: Impersonation / Phishing
+  source_url: https://pib.gov.in/
+  source_agency: Press Information Bureau Fact Check
+  markers: [MK_URGENT_FINANCIAL_UPI]
+  severity: 0.8
+  text: >-
+    A message or call claims the electricity connection will be disconnected tonight
+    because a bill was not updated, and instructs the recipient to call a given number
+    or install an application to make an immediate payment. The urgency and the private
+    payment channel are the distinguishing features; utilities do not disconnect on an
+    hour's telephone notice.

@@ -1,0 +1,216 @@
+# Benign cohort — ordinary calls that are not scams.
+#
+# This is the background distribution retrieval scores are s-normalised against. It is
+# NOT decoration: without it, raw BGE-m3 cosines sit in a compressed band and every
+# transcript scores mid-range. It doubles as the false-positive test set.
+#
+# Target size is ~80. Keep the mix broad — institutional, medical, delivery, family,
+# wrong numbers, and genuine-but-unusual requests. Anything a real phone rings with.
+
+# --- institutional / automated ----------------------------------------------
+- id: benign-bank-ivr-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Bank statement IVR
+  text: >-
+    Dear customer, your HDFC Bank statement for account ending 4402 is ready. Press 1
+    to receive it on WhatsApp, or press 2 to return to the main menu.
+
+- id: benign-bank-ivr-002
+  kind: benign
+  lang: en
+  script: latin
+  title: Credit card payment reminder
+  text: >-
+    This is an automated reminder that your credit card payment of four thousand two
+    hundred rupees is due on the fifteenth. Please ignore this message if you have
+    already paid.
+
+- id: benign-insurance-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Policy renewal reminder
+  text: >-
+    Good morning, I am calling from the insurance branch regarding your motor policy
+    which is due for renewal next month. Would you like me to email the quote, or
+    would you prefer to visit the branch?
+
+- id: benign-telecom-ivr-001
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Recharge reminder, Hinglish
+  text: >-
+    Namaste, aapka plan 3 din mein khatam ho raha hai. Recharge karne ke liye app
+    kholiye ya nazdeeki store par jaaiye. Dhanyavaad.
+
+# --- delivery / logistics ----------------------------------------------------
+- id: benign-delivery-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Delivery slot confirmation
+  text: >-
+    Hello sir, I am the delivery executive. Your parcel will be delivered between 4
+    and 6 PM today. Please keep the door open, I will call when I reach downstairs.
+
+- id: benign-delivery-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Delivery agent, Hinglish
+  text: >-
+    Hello, main delivery se bol raha hoon. Aapka order aa gaya hai, main building ke
+    neeche khada hoon. Gate number bata dijiye.
+
+- id: benign-delivery-003
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: कूरियर कॉल
+  text: >-
+    नमस्ते, मैं कूरियर से बोल रहा हूँ। आपका पार्सल शाम तक पहुँच जाएगा। कोई दिक्कत हो
+    तो इसी नंबर पर कॉल कर लीजिए।
+
+# --- medical -----------------------------------------------------------------
+- id: benign-clinic-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Appointment confirmation
+  text: >-
+    This is the clinic calling to confirm your appointment with Doctor Iyer on Thursday
+    at eleven. Please come fifteen minutes early and bring your previous reports.
+
+- id: benign-pharmacy-001
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Pharmacy callback
+  text: >-
+    Sir, aapki dawai aa gayi hai. Aap kabhi bhi aake le sakte hain, ya hum ghar bhej
+    dein? Doctor se poochh kar bata dijiye.
+
+# --- family / personal -------------------------------------------------------
+- id: benign-family-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Routine check-in
+  text: >-
+    Hi Ma, I just reached the office. Will be home by 7 PM today. Don't worry, I ate
+    something on the way. Call Papa and tell him I'll pick up the medicines.
+
+- id: benign-family-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Routine check-in, Hinglish
+  text: >-
+    Maa, main office pahunch gaya hoon. Shaam ko ghar aa jaunga. Khana bana lena, aur
+    papa se keh dena main dawai le aaunga.
+
+- id: benign-family-003
+  kind: benign
+  lang: hi
+  script: devanagari
+  title: घर की बात
+  text: >-
+    माँ, मैं ऑफ़िस पहुँच गया हूँ। शाम को घर आ जाऊँगा। पापा से बात हो गई थी, वो कह रहे
+    थे कि रविवार को सब मिलेंगे।
+
+- id: benign-family-004
+  kind: benign
+  lang: en
+  script: latin
+  title: Weekend plan
+  text: >-
+    Are you free on Sunday? We were thinking of driving down in the morning and
+    coming back the same night. Talk to Bhabhi and let me know what suits everyone.
+
+# --- genuine but unusual: the false-positive guard ---------------------------
+- id: benign-unusual-request-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine unusual request, invites verification
+  text: >-
+    Papa, my wallet was stolen at the station and my cards are gone. Can you send me
+    two thousand so I can get home? Call me back on this number to check it's me, or
+    call Rohit, he is standing right here with me.
+
+- id: benign-unusual-request-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Genuine unusual request, Hinglish
+  text: >-
+    Papa, mera phone gir gaya tha aur card block ho gaya hai. Thoda paisa bhej dijiye,
+    main ghar aake wapas kar dunga. Aap Rohit se baat kar lijiye, wo mere saath hai.
+
+- id: benign-unusual-request-003
+  kind: benign
+  lang: en
+  script: latin
+  title: Hospital call from a real relative
+  text: >-
+    Bhaiya, Mummy has been admitted to Apollo for observation. Nothing serious but
+    come when you can. You can talk to the doctor directly, I'll put him on, or call
+    the hospital reception yourself.
+
+# --- workplace / services ----------------------------------------------------
+- id: benign-office-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Colleague calling about a meeting
+  text: >-
+    Hi, sorry to call so late. The client moved the review to tomorrow morning. Can
+    you send me the deck before you log off, or should I ask Priya for it?
+
+- id: benign-school-001
+  kind: benign
+  lang: en
+  script: latin
+  title: School office
+  text: >-
+    Good afternoon, this is the school office. We wanted to confirm whether your
+    daughter will be attending the excursion on Friday. The consent form is still
+    pending.
+
+- id: benign-service-001
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Technician appointment
+  text: >-
+    Sir, main AC service ke liye aaya tha, lekin ghar par koi nahi hai. Batayiye kab
+    aaun, main kal subah wapas aa sakta hoon.
+
+- id: benign-wrong-number-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Wrong number
+  text: >-
+    Hello? Is this Ramesh? Oh, sorry, wrong number. I must have saved the digits
+    incorrectly. Apologies for disturbing you.
+
+- id: benign-wrong-number-002
+  kind: benign
+  lang: hi_latn
+  script: latin
+  title: Wrong number, Hinglish
+  text: >-
+    Hello, Sunita ji hain? Nahi? Maaf kijiye, galat number lag gaya.
+
+- id: benign-utility-001
+  kind: benign
+  lang: en
+  script: latin
+  title: Genuine utility notice
+  text: >-
+    This is a service message. Water supply in your area will be interrupted on
+    Saturday between 10 AM and 2 PM for maintenance work. No action is required.
