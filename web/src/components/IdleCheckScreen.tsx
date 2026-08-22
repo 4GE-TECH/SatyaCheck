@@ -10,6 +10,49 @@ interface IdleCheckScreenProps {
   isLoading: boolean;
 }
 
+const PRESET_PILLS: Array<{
+  scenario: MockScenario;
+  label: string;
+  badgeClass: string;
+}> = [
+  {
+    scenario: "green",
+    label: "1. Verified (Safe Son)",
+    badgeClass:
+      "border-emerald-500/40 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:border-emerald-500/70",
+  },
+  {
+    scenario: "caution",
+    label: "2. Caution (Money Demand)",
+    badgeClass:
+      "border-amber-500/40 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:border-amber-500/70",
+  },
+  {
+    scenario: "suspicious",
+    label: "3. Suspicious (Stranger Claim)",
+    badgeClass:
+      "border-orange-500/40 dark:border-orange-500/40 bg-orange-50 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/40 hover:border-orange-500/70",
+  },
+  {
+    scenario: "red",
+    label: "4. High Risk (Cloned Extortion)",
+    badgeClass:
+      "border-red-500/40 dark:border-red-500/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 hover:border-red-500/70",
+  },
+  {
+    scenario: "unverified",
+    label: "5. Unverified (Bank IVR)",
+    badgeClass:
+      "border-slate-400/40 dark:border-slate-600/40 bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800/60 hover:border-slate-400/70",
+  },
+  {
+    scenario: "insufficient",
+    label: "6. Insufficient (Short Audio)",
+    badgeClass:
+      "border-slate-400/40 dark:border-slate-700/40 bg-slate-100 dark:bg-slate-900/30 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800/40 hover:border-slate-400/70",
+  },
+];
+
 export default function IdleCheckScreen({
   onSelectScenario,
   onUploadFile,
@@ -96,54 +139,23 @@ export default function IdleCheckScreen({
         </div>
       </div>
 
-      {/* ── Discrete Demo Case Selector for Testing (All 6 Bands) ──── */}
+      {/* ── Discrete Demo Case Selector for Testing (Clean Flat Pills) ── */}
       <div className="sec-card-subtle p-5 sm:p-6 text-center space-y-3.5">
         <div className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">
           Test All 6 Verification Bands (Judge Evaluation Presets):
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <PearlButton
-            onClick={() => onSelectScenario("green")}
-            variant="success"
-            size="sm"
-            label="1. Verified (Safe Son)"
-          />
-
-          <PearlButton
-            onClick={() => onSelectScenario("caution")}
-            variant="secondary"
-            size="sm"
-            label="2. Caution (Money Demand)"
-          />
-
-          <PearlButton
-            onClick={() => onSelectScenario("suspicious")}
-            variant="danger"
-            size="sm"
-            label="3. Suspicious (Stranger Claim)"
-          />
-
-          <PearlButton
-            onClick={() => onSelectScenario("red")}
-            variant="danger"
-            size="sm"
-            label="4. High Risk (Cloned Extortion)"
-          />
-
-          <PearlButton
-            onClick={() => onSelectScenario("unverified")}
-            variant="secondary"
-            size="sm"
-            label="5. Unverified (Bank IVR)"
-          />
-
-          <PearlButton
-            onClick={() => onSelectScenario("insufficient")}
-            variant="secondary"
-            size="sm"
-            label="6. Insufficient (Short Audio)"
-          />
+        <div className="flex flex-wrap items-center justify-center gap-2.5">
+          {PRESET_PILLS.map((pill) => (
+            <button
+              key={pill.scenario}
+              type="button"
+              onClick={() => onSelectScenario(pill.scenario)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold border transition-all duration-150 cursor-pointer shadow-sm active:scale-95 ${pill.badgeClass}`}
+            >
+              {pill.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>
