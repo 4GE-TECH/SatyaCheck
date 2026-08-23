@@ -1,0 +1,256 @@
+{
+  "scenarios": [
+    {
+      "scenario": "1  genuine human, normal call",
+      "trust": 90.0,
+      "band": "green",
+      "mode": "identity_check",
+      "expected": [
+        "green"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.2086,
+        "cm_raw": 0.06,
+        "cm_gated": 0.0168,
+        "text": 0.04,
+        "intent": 0.04,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "2  AI voice, legitimate IVR",
+      "trust": 81.0,
+      "band": "unverified",
+      "mode": "authority_check",
+      "expected": [
+        "unverified"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.5,
+        "cm_raw": 0.92,
+        "cm_gated": 0.2645,
+        "text": 0.05,
+        "intent": 0.05,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "3  human scammer, bank/KYC",
+      "trust": 12.0,
+      "band": "red",
+      "mode": "authority_check",
+      "expected": [
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.5,
+        "cm_raw": 0.07,
+        "cm_gated": 0.0637,
+        "text": 0.88,
+        "intent": 0.88,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "4  AI clone, family emergency",
+      "trust": 10.0,
+      "band": "red",
+      "mode": "identity_check",
+      "expected": [
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.9298,
+        "cm_raw": 0.94,
+        "cm_gated": 0.8905,
+        "text": 0.88,
+        "intent": 0.9298,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "5  spoofed number, human voice",
+      "trust": 20.0,
+      "band": "red",
+      "mode": "authority_check",
+      "expected": [
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.5,
+        "cm_raw": 0.08,
+        "cm_gated": 0.068,
+        "text": 0.8,
+        "intent": 0.8,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "6  trusted number, cloned voice",
+      "trust": 18.0,
+      "band": "red",
+      "mode": "identity_check",
+      "expected": [
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.9445,
+        "cm_raw": 0.9,
+        "cm_gated": 0.8625,
+        "text": 0.55,
+        "intent": 0.9445,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "7  replay of family member",
+      "trust": 45.0,
+      "band": "amber",
+      "mode": "identity_check",
+      "expected": [
+        "amber",
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.0513,
+        "cm_raw": 0.1,
+        "cm_gated": 0.0475,
+        "text": 0.3,
+        "intent": 0.3,
+        "replay_suspected": true,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "8  human, digital arrest",
+      "trust": 5.0,
+      "band": "red",
+      "mode": "authority_check",
+      "expected": [
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.5,
+        "cm_raw": 0.06,
+        "cm_gated": 0.0577,
+        "text": 0.95,
+        "intent": 0.95,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "9  Hinglish KYC/OTP scam",
+      "trust": 15.0,
+      "band": "red",
+      "mode": "authority_check",
+      "expected": [
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.5,
+        "cm_raw": 0.09,
+        "cm_gated": 0.0799,
+        "text": 0.85,
+        "intent": 0.85,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "10 genuine family, odd money request",
+      "trust": 66.0,
+      "band": "amber",
+      "mode": "identity_check",
+      "expected": [
+        "amber"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.2689,
+        "cm_raw": 0.07,
+        "cm_gated": 0.0501,
+        "text": 0.62,
+        "intent": 0.62,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "11 escalation, final state",
+      "trust": 10.0,
+      "band": "red",
+      "mode": "authority_check",
+      "expected": [
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.5,
+        "cm_raw": 0.1,
+        "cm_gated": 0.0925,
+        "text": 0.9,
+        "intent": 0.9,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    },
+    {
+      "scenario": "12 hybrid human + AI",
+      "trust": 20.0,
+      "band": "red",
+      "mode": "authority_check",
+      "expected": [
+        "red"
+      ],
+      "pass": true,
+      "breakdown": {
+        "asv": 0.5,
+        "cm_raw": 0.615,
+        "cm_gated": 0.5228,
+        "text": 0.8,
+        "intent": 0.8,
+        "replay_suspected": false,
+        "flagged_voice_hits": 0
+      }
+    }
+  ],
+  "escalation": [
+    {
+      "label": "t=0:15 pleasantries",
+      "trust": 91.0,
+      "band": "unverified"
+    },
+    {
+      "label": "t=0:45 vague problem",
+      "trust": 70.0,
+      "band": "unverified"
+    },
+    {
+      "label": "t=1:10 threat appears",
+      "trust": 38.0,
+      "band": "red"
+    },
+    {
+      "label": "t=1:40 OTP demanded",
+      "trust": 10.0,
+      "band": "red"
+    }
+  ],
+  "failures": 0
+}

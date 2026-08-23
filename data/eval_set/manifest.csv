@@ -1,0 +1,6 @@
+filename,speaker_id,label
+data/demo_clips/friend_test.wav,friend,genuine
+data/demo_clips/cloned_scam.wav,friend,clone
+data/eval_set/raw/person1.wav,unknown,impostor
+data/eval_set/raw/person2.wav,unknown,impostor
+data/eval_set/raw/person3.wav,unknown,impostor

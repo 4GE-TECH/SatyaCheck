@@ -1,0 +1,137 @@
+# Variant documents — authored call scripts. Each inherits its anchor's citation.
+#
+# Variants are retrievable but never citable: `resolve_citation` walks to the anchor
+# before a RetrievedPlaybook is built. Write each concept in en, hi_latn and hi so the
+# index covers whichever script Whisper emits.
+
+# --- digital arrest ----------------------------------------------------------
+- id: var-digital-arrest-001-en
+  kind: variant
+  anchor_id: anch-digital-arrest-001
+  derived: true
+  scam_family: digital_arrest
+  lang: en
+  script: latin
+  title: Digital arrest, English
+  text: >-
+    This is Inspector Sharma from the CBI cyber cell. A case has been registered
+    against your Aadhaar number. You are under digital arrest and you must not
+    disconnect this call or inform anyone, including your family, until the
+    verification amount is transferred.
+
+- id: var-digital-arrest-001-hi-latn
+  kind: variant
+  anchor_id: anch-digital-arrest-001
+  derived: true
+  scam_family: digital_arrest
+  lang: hi_latn
+  script: latin
+  title: Digital arrest, Latin Hinglish
+  text: >-
+    Main CBI cyber cell se inspector bol raha hoon. Aapke Aadhaar par case darj hua
+    hai. Aap digital arrest mein hain, phone kisi ko mat dena aur call disconnect mat
+    karna. Verification ke liye turant paise bhejo.
+
+- id: var-digital-arrest-001-hi-deva
+  kind: variant
+  anchor_id: anch-digital-arrest-001
+  derived: true
+  scam_family: digital_arrest
+  lang: hi
+  script: devanagari
+  title: डिजिटल अरेस्ट, देवनागरी
+  text: >-
+    मैं सीबीआई साइबर सेल से इंस्पेक्टर बोल रहा हूँ। आपके आधार पर मामला दर्ज हुआ है।
+    आप डिजिटल अरेस्ट में हैं। किसी को मत बताओ और फ़ोन मत काटो। सत्यापन के लिए तुरंत
+    पैसे भेजो।
+
+# --- family emergency --------------------------------------------------------
+- id: var-family-emergency-001-en
+  kind: variant
+  anchor_id: anch-family-emergency-001
+  derived: true
+  scam_family: family_emergency
+  lang: en
+  script: latin
+  title: Cloned relative emergency, English
+  text: >-
+    Ma, I've had an accident and the police are holding me at the station. Please
+    don't tell anyone, not even Papa, I'm too ashamed. Transfer fifty thousand to
+    this UPI ID immediately, they said they will let me go.
+
+- id: var-family-emergency-001-hi-latn
+  kind: variant
+  anchor_id: anch-family-emergency-001
+  derived: true
+  scam_family: family_emergency
+  lang: hi_latn
+  script: latin
+  title: Cloned relative emergency, Latin Hinglish
+  text: >-
+    Papa emergency ho gaya hai, police ne pakad liya hai. Phone kisi ko mat dena,
+    turant 50000 bhejo is UPI ID pe. Main baad mein sab samjha dunga.
+
+- id: var-family-emergency-001-hi-deva
+  kind: variant
+  anchor_id: anch-family-emergency-001
+  derived: true
+  scam_family: family_emergency
+  lang: hi
+  script: devanagari
+  title: क्लोन आवाज़ आपातकाल, देवनागरी
+  text: >-
+    माँ, मेरा एक्सीडेंट हो गया है और पुलिस ने पकड़ लिया है। किसी को मत बताओ, पापा को
+    भी नहीं। तुरंत पचास हज़ार भेजो, तभी छोड़ेंगे।
+
+# --- KYC ---------------------------------------------------------------------
+- id: var-kyc-update-001-en
+  kind: variant
+  anchor_id: anch-kyc-update-001
+  derived: true
+  scam_family: kyc_update
+  lang: en
+  script: latin
+  title: KYC expiry, English
+  text: >-
+    Your bank account will be suspended tonight because your KYC has expired. I am
+    calling from the head office. Please share the OTP you just received so that I
+    can complete the update from my side.
+
+- id: var-kyc-update-001-hi-latn
+  kind: variant
+  anchor_id: anch-kyc-update-001
+  derived: true
+  scam_family: kyc_update
+  lang: hi_latn
+  script: latin
+  title: KYC expiry, Latin Hinglish
+  text: >-
+    Aapka account aaj raat block ho jayega, KYC expire ho gayi hai. Main bank head
+    office se bol raha hoon. Abhi jo OTP aaya hai wo batao, main update kar deta hoon.
+
+# --- parcel / customs --------------------------------------------------------
+- id: var-parcel-customs-001-en
+  kind: variant
+  anchor_id: anch-parcel-customs-001
+  derived: true
+  scam_family: parcel_customs
+  lang: en
+  script: latin
+  title: Customs seizure, English
+  text: >-
+    A parcel booked in your name has been seized by customs at the airport. It
+    contains banned substances. I am transferring this call to the narcotics officer.
+    You will need to pay the clearance charge immediately to avoid an FIR.
+
+# --- utility -----------------------------------------------------------------
+- id: var-utility-disconnection-001-hi-latn
+  kind: variant
+  anchor_id: anch-utility-disconnection-001
+  derived: true
+  scam_family: utility_disconnection
+  lang: hi_latn
+  script: latin
+  title: Electricity disconnection, Latin Hinglish
+  text: >-
+    Aapka bijli connection aaj raat 9 baje kaat diya jayega kyunki pichhla bill
+    update nahi hua. Turant is number par payment bhejo warna line cut ho jayegi.

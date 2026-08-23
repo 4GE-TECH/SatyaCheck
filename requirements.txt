@@ -1,0 +1,49 @@
+# SatyaCheck — Python Dependencies
+# Install: pip install -r requirements.txt
+# Python 3.11+, CPU-only works
+
+# ── Server ────────────────────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn==0.34.2
+python-multipart==0.0.32
+aiofiles==25.1.0
+websockets>=12.0
+
+# ── Data contracts ────────────────────────────────────────────────────
+pydantic==2.12.5
+
+# ── Database ──────────────────────────────────────────────────────────
+SQLAlchemy==2.0.52
+
+# ── Reports ───────────────────────────────────────────────────────────
+reportlab==5.0.1
+
+# ── HTTP client (for testing / integrations) ──────────────────────────
+httpx==0.28.1
+
+# ── Audio ML (audio_ml/) ─────────────────────────────────────────────
+torch>=2.2.0
+torchaudio>=2.2.0
+speechbrain>=1.0.0
+soundfile>=0.12.1
+librosa>=0.10.1
+numpy>=1.24.0
+scipy>=1.11.0
+scikit-learn>=1.3.0
+matplotlib>=3.8.0
+
+# ── ASR + NLP (nlp_rag/) ─────────────────────────────────────────────
+faster-whisper>=1.0.0
+sentence-transformers>=3.0.0
+transformers>=4.40.0
+# NOT faiss: nlp_rag/index_store.py is a numpy inner-product index, behaviourally
+# identical to IndexFlatIP at this corpus size with one fewer wheel to build.
+# Nothing in the tree imports faiss — see nlp_rag/INTEGRATION.md §5.
+edge-tts>=6.1.0
+
+# ── Audio processing ──────────────────────────────────────────────────
+# ffmpeg must be on PATH (not a pip package — install via system package manager)
+# silero-vad loaded from models/ via torch.hub
+
+# ── Download models BEFORE running ───────────────────────────────────
+# python scripts/download_models.py

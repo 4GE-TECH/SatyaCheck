@@ -1,0 +1,51 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+.venv/
+venv/
+*.db
+*.db-shm
+*.db-wal
+models/
+data/enrollments/
+data/cohort/
+data/demo_clips/
+data/reports/
+# Retained call audio. server/ws_router.py keeps each screened chunk here so a voice can be
+# enrolled from the same acoustic path it will later be probed on. Runtime data, per-machine.
+data/sessions/
+
+nlp_rag/index/
+data/faiss_index.bin
+data/faiss_docstore.pkl
+.env
+
+# Audio files (raw or temporary)
+*.wav
+*.flac
+*.m4a
+*.mp3
+
+# EXCEPT: evaluation and demo clips — this exception is what lets A's recorded
+# clips reach the repo at all. data/demo_clips/ is ignored above, so `git add`
+# there is a silent no-op.
+!data/eval_set/clips/*.wav
+
+# EXCEPT: the app's bundled demo clips. pubspec.yaml declares these as assets, so without
+# this exception a fresh clone fails to build with "asset not found" -- the *.wav rule above
+# would otherwise swallow them silently.
+!satyacheck_mobile/assets/demo/*.wav
+
+# Temporary/test files
+test_tone.wav
+setup.ps1
+*.tmp
+*.log
+node_modules/
+web/dist/
+web/.vite/
+.agents/
+.claude/

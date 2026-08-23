@@ -1,0 +1,40 @@
+{
+  "genuine_probe": "data/demo_clips/friend_test_nb8k_probe.wav",
+  "impostor_files": [
+    "data/eval_set/raw/person1.wav",
+    "data/eval_set/raw/person2.wav",
+    "data/eval_set/raw/person3.wav"
+  ],
+  "conditions": {
+    "wideband": {
+      "genuine_score": 0.8639527559280396,
+      "impostor_mean": 0.22724875311056772,
+      "impostor_scores": [
+        0.24534690380096436,
+        0.11224128305912018,
+        0.32415807247161865
+      ],
+      "separation": 0.6367040028174719
+    },
+    "simulated_matched": {
+      "genuine_score": 0.650621771812439,
+      "impostor_mean": 0.19107061127821603,
+      "impostor_scores": [
+        0.18633556365966797,
+        0.12939487397670746,
+        0.2574813961982727
+      ],
+      "separation": 0.45955116053422296
+    },
+    "genuine_matched": {
+      "genuine_score": 0.7298413515090942,
+      "impostor_mean": 0.20300803830226263,
+      "impostor_scores": [
+        0.20765483379364014,
+        0.10071033984422684,
+        0.3006589412689209
+      ],
+      "separation": 0.5268333132068316
+    }
+  }
+}

@@ -79,6 +79,39 @@ Median alone hides hybrid attacks, where a scammer switches to a cloned voice on
 ### Markers are bidirectional
 Incriminating markers raise risk. **Exculpatory markers lower it.** A genuine emergency invites verification ("call Papa," "talk to the doctor"); a scam demands isolation ("don't tell anyone," "stay on the line"). Isolation is structurally load-bearing for fraud — remove it and one callback destroys the scam. This is what prevents us from flagging a real friend calling about a real accident.
 
+### Call audio cannot be captured on the phone that is in the call
+
+Android gives the microphone exclusively to the dialer during a telephony call and hands
+every other app **digital silence** — not an error, not a short read. Measured on a Galaxy
+S23 FE, Android 16: 576,000 consecutive samples from a live call, every one of them zero.
+Android's own audio service logs `src:VOICE_COMMUNICATION silenced pack:com.satyacheck`.
+
+`AudioRecord` opens, reports `RECORDSTATE_RECORDING`, and `read()` returns full buffers, so
+every layer reports success while nothing is heard. There is no permission or audio source
+that changes this: `AudioSource.VOICE_CALL` needs `CAPTURE_AUDIO_OUTPUT`
+(`signature|privileged`), and third-party call recording was closed in Android 10, the
+accessibility route in Android 11.
+
+**Never validate an audio source by sample count.** Check amplitude. A stream that opens is
+not a stream that hears anything, and that distinction cost a full debugging session.
+
+Capture paths that do work: a bystanding device (`scripts/live_screen.py`), manual capture
+on a phone not in the call, or bundled clips through `POST /api/screen`.
+
+### Silent failure is the recurring bug in this codebase
+
+Rule 5 says public functions never raise — they return the neutral default. The cost is that
+a failure and a legitimate neutral result look identical. Three separate bugs in one session
+came from exactly this:
+
+- `/api/enroll` returned **201** for enrollments that produced no voiceprint.
+- The quality gate returned `insufficient` and logged **nothing**, so audio that arrived and
+  was rejected looked identical to audio that never arrived.
+- The capture loop suppressed `ERROR_INVALID_OPERATION`, so a dead microphone spun silently.
+
+When a branch degrades, **log why**. The neutral default is for the caller; the log is for
+whoever has to explain the verdict later.
+
 ### Enrollment is condition-matched
 Store a voiceprint per acoustic condition (wideband + 8 kHz codec-degraded). Comparing a phone-quality probe against a studio-quality reference measures channel difference as much as speaker difference.
 

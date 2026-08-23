@@ -1,0 +1,596 @@
+"""SatyaCheck — Orchestrator
+
+Runs the three independent branches concurrently and fuses results.
+
+Block 0/1: All branches return mock/neutral contracts.
+Block 2: Swap in real imports one at a time using USE_REAL_* flags in config.py.
+
+NEVER call this module from audio_ml or nlp_rag — only server/ uses it.
+C owns this file.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+import uuid
+from typing import Optional
+
+import config
+from contracts import (
+    AntiSpoofResult,
+    CallerMetadata,
+    FusionWeights,
+    OperatingMode,
+    QualityGateResult,
+    ReasonCode,
+    RetrievedPlaybook,
+    ScreeningResponse,
+    ScriptAnalysisResult,
+    SeverityLevel,
+    SignalType,
+    SpeakerVerdict,
+    SpeakerVerificationResult,
+    TranscriptResult,
+    TrustBand,
+    TrustScoreResult,
+    ChallengeQuestion,
+)
+from server.audio_ingest import AudioChunk, IngestedAudio
+
+log = logging.getLogger("satyacheck.orchestrator")
+
+
+# ── Branch stubs (active until USE_REAL_* flags are True) ────────────
+
+def _mock_speaker_branch(
+    wav_path: str,
+) -> SpeakerVerificationResult:
+    """Mock speaker branch — returns neutral UNKNOWN result."""
+    return SpeakerVerificationResult.neutral()
+
+
+def _mock_spoof_branch(wav_path: str) -> AntiSpoofResult:
+    """Mock spoof branch — an *abstention*, not a clean bill of health.
+
+    NOTE: returns risk=0.0 WITH available=False, the same convention B uses for the
+    text branch. The flag is the whole point. In a weighted sum `risk=0.0` does not
+    read as "no opinion", it reads as "definitely authentic" and raises trust — so a
+    branch that never ran would hand every call its full 0.35 weight of innocence.
+    Fusion drops the weight and renormalises instead.
+    """
+    result = AntiSpoofResult.neutral()
+    result.details["available"] = False
+    return result
+
+
+def _mock_nlp_branch(
+    wav_path: Optional[str],
+    waveform: list[float],
+) -> tuple[TranscriptResult, ScriptAnalysisResult]:
+    """Mock NLP branch — returns abstention sentinel (details['available']=False).
+    
+    NOTE: returns risk=0.0 WITH available=False so fusion can distinguish
+    this from a genuinely benign call (which also has risk=0.0 but available=True).
+    """
+    abstain = ScriptAnalysisResult.neutral()
+    abstain.details["available"] = False
+    return TranscriptResult.empty(), abstain
+
+
+# ── Real branch wrappers (activated in Block 2) ──────────────────────
+
+def _real_speaker_branch(
+    wav_path: str,
+) -> SpeakerVerificationResult:
+    try:
+        from audio_ml.api import verify_speaker
+        from server.audio_adapter import to_speaker_result
+        signal = verify_speaker(wav_path)
+        return to_speaker_result(signal)
+    except Exception as e:
+        log.error(f"[speaker] Real branch failed, falling back to neutral: {e}")
+        return SpeakerVerificationResult.neutral()
+
+
+def _real_spoof_branch(wav_path: str) -> AntiSpoofResult:
+    try:
+        from audio_ml.api import detect_spoof
+        from server.audio_adapter import to_spoof_result
+        signal = detect_spoof(wav_path)
+        return to_spoof_result(signal)
+    except Exception as e:
+        log.error(f"[spoof] Real branch failed, falling back to neutral: {e}")
+        # available=False, so fusion renormalises rather than reading the 0.0 risk
+        # as evidence of authenticity.
+        result = AntiSpoofResult.neutral()
+        result.details["available"] = False
+        return result
+
+
+def _real_nlp_branch(
+    wav_path: Optional[str],
+    waveform: list[float],
+) -> tuple[TranscriptResult, ScriptAnalysisResult]:
+    try:
+        from nlp_rag.api import transcribe, analyze_script
+        transcript = transcribe(wav_path or waveform)
+        script = analyze_script(transcript)
+        return transcript, script
+    except Exception as e:
+        log.error(f"[nlp] Real branch failed, falling back to neutral: {e}")
+        abstain = ScriptAnalysisResult.neutral()
+        abstain.details["available"] = False
+        return TranscriptResult.empty(), abstain
+
+
+# ── Fusion ────────────────────────────────────────────────────────────
+
+def _compute_fusion(
+    speaker: SpeakerVerificationResult,
+    spoof: AntiSpoofResult,
+    script: ScriptAnalysisResult,
+) -> TrustScoreResult:
+    """
+    Intent-gated, mode-aware fusion.
+
+    intent   = max(script.risk, speaker.risk if verdict == mismatch else 0.0)
+    r_cm_eff = spoof.risk * (CM_FLOOR + (1 - CM_FLOOR) * intent)
+    combined = sum(w_i * r_i) renormalised by active weight sum
+    trust    = (1 - combined) * 100
+
+    Branch unavailability (details['available'] = False on either branch):
+      - that branch's weight is excluded and the rest are renormalised, so the
+        live branches still span the full 0–1 risk range. Leaving a dead branch
+        at risk=0.0 with its weight intact reads as "nothing wrong" and caps the
+        reachable risk — with w_cm excluded but counted, nothing can score red.
+      - when text is unavailable, intent for the CM gate becomes
+        max(0.5, identity_risk_for_gate) — neutral, never 0.0. A dead ASR branch
+        must not soften the anti-spoof gate; in authority_check that is the only
+        signal we have.
+      - the identity branch always participates. In authority_check it abstains by
+        carrying a neutral 0.5 at reduced weight, which is a measured position
+        rather than a missing one.
+
+    Mode selection:
+      unknown → authority_check (speaker abstains, weights shift)
+      otherwise → identity_check
+    """
+    verdict = speaker.verdict
+    is_identity_check = verdict != SpeakerVerdict.UNKNOWN
+    mode = OperatingMode.IDENTITY_CHECK if is_identity_check else OperatingMode.AUTHORITY_CHECK
+
+    weights = config.WEIGHTS_IDENTITY_CHECK if is_identity_check else config.WEIGHTS_AUTHORITY_CHECK
+    w_asv = weights["asv"]
+    w_cm = weights["cm"]
+    w_text = weights["text"]
+
+    r_asv = speaker.risk
+    r_cm = spoof.risk
+    r_text = script.risk
+
+    # ── E1 FIX: detect the unavailability sentinel on either branch ────
+    # B writes details["available"] = False on every abstention path, and the spoof
+    # branch now follows the same convention. risk=0.0 alone is ambiguous — a
+    # genuine benign call also has risk 0.0 — and in a weighted sum an abstaining
+    # branch left at 0.0 does not read as "no opinion", it reads as "nothing wrong"
+    # and raises trust.
+    text_available: bool = script.details.get("available", True) is not False
+    cm_available: bool = spoof.details.get("available", True) is not False
+    if not text_available:
+        log.warning(
+            "[fusion] text branch unavailable (details['available']=False) — "
+            "renormalising weights, CM gate intent → neutral 0.5"
+        )
+    if not cm_available:
+        log.warning(
+            "[fusion] anti-spoof branch unavailable (details['available']=False) — "
+            "dropping w_cm and renormalising"
+        )
+
+    # ── Identity-contribution to CM gate ─────────────────────────────
+    identity_risk_for_gate = r_asv if verdict == SpeakerVerdict.MISMATCH else 0.0
+
+    # ── Intent for CM gate ────────────────────────────────────────────
+    if text_available:
+        intent = max(r_text, identity_risk_for_gate)
+    else:
+        # Neutral 0.5 — we have no transcript evidence either way.
+        # Using 0.0 would floor r_cm_eff to CM_FLOOR and soften the
+        # anti-spoof branch precisely when we can least afford to.
+        intent = max(0.5, identity_risk_for_gate)
+
+    r_cm_eff = r_cm * (config.CM_FLOOR + (1.0 - config.CM_FLOOR) * intent)
+
+    # ── Weighted sum, renormalised over the active branches ───────────
+    #
+    # The identity branch always participates: in authority_check it abstains by
+    # carrying a neutral 0.5 risk at a reduced weight, which is a measured position
+    # rather than a missing one. Text and anti-spoof can genuinely drop out, and
+    # whatever remains is renormalised so the live branches still span 0–1. Without
+    # that, a dropped branch silently caps the reachable risk — with w_cm at 0.35
+    # excluded but still counted, `combined_risk` maxes at 0.65 and *nothing can
+    # ever be scored red*.
+    contributions = [(w_asv, r_asv)]
+    if cm_available:
+        contributions.append((w_cm, r_cm_eff))
+    if text_available:
+        contributions.append((w_text, r_text))
+
+    active_weight_sum = sum(w for w, _ in contributions)
+    if active_weight_sum <= 0.0:
+        # Cannot happen with the shipped weight tables, but a zeroed table must not
+        # divide by zero inside a live request.
+        log.error("[fusion] no active branch weight; returning neutral risk")
+        combined_risk = 0.5
+    else:
+        combined_risk = sum(w * r for w, r in contributions) / active_weight_sum
+
+    # Report the weights that actually contributed, renormalised, so the evidence
+    # panel and the incident report agree with the arithmetic.
+    if active_weight_sum > 0.0:
+        w_asv = round(w_asv / active_weight_sum, 4)
+        w_cm = round(w_cm / active_weight_sum, 4) if cm_available else 0.0
+        w_text = round(w_text / active_weight_sum, 4) if text_available else 0.0
+
+    combined_risk = round(min(1.0, max(0.0, combined_risk)), 4)
+
+    trust_score = config.risk_to_trust_score(combined_risk)
+    band = config.risk_to_band(combined_risk, is_authority_check=not is_identity_check)
+
+    reason_codes = _build_reason_codes(speaker, spoof, script, mode, r_cm_eff)
+    recommended_actions = _build_actions(band, verdict, script)
+
+    # Fetch challenge question from NLP if identity is in question
+    challenge_question: Optional[ChallengeQuestion] = None
+    if verdict in (SpeakerVerdict.MISMATCH, SpeakerVerdict.UNKNOWN) and r_text > 0.3:
+        try:
+            from nlp_rag.api import challenge_question as cq_fn
+            target_id = speaker.matched_person_id or speaker.claimed_person_id
+            challenge_question = cq_fn(target_id, band=band)
+        except Exception:
+            pass
+
+    return TrustScoreResult(
+        trust_score=trust_score,
+        risk_score=combined_risk,
+        band=band,
+        mode=mode,
+        weights_used=FusionWeights(asv_weight=w_asv, cm_weight=w_cm, text_weight=w_text),
+        identity_risk=r_asv,
+        authenticity_risk=r_cm,
+        authenticity_risk_effective=round(r_cm_eff, 4),
+        intent_risk=r_text,
+        reason_codes=reason_codes,
+        recommended_actions=recommended_actions,
+        challenge_question=challenge_question,
+        vernacular_warning=_get_vernacular_warning(band, script),
+    )
+
+
+def _build_reason_codes(
+    speaker: SpeakerVerificationResult,
+    spoof: AntiSpoofResult,
+    script: ScriptAnalysisResult,
+    mode: OperatingMode,
+    r_cm_eff: float,
+) -> list[ReasonCode]:
+    """Assemble ordered list of reason codes from all three branches."""
+    codes: list[ReasonCode] = []
+
+    # ── Identity ──────────────────────────────────────────────────────
+    # `value`/`threshold` quote the raw cosine and `SPEAKER_MATCH_THRESHOLD`, because
+    # that is the comparison `audio_ml.verify` actually makes. They used to quote the
+    # s-norm score against ASV_MATCH_THRESHOLD (1.20) — a different scale, left from
+    # when the verdict came off the normalised score. "s-norm 0.95 > 1.2" is not
+    # evidence a reader can check; it is a contradiction. The s-normalised score is
+    # still carried in `speaker.norm_score` for anyone who wants it.
+    if speaker.verdict == SpeakerVerdict.MATCH:
+        codes.append(ReasonCode(
+            code="RC_SPEAKER_VERIFIED",
+            signal=SignalType.IDENTITY,
+            value=f"cosine {speaker.raw_score:.2f}",
+            threshold=f"≥ {config.SPEAKER_MATCH_THRESHOLD}",
+            explanation=f"Voice closely matches enrolled voiceprint for {speaker.matched_person_name or 'enrolled contact'}.",
+            severity=SeverityLevel.INFO,
+        ))
+    elif speaker.verdict == SpeakerVerdict.MISMATCH:
+        codes.append(ReasonCode(
+            code="RC_SPEAKER_MISMATCH",
+            signal=SignalType.IDENTITY,
+            value=f"cosine {speaker.raw_score:.2f}",
+            threshold=f"< {config.SPEAKER_MATCH_THRESHOLD}",
+            explanation=f"Voice does NOT match enrolled voiceprint for {speaker.matched_person_name or 'claimed contact'}.",
+            citation_title="ECAPA-TDNN Speaker Verification",
+            severity=SeverityLevel.HIGH,
+        ))
+    else:  # UNKNOWN
+        codes.append(ReasonCode(
+            code="RC_SPEAKER_UNKNOWN",
+            signal=SignalType.IDENTITY,
+            value="No enrolled match found",
+            threshold="N/A",
+            explanation="Caller is not registered as an enrolled contact. Authority-check mode active.",
+            severity=SeverityLevel.INFO,
+        ))
+
+    if speaker.is_replay:
+        codes.append(ReasonCode(
+            code="RC_REPLAY_SUSPECTED",
+            signal=SignalType.IDENTITY,
+            value=f"Cosine {speaker.raw_score:.3f}",
+            threshold=f"> {config.REPLAY_COSINE_THRESHOLD}",
+            explanation="Anomalously high voice similarity suggests a recorded clip is being replayed rather than live speech.",
+            severity=SeverityLevel.CRITICAL,
+        ))
+
+    # ── Authenticity ──────────────────────────────────────────────────
+    cm_available = spoof.details.get("available", True) is not False
+    if not cm_available:
+        # Say nothing was measured. The old fall-through emitted RC_AUDIO_BONAFIDE
+        # here — "Audio appears to be organic human speech" — for a branch that
+        # never ran, which on a cloned-voice clip is a false exoneration printed as
+        # evidence.
+        codes.append(ReasonCode(
+            code="RC_SPOOF_UNAVAILABLE",
+            signal=SignalType.AUTHENTICITY,
+            value="Not measured",
+            threshold="N/A",
+            explanation=(
+                "Synthetic-speech detection did not run, so this call was scored on "
+                "identity and intent only. Absence of a synthetic-voice warning here "
+                "is not evidence the voice is genuine."
+            ),
+            severity=SeverityLevel.INFO,
+        ))
+    elif spoof.is_synthetic and r_cm_eff > 0.3:
+        codes.append(ReasonCode(
+            code="RC_SYNTHETIC_VOICE_DETECTED",
+            signal=SignalType.AUTHENTICITY,
+            value=f"Median {spoof.median_score:.0%} / Peak {spoof.peak_score:.0%} / Run {spoof.max_synth_run_s:.1f}s",
+            threshold=f"> {config.CM_SYNTHETIC_THRESHOLD:.0%}",
+            explanation="Neural vocoder / voice-cloning artifacts detected in audio spectrogram.",
+            citation_title="ASVspoof 2019 Anti-Spoof Challenge",
+            severity=SeverityLevel.CRITICAL if spoof.peak_score > 0.85 else SeverityLevel.HIGH,
+        ))
+    elif spoof.is_synthetic and r_cm_eff <= 0.3:
+        codes.append(ReasonCode(
+            code="RC_LEGIT_AUTOMATED_VOICE",
+            signal=SignalType.AUTHENTICITY,
+            value=f"Synthetic prob {spoof.median_score:.0%} (gated by low intent)",
+            threshold="Intent-gated",
+            explanation="Synthetic speech detected but low scam intent suggests this may be a legitimate automated service (IVR, notification).",
+            severity=SeverityLevel.INFO,
+        ))
+    else:
+        codes.append(ReasonCode(
+            code="RC_AUDIO_BONAFIDE",
+            signal=SignalType.AUTHENTICITY,
+            value=f"Synthetic prob {spoof.median_score:.0%}",
+            threshold=f"< {config.CM_SYNTHETIC_THRESHOLD:.0%}",
+            explanation="No significant synthetic speech artifacts detected. Audio appears to be organic human speech.",
+            severity=SeverityLevel.INFO,
+        ))
+
+    # ── Intent / Script ───────────────────────────────────────────────
+    try:
+        from nlp_rag.api import build_reason_codes as nlp_build_rc
+        nlp_codes = nlp_build_rc(script)
+        if nlp_codes:
+            codes.extend(nlp_codes)
+    except Exception:
+        # Fallback to direct marker/playbook iteration if nlp_rag.api fails
+        for marker in script.incriminating_markers[:3]:  # top 3
+            codes.append(ReasonCode(
+                code=f"RC_{marker.marker_id}",
+                signal=SignalType.INTENT,
+                value=f'"{marker.matched_text[:60]}"',
+                threshold=f"Category: {marker.category}",
+                explanation=marker.description,
+                severity=SeverityLevel.HIGH if marker.weight > 0.7 else SeverityLevel.MEDIUM,
+            ))
+
+        for marker in script.exculpatory_markers[:2]:  # top 2
+            codes.append(ReasonCode(
+                code=f"RC_{marker.marker_id}",
+                signal=SignalType.INTENT,
+                value=f'"{marker.matched_text[:60]}"',
+                threshold=f"Category: {marker.category}",
+                explanation=marker.description,
+                severity=SeverityLevel.INFO,
+            ))
+
+        for pb in script.playbooks[:2]:  # top 2 citations
+            codes.append(ReasonCode(
+                code=f"RC_PLAYBOOK_{pb.playbook_id}",
+                signal=SignalType.INTENT,
+                value=f"RAG similarity {pb.similarity_score:.0%}",
+                threshold=f"> {config.RAG_SIMILARITY_THRESHOLD:.0%}",
+                explanation=f"Matches known fraud pattern: {pb.title}",
+                citation_title=pb.title,
+                citation_url=pb.source_url,
+                severity=SeverityLevel.HIGH if pb.similarity_score > 0.80 else SeverityLevel.MEDIUM,
+            ))
+
+    return codes
+
+
+def _build_actions(band: TrustBand, verdict: SpeakerVerdict, script: ScriptAnalysisResult) -> list[str]:
+    actions: dict[str, list[str]] = {
+        TrustBand.VERIFIED: ["No action required. Call verified as genuine enrolled contact."],
+        TrustBand.UNVERIFIED: ["Caller is not an enrolled contact. Verify identity before taking any action."],
+        TrustBand.CAUTION: [
+            "Proceed cautiously — verify identity through a separate channel.",
+            "Do not share OTP, PIN, or Aadhaar details.",
+        ],
+        TrustBand.SUSPICIOUS: [
+            "Do NOT transfer money or share financial credentials.",
+            "Tell caller you will call back on their registered number.",
+            "Alert a family member before taking any action.",
+        ],
+        TrustBand.HIGH_RISK: [
+            "DO NOT transfer money via UPI or any other channel.",
+            "Disconnect the call immediately.",
+            "Call back the person directly using their saved contact number.",
+            "Report to Cyber Crime helpline 1930 if you suspect fraud.",
+        ],
+        TrustBand.INSUFFICIENT: ["Ask caller to speak clearly on speakerphone for at least 3 seconds and try again."],
+    }
+    return actions.get(band, ["Use caution."])
+
+
+def _get_vernacular_warning(
+    band: TrustBand,
+    script: ScriptAnalysisResult,
+) -> Optional[str]:
+    """Select the vernacular warning for the *fused* band, not the intent-only band.
+
+    Priority:
+      1. B's details['vernacular_warnings'] dict — keyed by band value string.
+         B emits all templates so C picks the right one after fusion.
+         Until B ships the full table, this key won't be present and we fall
+         through to C's own hardcoded strings below.
+      2. C's own hardcoded fallback dict — always correct because it uses the
+         fused band argument, never the provisional intent-only band.
+
+    This is the E3 fix: analyze_script's provisional band (intent alone) must
+    never determine what the protected person hears. Fusion owns the band;
+    fusion owns the warning selection.
+    """
+    # ── Prefer B's full table if already present ──────────────────────
+    b_table: dict = script.details.get("vernacular_warnings", {})
+    if b_table and isinstance(b_table, dict):
+        b_warning = b_table.get(band.value)
+        if b_warning:
+            return b_warning
+
+    # ── C's own fallback dict (fused band, always safe) ───────────────
+    c_warnings = {
+        TrustBand.HIGH_RISK:   "सावधान! यह कॉल एक क्लोन की हुई नकली आवाज़ हो सकती है। कोई भी पैसा ट्रांसफर न करें।",
+        TrustBand.SUSPICIOUS:  "सतर्क रहें। इस कॉल में संदिग्ध संकेत हैं। कोई भी कार्रवाई करने से पहले सत्यापित करें।",
+        TrustBand.CAUTION:     "कृपया सावधानी बरतें। पैसे भेजने से पहले व्यक्ति की पहचान सुनिश्चित करें।",
+    }
+    return c_warnings.get(band)
+
+
+# ── Main orchestration entry point ────────────────────────────────────
+
+async def screen_audio(
+    audio: IngestedAudio,
+    caller_metadata: Optional[CallerMetadata] = None,
+    enrolled_embeddings: Optional[dict] = None,
+) -> ScreeningResponse:
+    """
+    Run quality gate, then dispatch all three branches concurrently, fuse results.
+
+    Returns a complete ScreeningResponse. Never raises.
+    """
+    t_start = time.perf_counter()
+    enrolled_embeddings = enrolled_embeddings or {}
+    session_id = f"session_{uuid.uuid4().hex[:12]}"
+
+    # ── Quality gate: early exit ──────────────────────────────────────
+    if not audio.quality.passed:
+        # Log it. This branch used to return in silence, so a call whose audio was captured,
+        # sent and received still produced no server-side trace at all — indistinguishable
+        # from audio that never arrived. Every "everything comes back unverified" report
+        # lands here, and without this line there is nothing to diagnose it with.
+        log.info(
+            f"[{session_id}] quality gate REJECTED: {audio.quality.reason} "
+            f"(speech={audio.quality.speech_duration_s:.2f}s "
+            f"snr={audio.quality.snr_db:.2f}dB "
+            f"min_speech={audio.quality.min_speech_threshold_s}s "
+            f"min_snr={audio.quality.min_snr_threshold_db}dB)"
+        )
+        fusion = TrustScoreResult.insufficient(reason=audio.quality.reason or "Quality gate failed")
+        elapsed_ms = round((time.perf_counter() - t_start) * 1000, 1)
+        return ScreeningResponse(
+            session_id=session_id,
+            audio_sha256=audio.audio_sha256,
+            quality=audio.quality,
+            speaker=SpeakerVerificationResult.neutral(),
+            spoof=AntiSpoofResult.neutral(),
+            transcript=TranscriptResult.empty(),
+            script=ScriptAnalysisResult.neutral(),
+            fusion=fusion,
+            processing_time_ms=elapsed_ms,
+        )
+
+    # ── Select branch implementations ─────────────────────────────────
+    run_speaker = _real_speaker_branch if config.USE_REAL_SPEAKER else _mock_speaker_branch
+    run_spoof = _real_spoof_branch if config.USE_REAL_SPOOF else _mock_spoof_branch
+    run_nlp = _real_nlp_branch if config.USE_REAL_NLP else _mock_nlp_branch
+
+    # ── Concurrent branch execution ───────────────────────────────────
+    loop = asyncio.get_event_loop()
+    try:
+        speaker_task = loop.run_in_executor(
+            None, run_speaker, audio.normalized_wav_path
+        )
+        spoof_task = loop.run_in_executor(
+            None, run_spoof, audio.normalized_wav_path
+        )
+        nlp_task = loop.run_in_executor(
+            None, run_nlp, audio.normalized_wav_path, audio.waveform
+        )
+
+        speaker_result, spoof_result, (transcript_result, script_result) = await asyncio.gather(
+            speaker_task, spoof_task, nlp_task,
+            return_exceptions=False,
+        )
+    except Exception as e:
+        log.error(f"Branch execution failed: {e}")
+        speaker_result = SpeakerVerificationResult.neutral()
+        spoof_result = AntiSpoofResult.neutral()
+        transcript_result = TranscriptResult.empty()
+        script_result = ScriptAnalysisResult.neutral()
+
+    # ── Fusion ────────────────────────────────────────────────────────
+    if config.USE_REAL_FUSION:
+        try:
+            from audio_ml.api import fuse
+            from nlp_rag.api import build_reason_codes
+            fusion = fuse(speaker_result, spoof_result, script_result)
+            # Merge reason codes from NLP
+            extra_codes = build_reason_codes(script_result)
+            fusion.reason_codes.extend(extra_codes)
+        except Exception as e:
+            log.error(f"Real fusion failed, falling back: {e}")
+            fusion = _compute_fusion(speaker_result, spoof_result, script_result)
+    else:
+        fusion = _compute_fusion(speaker_result, spoof_result, script_result)
+
+    elapsed_ms = round((time.perf_counter() - t_start) * 1000, 1)
+    log.info(
+        f"[{session_id}] Trust={fusion.trust_score} Band={fusion.band} "
+        f"Mode={fusion.mode} ({elapsed_ms}ms)"
+    )
+
+    return ScreeningResponse(
+        session_id=session_id,
+        audio_sha256=audio.audio_sha256,
+        quality=audio.quality,
+        speaker=speaker_result,
+        spoof=spoof_result,
+        transcript=transcript_result,
+        script=script_result,
+        fusion=fusion,
+        processing_time_ms=elapsed_ms,
+    )
+
+
+if __name__ == "__main__":
+    import asyncio
+    from server.audio_ingest import ingest_audio
+    from contracts import CallerMetadata
+
+    async def _smoke():
+        # Test with empty waveform (insufficient quality)
+        audio = ingest_audio(audio_bytes=b"")
+        result = await screen_audio(audio)
+        print(f"[SMOKE] Band={result.fusion.band} Score={result.fusion.trust_score}")
+        assert result.fusion.band == TrustBand.INSUFFICIENT, "Expected INSUFFICIENT for empty audio"
+        print("[OK] Orchestrator smoke test passed")
+
+    asyncio.run(_smoke())
