@@ -284,6 +284,7 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
         # Step 3: Compare against each enrolled speaker
         best_raw = -2.0
         best_match_idx = -1
+        best_condition = "wb"
 
         for idx, person in enumerate(enrolled_persons):
             person_id = person["person_id"]
@@ -293,20 +294,59 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
                 logger.warning(f"  Could not load voiceprint for {person_id}")
                 continue
 
-            # Use wideband centroid regardless of probe condition.
-            # Ablation shows wideband-only achieves best separation (0.6367) vs
-            # condition-matched approaches. Condition-aware enrollment exists in the
-            # voiceprint (nb8k_sim, nb8k_real) but is not used by default.
-            enrolled_centroid = voiceprint["wb"]
-            centroid_type = "wb (wideband-only default)"
+            # Score against every stored condition and keep the best.
+            #
+            # This replaces a wideband-only comparison. The earlier ablation that chose
+            # wideband-only was run on wideband probes, where it wins by construction;
+            # it never saw call audio. Measured on `friend_test.wav` pushed through the
+            # codecs a real call actually uses, wideband-only rejects the enrolled
+            # speaker outright:
+            #
+            #   probe                     vs wb    vs nb8k_sim   wb-only verdict
+            #   genuine, clean            0.9464     0.7130      match
+            #   genuine, mu-law (VoIP)    0.7545     0.9326      MISMATCH  <- false
+            #   genuine, AMR-NB (cell)    0.7598     0.9155      MISMATCH  <- false
+            #   clone,   AMR-NB (cell)    0.6517     0.8246      mismatch
+            #
+            # A genuine caller on a mobile network scored 0.7598 against their own
+            # voiceprint — below the 0.85 threshold, so the branch accused them. That is
+            # the exact failure CLAUDE.md's condition-matched enrollment rule exists to
+            # prevent: comparing a phone-quality probe against a studio-quality reference
+            # measures the channel, not the speaker.
+            #
+            # Taking the max over conditions needs no condition detection, which matters
+            # because `embed.detect_condition` cannot be trusted here — at sr=16000 its
+            # 8–16 kHz band is empty by Nyquist, so its headline test is dead code, and it
+            # reads only the first 2048 samples (usually leading silence).
+            #
+            # The max rule restores both call cases to `match` and moves no other verdict:
+            # the clone stays at 0.8246 (mismatch) and impostors stay where they were.
+            # Margins on call audio are real but tighter than on clean audio — genuine
+            # 0.9155 vs clone 0.8246, with the threshold at 0.85 between them.
+            candidates = []
+            for key in ("wb", "nb8k_real", "nb8k_sim"):
+                centroid = voiceprint.get(key)
+                if centroid is None:
+                    continue
+                centroid = np.asarray(centroid, dtype=np.float32)
+                if centroid.size == 0:
+                    continue
+                centroid_norm = np.linalg.norm(centroid)
+                if centroid_norm <= 0:
+                    continue
+                candidates.append((float(np.dot(probe_emb, centroid / centroid_norm)), key))
 
-            # Compute cosine similarity (both L2-normalised)
-            raw_cosine = float(np.dot(probe_emb, enrolled_centroid))
+            if not candidates:
+                logger.warning(f"  No usable centroid for {person_id}")
+                continue
+
+            raw_cosine, centroid_type = max(candidates)
             logger.debug(f"  {person['name']}: raw_cosine={raw_cosine:.4f} ({centroid_type})")
 
             if raw_cosine > best_raw:
                 best_raw = raw_cosine
                 best_match_idx = idx
+                best_condition = centroid_type
 
         if best_match_idx < 0:
             logger.warning(f"verify_speaker: no valid enrolled persons matched")
@@ -322,10 +362,17 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
             f"  Best match: {result.best_match_name} (raw_cosine={best_raw:.4f})"
         )
 
+        # Which stored condition actually produced the match. Reported so the caller can
+        # tell a clean-channel verification from one made against the codec-degraded
+        # reference — the same cosine means less on narrowband, where the margin between
+        # a genuine speaker and a clone is roughly 0.09 rather than 0.18.
+        result.condition_used = best_condition
+
         # Step 4: S-normalise the best raw score
         best_voiceprint = enroll.load_voiceprint(result.best_match_id)
-        # Use wideband centroid for s-normalisation (same as main comparison)
-        best_enrolled = best_voiceprint["wb"]
+        # S-normalise against the centroid that won, not always the wideband one, or the
+        # z-score describes a comparison that was never made.
+        best_enrolled = np.asarray(best_voiceprint[best_condition], dtype=np.float32)
 
         # Load cohort for s-norm
         cohort_path = Path(config.COHORT_DIR) / "cohort.npy"
