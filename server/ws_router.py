@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import shutil
 import logging
 import uuid
 from typing import Optional
@@ -117,6 +118,29 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
                 continue
 
             ingested = ingest_audio(audio_bytes=audio_bytes)
+
+            # Keep the normalised audio for this session.
+            #
+            # Enrolling a voice and screening it must happen over the same acoustic chain,
+            # or the cosine measures the channel instead of the speaker. Measured on this
+            # setup: the same person enrolled close-mic and probed off a speakerphone
+            # scores ~0.31, where a clean-channel probe of the same voiceprint scores
+            # 0.9464. Enrolling from audio that arrived through a real call is the only way
+            # to make those two conditions match, and that requires keeping the audio.
+            #
+            # ffmpeg already wrote a 16 kHz mono WAV per chunk and left it on disk, so this
+            # is a copy, not a re-encode. `enroll_person` takes a list of WAV paths, which
+            # is exactly the shape a session produces.
+            if ingested.normalized_wav_path:
+                try:
+                    session_dir = config.DATA_DIR / "sessions" / session_id
+                    session_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(
+                        ingested.normalized_wav_path,
+                        session_dir / f"chunk_{msg.chunk_index:04d}.wav",
+                    )
+                except Exception as e:  # never break a live call over a debug artefact
+                    log.warning(f"could not retain session audio: {e}")
 
             # ── Screen the chunk ───────────────────────────────────────
             # Load enrolled embeddings from DB
