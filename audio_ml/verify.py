@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import embed, enroll
-from contracts import SpeakerSignal
+from audio_ml.signals import SpeakerSignal
 import config
 
 logger = logging.getLogger(__name__)
@@ -146,8 +146,35 @@ def snorm(
             )
             return raw
 
+        # L2-normalise the cohort rows.
+        #
+        # The dot products below ARE cosine similarities, but only if both sides are
+        # unit length. data/cohort/cohort.npy ships with row norms of 183–263 — the
+        # embeddings were stacked before normalisation — so without this the cohort
+        # statistics come out ~200x too large, the z-score collapses toward zero, and
+        # sigmoid(0) = 0.5. That is below SPEAKER_UNKNOWN_FLOOR, so *a genuine
+        # enrolled speaker returns "unknown"*. Not an error: a legitimate verdict
+        # meaning "nobody enrolled is close", which is indistinguishable from working.
+        #
+        # A cohort is a set of directions. Normalising rows changes no speaker's
+        # identity, so the score must not depend on their magnitude — that invariance
+        # is what audio_ml/tests/test_snorm.py pins.
+        cohort = np.asarray(cohort, dtype=np.float64)
+        if not np.all(np.isfinite(cohort)):
+            logger.warning("snorm: cohort contains non-finite values, returning raw")
+            return raw
+
+        row_norms = np.linalg.norm(cohort, axis=1, keepdims=True)
+        usable = row_norms.squeeze(axis=1) > 1e-9
+        if usable.sum() < 5:
+            logger.warning(
+                f"snorm: only {int(usable.sum())} usable cohort rows, returning raw"
+            )
+            return raw
+        cohort = cohort[usable] / row_norms[usable]
+
         # Compute cosine similarities: probe vs cohort, enrolled vs cohort
-        # Cosine = dot(a, b) when both are L2-normalised
+        # Both sides are now L2-normalised, so dot == cosine.
         scores_probe = np.dot(cohort, probe_emb)      # (N,)
         scores_enrolled = np.dot(cohort, enrolled_emb)  # (N,)
 
@@ -156,9 +183,11 @@ def snorm(
         mean_enrolled = np.mean(scores_enrolled)
         std_enrolled = np.std(scores_enrolled)
 
-        # Guard against zero std (all cohort members identical)
-        if std_probe < 1e-10 or std_enrolled < 1e-10:
-            logger.debug(f"snorm: zero cohort std, returning raw")
+        # Guard against zero std (all cohort members identical).
+        # `not (std > 1e-10)` rather than `std < 1e-10` so a NaN std — which
+        # compares False against everything — falls back instead of propagating.
+        if not (std_probe > 1e-10) or not (std_enrolled > 1e-10):
+            logger.debug("snorm: degenerate cohort std, returning raw")
             return raw
 
         # Apply s-norm formula
@@ -167,18 +196,16 @@ def snorm(
             (raw - mean_probe) / std_probe
         )
 
-        # Clamp z-score to [-5, 5] range for numerical stability
-        z_score = np.clip(z_score, -5.0, 5.0)
-
-        # Map z-score to [0, 1] using sigmoid
-        # sigmoid(z) = 1 / (1 + exp(-z))
-        # This preserves ordering: higher raw -> higher sigmoid output
-        norm = 1.0 / (1.0 + np.exp(-z_score))
-
-        # If s-norm pushes a high-scoring speaker below 0.5, it's not helping.
-        # Fall back to raw score if it's better for speaker verification.
-        if raw > 0.7 and norm < 0.5:
-            return raw
+        # Shape the z-score into [0, 1] without saturating.
+        #
+        # A plain sigmoid does not work here. Against a 40-speaker cohort these
+        # z-scores land in roughly [3, 18], and sigmoid(5) is already 0.9933 — so
+        # every probe reported the *same* norm_score to four decimal places,
+        # genuine speaker and voice clone alike. Clamping at ±5 first made it
+        # certain. Dividing by a temperature spreads the real operating range
+        # across the output instead of pinning it to the ceiling.
+        z_score = float(np.clip(z_score, -config.SNORM_Z_CLAMP, config.SNORM_Z_CLAMP))
+        norm = 1.0 / (1.0 + np.exp(-z_score / config.SNORM_TEMPERATURE))
 
         return float(norm)
 
@@ -314,17 +341,45 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
 
         logger.info(f"  S-normalised score: {norm_score:.4f}")
 
-        # Step 5: Determine verdict from thresholds
-        if norm_score >= config.SPEAKER_MATCH_THRESHOLD:
+        # Step 5: Determine verdict from thresholds, on the RAW COSINE.
+        #
+        # Not on norm_score, and this is measured rather than assumed. Against the
+        # eval clips with the real ECAPA checkpoint, raw cosine separates a voice
+        # clone from every genuine probe and the s-norm z-score does not:
+        #
+        #   probe        vs enrolled  raw      z       truth
+        #   friend       friend       0.9684   17.47   genuine
+        #   friend_test  friend       0.9241   16.91   genuine
+        #   me_test2     me           0.8287   10.23   genuine
+        #   cloned_scam  friend       0.7537   12.39   CLONE
+        #
+        # The clone's z (12.39) lands *inside* the genuine band [10.23, 17.47], so
+        # no z threshold can accept me_test2 and reject the clone. On raw cosine the
+        # clone is the lowest of the four and 0.85 cuts cleanly above it. These are
+        # also the cut points A calibrated (their measurements: 0.9464 genuine,
+        # 0.7631 clone), so this is A's intended behaviour restored, not new tuning.
+        #
+        # `norm_score` is still computed, reported and stored — it is the calibrated
+        # quantity for anyone fusing scores directly. What fusion actually consumes
+        # from this branch is the discrete risk that
+        # `server/audio_adapter.to_speaker_result` derives from `verdict`, so no
+        # un-normalised score reaches the weighted sum.
+        #
+        # Worth knowing before trusting this branch: a good clone can defeat ECAPA
+        # outright. cloned_scam scores 0.7537 here, above the 0.60 floor, so it is
+        # `mismatch` rather than `unknown` — caught, but only just. Intent is what
+        # actually flags that clip (script risk 0.67 with a cited playbook).
+        if best_raw >= config.SPEAKER_MATCH_THRESHOLD:
             result.verdict = "match"
-        elif norm_score >= config.SPEAKER_UNKNOWN_FLOOR:
+        elif best_raw >= config.SPEAKER_UNKNOWN_FLOOR:
             result.verdict = "mismatch"
         else:
             result.verdict = "unknown"
 
         logger.info(
             f"  Verdict: {result.verdict} "
-            f"(norm={norm_score:.4f}, threshold={config.SPEAKER_MATCH_THRESHOLD})"
+            f"(raw={best_raw:.4f} vs threshold {config.SPEAKER_MATCH_THRESHOLD}, "
+            f"norm={norm_score:.4f} reported)"
         )
 
         # Step 6: Check against flagged voices

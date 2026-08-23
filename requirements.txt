@@ -36,7 +36,9 @@ matplotlib>=3.8.0
 faster-whisper>=1.0.0
 sentence-transformers>=3.0.0
 transformers>=4.40.0
-faiss-cpu>=1.8.0
+# NOT faiss: nlp_rag/index_store.py is a numpy inner-product index, behaviourally
+# identical to IndexFlatIP at this corpus size with one fewer wheel to build.
+# Nothing in the tree imports faiss — see nlp_rag/INTEGRATION.md §5.
 edge-tts>=6.1.0
 
 # ── Audio processing ──────────────────────────────────────────────────

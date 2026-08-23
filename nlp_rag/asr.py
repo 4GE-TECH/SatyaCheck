@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -122,6 +123,44 @@ def _reported_language(info, requested: str | None) -> str:
     return detected
 
 
+
+def _aggregate_no_speech(segments: Sequence[Any]) -> float:
+    """Duration-weighted mean of Whisper's per-segment `no_speech_prob`.
+
+    Weighted mean, not `max()`. Whisper reports this per segment, and a real call is
+    mostly pauses, breaths and room tone between utterances — so one quiet segment
+    anywhere set the score for the whole clip. Two eval clips of clearly audible
+    speech were gated away entirely at 0.642 against a 0.60 threshold, returning an
+    empty transcript and abstaining the intent branch on audio Whisper had in fact
+    transcribed correctly.
+
+    `max()` is also *anti-monotone in call length*: every additional segment can only
+    push the score up, so a long call is gated more readily than a short one saying
+    exactly the same thing. Weighting by duration asks the question the gate actually
+    means — "what fraction of this audio is not speech" — and stays stable as calls
+    grow.
+
+    Never raises: returns 0.0 (treat as speech) if there is nothing usable to weigh,
+    because the text gate downstream already rejects an empty transcript on its own.
+    """
+    total = 0.0
+    weighted = 0.0
+    for segment in segments:
+        probability = float(getattr(segment, "no_speech_prob", 0.0) or 0.0)
+        duration = float(getattr(segment, "end", 0.0) or 0.0) - float(
+            getattr(segment, "start", 0.0) or 0.0
+        )
+        if duration <= 0.0:
+            # Zero-length or malformed segment: keep its opinion, weight it minimally.
+            duration = 1e-3
+        total += duration
+        weighted += probability * duration
+
+    if total <= 0.0:
+        return 0.0
+    return max(0.0, min(1.0, weighted / total))
+
+
 def transcribe_file(
     audio_path: str | Path | Sequence[float], language: str | None = None
 ) -> TranscriptResult:
@@ -167,7 +206,7 @@ def transcribe_file(
         segments = list(segments)
         text = " ".join(s.text.strip() for s in segments).strip()
 
-        no_speech = max((getattr(s, "no_speech_prob", 0.0) for s in segments), default=0.0)
+        no_speech = _aggregate_no_speech(segments)
         logprobs = [getattr(s, "avg_logprob", 0.0) for s in segments]
         avg_logprob = sum(logprobs) / len(logprobs) if logprobs else 0.0
 

@@ -119,6 +119,37 @@ ASR_MIN_TOKENS: int = _get("ASR_MIN_TOKENS", 3)
 #: An n-gram repeated more than this many times marks a decoder loop.
 ASR_MAX_NGRAM_REPEATS: int = _get("ASR_MAX_NGRAM_REPEATS", 3)
 
+
+# --- streaming ----------------------------------------------------------------
+
+#: Seconds of audio to accumulate before the streaming path decodes again.
+#:
+#: The live-call path used to transcribe each 3-second chunk on its own, and Whisper does
+#: not stay silent on too-little audio — it invents fluent sentences. Measured on
+#: friend_test.wav, identical audio at three window sizes:
+#:
+#:     3s   'alert can product us from with the minger next week'   (garbage)
+#:     6s   'alert can product us from with the minger next weekend.'
+#:     9s   'never send money to unknown people and always verify…'  (correct)
+#:
+#: The ASR gate does not catch this: it checks no_speech_prob and repetition, and a fluent
+#: hallucination trips neither.
+#:
+#: 9s is a floor, not a cadence. faster-whisper pads everything to a 30-second mel window
+#: (PLAN.md §8.1), so decode cost is ~flat from 3s to 30s — waiting for more audio costs
+#: almost nothing and buys correctness.
+STREAM_MIN_DECODE_S: float = _get("STREAM_MIN_DECODE_S", 9.0)
+
+#: Language-detection confidence required before pinning a session's language.
+#:
+#: Below this the detection is re-run on the next window instead. Code-switched Hinglish
+#: genuinely lands around p=0.54, and committing the whole call to a coin flip is worse
+#: than re-detecting on more audio. Shares its value with ASR_MIN_LANGUAGE_PROB for the
+#: same reason that threshold exists.
+STREAM_PIN_LANGUAGE_PROB: float = _get(
+    "STREAM_PIN_LANGUAGE_PROB", _get("ASR_MIN_LANGUAGE_PROB", 0.60)
+)
+
 #: Below this, Whisper's own language detection is not trusted and `config.WHISPER_LANGUAGE`
 #: is reported instead — as the prior it is documented to be ("Primary language").
 #:

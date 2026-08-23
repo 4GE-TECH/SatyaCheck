@@ -6,6 +6,11 @@ real defects in my markers within ten minutes of reading it, described at the bo
 Ordered by what it unblocks. **Everything under P0 is transport — the audio exists, it
 just has not reached the repo.** P1 is convenience, P2 is decisions.
 
+> **Update.** Five of the ten scripts have landed and are measured — see item 2. The
+> headline: the intent branch survives real speech (worst case −0.054 against clean text)
+> and survives 8 kHz phone audio (worst case −0.074), with every clip still above the
+> amber floor. The five still missing are all three Devanagari and two of three Hinglish.
+
 ---
 
 ## P0 · Blocking
@@ -21,19 +26,45 @@ For the record, in case anyone hits it again: `data/demo_clips/`, `data/cohort/`
 **no-op that reports nothing** — the add appears to work, the commit succeeds, and the
 files never leave the machine. `data/eval_set/` is not ignored, which is why this worked.
 
-### ☐ 2. The ten recorded scam scripts — still outstanding
+### ◐ 2. The recorded scam scripts — **five of ten landed, and they measure well**
 
-`git ls-tree origin/audio_ml -- data/eval_set` shows **zero `held-*` files**. What arrived
-is the speaker-verification eval set, which is a different thing and also useful, but the
-ten scam scripts are what `PLAN.md` §12 row 2 needs.
+Thank you. These are the first evidence any of B's numbers survive a human speaking the
+words, and they do:
 
-Scripts are ready to read in **`nlp_rag/scripts_for_a.md`** — one per scam family,
-4 English / 3 Latin-Hinglish / 3 Devanagari.
+| script | clean text | **spoken** | **spoken @ 8 kHz** |
+|---|---|---|---|
+| held-sms-fraud-001 | 0.628 | **0.574** | 0.499 |
+| held-telecom-002 | 0.499 | **0.495** | 0.494 |
+| held-credential-002 | 0.417 | **0.404** | 0.421 |
+| held-family-emergency-001 | 0.343 | **0.407** | above floor |
+| held-digital-arrest-004 | 0.259 | **0.278** | 0.278 |
 
-**Name each file after its script id** — `held-digital-arrest-004.wav`. That makes the
-filename the ground-truth label, so there is no manifest to keep in sync. A clip I cannot
-map back to an id is still fine as ASR material, but the retrieval measurement it was
-recorded for is lost.
+**All five clear the amber floor, wideband and narrowband.** Worst degradation from text to
+speech is −0.054, worst from 16 kHz to 8 kHz is −0.074, and two scored *higher* spoken than
+written. `held-telecom-002` and `held-sms-fraud-001` retrieve their own family's anchor and
+carry a live citation from spoken audio.
+
+Landed as `data/eval_set/clips/held-*.wav` plus `_nb8k` copies, converted to 16 kHz mono
+and **named for their script id** — so the filename is the ground-truth label and there is
+no manifest to drift. Pinned by `nlp_rag/tests/test_recorded_audio.py`.
+
+Two of the seven files were a casual conversation about a hackathon rather than a script;
+removed on the user's instruction.
+
+**Still outstanding — five, and they are the ones that matter most for coverage:**
+
+| script | family | language |
+|---|---|---|
+| `held-kyc-update-005` | kyc_update | Devanagari |
+| `held-utility-004` | utility_disconnection | Devanagari |
+| `held-qr-code-004` | qr_code_fraud | Devanagari |
+| `held-parcel-customs-004` | parcel_customs | Latin-Hinglish |
+| `held-lottery-002` | lottery_advance_fee | Latin-Hinglish |
+
+**All three Devanagari and two of the three Hinglish.** What landed is four English and one
+Hinglish, so the languages with no spoken evidence at all are exactly the ones where the
+text-only numbers are least safe to trust — Hinglish is still the weakest at 86.7% recall.
+Scripts are ready to read in `nlp_rag/scripts_for_a.md`; name each file after its id.
 
 ### ☐ 3. Three of the six §4 clips did not come through
 

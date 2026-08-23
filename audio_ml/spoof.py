@@ -14,7 +14,7 @@ from typing import List, Tuple
 
 from . import embed
 from .spoof_aggregate import aggregate
-from contracts import SpoofSignal
+from audio_ml.signals import SpoofSignal
 
 logger = logging.getLogger(__name__)
 

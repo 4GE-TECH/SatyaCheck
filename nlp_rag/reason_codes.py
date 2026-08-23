@@ -309,6 +309,53 @@ def _intent_codes(script: ScriptAnalysisResult) -> list[ReasonCode]:
     return codes
 
 
+#: Why the branch abstained, in words a frightened relative can act on. The keys are the
+#: `reason` values `nlp_rag.score.abstain` is called with.
+_GATE_REASONS: dict[str, str] = {
+    "empty_transcript": "no speech could be transcribed from this audio",
+    "empty_text": "no speech could be transcribed from this audio",
+    "asr_gate": "the transcript did not pass the reliability check",
+    "no_speech": "the audio was mostly silence",
+    "repetition": "the transcript looped, which means the decoder was guessing",
+    "low_logprob": "the decoder had low confidence in what it heard",
+    "too_short": "there was too little speech to analyse",
+    "index_missing": "the scam-playbook index was unavailable",
+    "exception": "the analysis could not be completed",
+}
+
+
+def _abstention_code(script: ScriptAnalysisResult) -> ReasonCode:
+    """Report that the intent branch did not run. PLAN.md §7.
+
+    Emitted instead of an empty list, which is what this used to return. An empty list
+    puts nothing in the panel where the intent evidence belongs, and a reader takes that
+    for "we looked and found nothing" — the branch never looked.
+
+    Same principle as `RC_SPOOF_UNAVAILABLE` on the authenticity side: **absence of a
+    warning is not evidence of safety.** The wording says so outright rather than leaving
+    it to be inferred.
+
+    QUALITY, not INTENT: an unreadable transcript is a fact about the audio, not a
+    finding about the caller. INFO severity for the same reason — nobody should be
+    treated as more suspicious because their line was noisy.
+    """
+    reason = str(script.details.get("gate_reason") or script.details.get("reason") or "")
+    detail = _GATE_REASONS.get(reason, "the transcript could not be analysed")
+
+    return _code(
+        "RC_TRANSCRIPT_UNRELIABLE",
+        SignalType.QUALITY,
+        f"Not analysed ({reason})" if reason else "Not analysed",
+        (
+            f"What was said on this call was not checked — {detail}. This is not a "
+            "sign that the call is safe: the scam-language check simply did not run, "
+            "so judge this call on the other signals and on your own read of it."
+        ),
+        SeverityLevel.INFO,
+        threshold=reason or None,
+    )
+
+
 def build_intent_reason_codes(script: ScriptAnalysisResult) -> list[ReasonCode]:
     """Intent-branch codes only — B's half of the evidence list.
 
@@ -325,7 +372,7 @@ def build_intent_reason_codes(script: ScriptAnalysisResult) -> list[ReasonCode]:
         if script is None or not isinstance(script, ScriptAnalysisResult):
             return []
         if script.details.get("available", True) is False:
-            return []
+            return [_abstention_code(script)]
         return sorted(_intent_codes(script), key=lambda rc: _SEVERITY_ORDER[rc.severity])
     except Exception:  # noqa: BLE001 - rule 5: degrade, never raise into the caller
         return []

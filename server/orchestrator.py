@@ -52,8 +52,17 @@ def _mock_speaker_branch(
 
 
 def _mock_spoof_branch(wav_path: str) -> AntiSpoofResult:
-    """Mock spoof branch — returns neutral (bonafide) result."""
-    return AntiSpoofResult.neutral()
+    """Mock spoof branch — an *abstention*, not a clean bill of health.
+
+    NOTE: returns risk=0.0 WITH available=False, the same convention B uses for the
+    text branch. The flag is the whole point. In a weighted sum `risk=0.0` does not
+    read as "no opinion", it reads as "definitely authentic" and raises trust — so a
+    branch that never ran would hand every call its full 0.35 weight of innocence.
+    Fusion drops the weight and renormalises instead.
+    """
+    result = AntiSpoofResult.neutral()
+    result.details["available"] = False
+    return result
 
 
 def _mock_nlp_branch(
@@ -93,7 +102,11 @@ def _real_spoof_branch(wav_path: str) -> AntiSpoofResult:
         return to_spoof_result(signal)
     except Exception as e:
         log.error(f"[spoof] Real branch failed, falling back to neutral: {e}")
-        return AntiSpoofResult.neutral()
+        # available=False, so fusion renormalises rather than reading the 0.0 risk
+        # as evidence of authenticity.
+        result = AntiSpoofResult.neutral()
+        result.details["available"] = False
+        return result
 
 
 def _real_nlp_branch(
@@ -127,11 +140,18 @@ def _compute_fusion(
     combined = sum(w_i * r_i) renormalised by active weight sum
     trust    = (1 - combined) * 100
 
-    Text-branch unavailability (B signals details['available']=False):
-      - w_text is excluded and the remaining weights are renormalised.
-      - intent for the CM gate becomes max(0.5, identity_risk_for_gate)
-        — neutral, never 0.0.  A dead ASR branch must not soften the
-        anti-spoof gate; in authority_check that is the only signal we have.
+    Branch unavailability (details['available'] = False on either branch):
+      - that branch's weight is excluded and the rest are renormalised, so the
+        live branches still span the full 0–1 risk range. Leaving a dead branch
+        at risk=0.0 with its weight intact reads as "nothing wrong" and caps the
+        reachable risk — with w_cm excluded but counted, nothing can score red.
+      - when text is unavailable, intent for the CM gate becomes
+        max(0.5, identity_risk_for_gate) — neutral, never 0.0. A dead ASR branch
+        must not soften the anti-spoof gate; in authority_check that is the only
+        signal we have.
+      - the identity branch always participates. In authority_check it abstains by
+        carrying a neutral 0.5 at reduced weight, which is a measured position
+        rather than a missing one.
 
     Mode selection:
       unknown → authority_check (speaker abstains, weights shift)
@@ -150,14 +170,23 @@ def _compute_fusion(
     r_cm = spoof.risk
     r_text = script.risk
 
-    # ── E1 FIX: detect B's unavailability sentinel ─────────────────────
-    # B writes details["available"] = False on every abstention path.
-    # risk=0.0 alone is ambiguous (genuine benign call also has risk 0.0).
+    # ── E1 FIX: detect the unavailability sentinel on either branch ────
+    # B writes details["available"] = False on every abstention path, and the spoof
+    # branch now follows the same convention. risk=0.0 alone is ambiguous — a
+    # genuine benign call also has risk 0.0 — and in a weighted sum an abstaining
+    # branch left at 0.0 does not read as "no opinion", it reads as "nothing wrong"
+    # and raises trust.
     text_available: bool = script.details.get("available", True) is not False
+    cm_available: bool = spoof.details.get("available", True) is not False
     if not text_available:
         log.warning(
             "[fusion] text branch unavailable (details['available']=False) — "
             "renormalising weights, CM gate intent → neutral 0.5"
+        )
+    if not cm_available:
+        log.warning(
+            "[fusion] anti-spoof branch unavailable (details['available']=False) — "
+            "dropping w_cm and renormalising"
         )
 
     # ── Identity-contribution to CM gate ─────────────────────────────
@@ -174,19 +203,36 @@ def _compute_fusion(
 
     r_cm_eff = r_cm * (config.CM_FLOOR + (1.0 - config.CM_FLOOR) * intent)
 
-    # ── Weighted sum, renormalised over active branches ───────────────
+    # ── Weighted sum, renormalised over the active branches ───────────
+    #
+    # The identity branch always participates: in authority_check it abstains by
+    # carrying a neutral 0.5 risk at a reduced weight, which is a measured position
+    # rather than a missing one. Text and anti-spoof can genuinely drop out, and
+    # whatever remains is renormalised so the live branches still span 0–1. Without
+    # that, a dropped branch silently caps the reachable risk — with w_cm at 0.35
+    # excluded but still counted, `combined_risk` maxes at 0.65 and *nothing can
+    # ever be scored red*.
+    contributions = [(w_asv, r_asv)]
+    if cm_available:
+        contributions.append((w_cm, r_cm_eff))
     if text_available:
-        combined_risk = w_asv * r_asv + w_cm * r_cm_eff + w_text * r_text
-        active_weight_sum = 1.0  # weights already sum to 1.0
+        contributions.append((w_text, r_text))
+
+    active_weight_sum = sum(w for w, _ in contributions)
+    if active_weight_sum <= 0.0:
+        # Cannot happen with the shipped weight tables, but a zeroed table must not
+        # divide by zero inside a live request.
+        log.error("[fusion] no active branch weight; returning neutral risk")
+        combined_risk = 0.5
     else:
-        # Drop w_text and renormalise so the remaining two branches
-        # still span the full 0–1 risk range.
-        active_weight_sum = w_asv + w_cm  # e.g. 0.55 in authority_check
-        combined_risk = (w_asv * r_asv + w_cm * r_cm_eff) / active_weight_sum
-        w_text = 0.0  # reflected in weights_used for transparency
-        # Renormalise displayed weights proportionally
+        combined_risk = sum(w * r for w, r in contributions) / active_weight_sum
+
+    # Report the weights that actually contributed, renormalised, so the evidence
+    # panel and the incident report agree with the arithmetic.
+    if active_weight_sum > 0.0:
         w_asv = round(w_asv / active_weight_sum, 4)
-        w_cm  = round(w_cm  / active_weight_sum, 4)
+        w_cm = round(w_cm / active_weight_sum, 4) if cm_available else 0.0
+        w_text = round(w_text / active_weight_sum, 4) if text_available else 0.0
 
     combined_risk = round(min(1.0, max(0.0, combined_risk)), 4)
 
@@ -234,12 +280,18 @@ def _build_reason_codes(
     codes: list[ReasonCode] = []
 
     # ── Identity ──────────────────────────────────────────────────────
+    # `value`/`threshold` quote the raw cosine and `SPEAKER_MATCH_THRESHOLD`, because
+    # that is the comparison `audio_ml.verify` actually makes. They used to quote the
+    # s-norm score against ASV_MATCH_THRESHOLD (1.20) — a different scale, left from
+    # when the verdict came off the normalised score. "s-norm 0.95 > 1.2" is not
+    # evidence a reader can check; it is a contradiction. The s-normalised score is
+    # still carried in `speaker.norm_score` for anyone who wants it.
     if speaker.verdict == SpeakerVerdict.MATCH:
         codes.append(ReasonCode(
             code="RC_SPEAKER_VERIFIED",
             signal=SignalType.IDENTITY,
-            value=f"s-norm {speaker.norm_score:.2f}",
-            threshold=f"> {config.ASV_MATCH_THRESHOLD}",
+            value=f"cosine {speaker.raw_score:.2f}",
+            threshold=f"≥ {config.SPEAKER_MATCH_THRESHOLD}",
             explanation=f"Voice closely matches enrolled voiceprint for {speaker.matched_person_name or 'enrolled contact'}.",
             severity=SeverityLevel.INFO,
         ))
@@ -247,8 +299,8 @@ def _build_reason_codes(
         codes.append(ReasonCode(
             code="RC_SPEAKER_MISMATCH",
             signal=SignalType.IDENTITY,
-            value=f"s-norm {speaker.norm_score:.2f}",
-            threshold=f"< {config.ASV_MISMATCH_THRESHOLD}",
+            value=f"cosine {speaker.raw_score:.2f}",
+            threshold=f"< {config.SPEAKER_MATCH_THRESHOLD}",
             explanation=f"Voice does NOT match enrolled voiceprint for {speaker.matched_person_name or 'claimed contact'}.",
             citation_title="ECAPA-TDNN Speaker Verification",
             severity=SeverityLevel.HIGH,
@@ -274,7 +326,25 @@ def _build_reason_codes(
         ))
 
     # ── Authenticity ──────────────────────────────────────────────────
-    if spoof.is_synthetic and r_cm_eff > 0.3:
+    cm_available = spoof.details.get("available", True) is not False
+    if not cm_available:
+        # Say nothing was measured. The old fall-through emitted RC_AUDIO_BONAFIDE
+        # here — "Audio appears to be organic human speech" — for a branch that
+        # never ran, which on a cloned-voice clip is a false exoneration printed as
+        # evidence.
+        codes.append(ReasonCode(
+            code="RC_SPOOF_UNAVAILABLE",
+            signal=SignalType.AUTHENTICITY,
+            value="Not measured",
+            threshold="N/A",
+            explanation=(
+                "Synthetic-speech detection did not run, so this call was scored on "
+                "identity and intent only. Absence of a synthetic-voice warning here "
+                "is not evidence the voice is genuine."
+            ),
+            severity=SeverityLevel.INFO,
+        ))
+    elif spoof.is_synthetic and r_cm_eff > 0.3:
         codes.append(ReasonCode(
             code="RC_SYNTHETIC_VOICE_DETECTED",
             signal=SignalType.AUTHENTICITY,

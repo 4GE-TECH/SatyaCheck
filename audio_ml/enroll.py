@@ -19,7 +19,7 @@ from typing import Optional
 from datetime import datetime, timezone
 
 from . import embed, codec
-from contracts import Person
+from audio_ml.signals import Person
 
 logger = logging.getLogger(__name__)
 

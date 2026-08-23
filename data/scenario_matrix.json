@@ -2,7 +2,7 @@
   "scenarios": [
     {
       "scenario": "1  genuine human, normal call",
-      "trust": 90,
+      "trust": 90.0,
       "band": "green",
       "mode": "identity_check",
       "expected": [
@@ -21,7 +21,7 @@
     },
     {
       "scenario": "2  AI voice, legitimate IVR",
-      "trust": 81,
+      "trust": 81.0,
       "band": "unverified",
       "mode": "authority_check",
       "expected": [
@@ -40,7 +40,7 @@
     },
     {
       "scenario": "3  human scammer, bank/KYC",
-      "trust": 12,
+      "trust": 12.0,
       "band": "red",
       "mode": "authority_check",
       "expected": [
@@ -59,7 +59,7 @@
     },
     {
       "scenario": "4  AI clone, family emergency",
-      "trust": 10,
+      "trust": 10.0,
       "band": "red",
       "mode": "identity_check",
       "expected": [
@@ -78,7 +78,7 @@
     },
     {
       "scenario": "5  spoofed number, human voice",
-      "trust": 20,
+      "trust": 20.0,
       "band": "red",
       "mode": "authority_check",
       "expected": [
@@ -97,7 +97,7 @@
     },
     {
       "scenario": "6  trusted number, cloned voice",
-      "trust": 18,
+      "trust": 18.0,
       "band": "red",
       "mode": "identity_check",
       "expected": [
@@ -116,7 +116,7 @@
     },
     {
       "scenario": "7  replay of family member",
-      "trust": 45,
+      "trust": 45.0,
       "band": "amber",
       "mode": "identity_check",
       "expected": [
@@ -136,7 +136,7 @@
     },
     {
       "scenario": "8  human, digital arrest",
-      "trust": 5,
+      "trust": 5.0,
       "band": "red",
       "mode": "authority_check",
       "expected": [
@@ -155,7 +155,7 @@
     },
     {
       "scenario": "9  Hinglish KYC/OTP scam",
-      "trust": 15,
+      "trust": 15.0,
       "band": "red",
       "mode": "authority_check",
       "expected": [
@@ -174,7 +174,7 @@
     },
     {
       "scenario": "10 genuine family, odd money request",
-      "trust": 66,
+      "trust": 66.0,
       "band": "amber",
       "mode": "identity_check",
       "expected": [
@@ -193,7 +193,7 @@
     },
     {
       "scenario": "11 escalation, final state",
-      "trust": 10,
+      "trust": 10.0,
       "band": "red",
       "mode": "authority_check",
       "expected": [
@@ -212,7 +212,7 @@
     },
     {
       "scenario": "12 hybrid human + AI",
-      "trust": 20,
+      "trust": 20.0,
       "band": "red",
       "mode": "authority_check",
       "expected": [
@@ -233,22 +233,22 @@
   "escalation": [
     {
       "label": "t=0:15 pleasantries",
-      "trust": 91,
+      "trust": 91.0,
       "band": "unverified"
     },
     {
       "label": "t=0:45 vague problem",
-      "trust": 70,
+      "trust": 70.0,
       "band": "unverified"
     },
     {
       "label": "t=1:10 threat appears",
-      "trust": 38,
+      "trust": 38.0,
       "band": "red"
     },
     {
       "label": "t=1:40 OTP demanded",
-      "trust": 10,
+      "trust": 10.0,
       "band": "red"
     }
   ],

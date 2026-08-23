@@ -33,6 +33,30 @@ class MarkerDef:
     veto: list[str] = field(default_factory=list)
 
 
+#: Shared by every credential-request marker.
+#:
+#: Mentioning a credential is not the same as asking for one, and the most legitimate
+#: call there is — a bank's "we will never ask for your PIN" — contains every phrase
+#: these markers match. So does a genuine fraud-awareness advisory *describing* the
+#: scam. Without this, the safety warning scores like the crime.
+#:
+#: Same lesson as the "kabhi"/"abhi" defect: match phrases, never substrings, and always
+#: ask what a legitimate caller saying these words would sound like.
+_CREDENTIAL_VETO: list[str] = [
+    # "will never ask", "we do not request", "you should not share"
+    r"(?:never|not|cannot|can'?t|don'?t|do not|will not|won'?t|unable|no one|nobody)"
+    r"[^.!?]{0,40}?(?:ask|take|request|share|need|give|require|enter)",
+    # "you do not need a PIN to receive money" — the advisory's central sentence
+    r"(?:do not|don'?t|never)\s+(?:need|require)[^.!?]{0,30}?"
+    r"\b(?:pin|otp|password|cvv)\b",
+    r"(?:kabhi|kabhi bhi)\s+(?:nahi|nahin)[^.!?]{0,40}?"
+    r"(?:maang|puchh|puch|share|batao)",
+    r"(?:nahi|nahin|na)\s+(?:maangte|maangenge|puchhte|puchhenge)",
+    r"कभी (?:नहीं|न)[^।!?]{0,40}?(?:माँग|मांग|पूछ|शेयर)",
+    r"(?:नहीं|न) (?:माँगेगा|मांगेगा|पूछेगा|माँगते|मांगते)",
+]
+
+
 # Weights for markers that appear in `contracts.create_mock_fixture` match the values
 # used there, so scoring calibrates against the same numbers C's fixtures assert.
 MARKERS: list[MarkerDef] = [
@@ -138,6 +162,97 @@ MARKERS: list[MarkerDef] = [
             r"call (?:back )?on (?:our|the) (?:helpline|toll[- ]free|customer care)",
             r"(?:helpline|toll[- ]free) number",
         ],
+    ),
+    # --- credential harvesting -----------------------------------------------
+    #
+    # Four scam families share one signature the markers above do not reach: the caller
+    # walks the victim through *handing over* a credential. MK_OTP_SOLICITATION requires
+    # a solicitation verb (share / tell / send / read) beside the credential noun, and
+    # these scripts put a different verb there ("PIN daal dijiye" — enter) or never name
+    # the noun at all ("the number on the front").
+    #
+    # Measured before being written: 0 hits across the whole 103-document benign cohort.
+    # See nlp_rag/tests/test_markers_credential.py, which re-checks that on every run.
+    MarkerDef(
+        marker_id="MK_PIN_TO_RECEIVE",
+        marker_type=MarkerType.INCRIMINATING,
+        category="credential_request",
+        weight=0.90,
+        description=(
+            "Caller demands a PIN or QR scan in order to RECEIVE money — no payment "
+            "rail works this way"
+        ),
+        patterns=[
+            # The strongest marker here, and the only one that is arithmetic rather than
+            # heuristic: a PIN authorises money *leaving* an account, never money
+            # arriving. "Enter your PIN and the money will be credited" is false on every
+            # rail that exists, so the caller is either mistaken or lying.
+            r"\b(?:scan|qr|q\.r|scanner)\w*\b[^.!?]{0,70}?"
+            r"\b(?:pin|upi pin|password)\b[^.!?]{0,70}?"
+            r"\b(?:credit|receive|refund|aa ?jay|aayeg|mil ?jay|paisa|money)\w*",
+            r"\b(?:receive|credit|refund|get)\w*\b[^.!?]{0,70}?"
+            r"\b(?:enter|put|daal|daliye|daaliye|dal)\w*\b[^.!?]{0,30}?"
+            r"\b(?:pin|upi pin)\b",
+            r"\b(?:pin|upi pin)\b[^.!?]{0,40}?\b(?:to|and)\b[^.!?]{0,25}?"
+            r"\b(?:receive|get|credit)\b",
+            r"\b(?:scan|qr|scanner)\w*\b[^.!?]{0,50}?\bpin\b[^.!?]{0,40}?"
+            r"\b(?:daal|daliye|daaliye|dal)\w*",
+            r"(?:स्कैन|क्यूआर)[^।!?]{0,60}?पिन[^।!?]{0,50}?(?:डाल|डालिए|डालो)",
+            r"पिन[^।!?]{0,40}?(?:डाल|डालिए|डालो)[^।!?]{0,60}?"
+            r"(?:पैसा|राशि|क्रेडिट|आ जाए|मिल जाए)",
+        ],
+        veto=_CREDENTIAL_VETO,
+    ),
+    MarkerDef(
+        marker_id="MK_CARD_READBACK",
+        marker_type=MarkerType.INCRIMINATING,
+        category="credential_request",
+        weight=0.88,
+        description="Caller asks the recipient to read back card digits, CVV or expiry",
+        patterns=[
+            # Deliberately covers the phrasings that never say "card number" — a real
+            # scammer says "the number on the front" and "the three digits at the back",
+            # which is exactly why MK_OTP_SOLICITATION's noun list missed this.
+            r"\b(?:read|tell|give|share|confirm|repeat|batao|bataiye|likho)\w*\b"
+            r"[^.!?]{0,50}?\b(?:card number|number on the (?:front|card|back)"
+            r"|three digits|3 digits|last (?:four|4) digits|cvv"
+            r"|expiry(?: date)?|valid(?:ity| thru))\b",
+            r"\b(?:three digits|3 digits|cvv)\b[^.!?]{0,45}?"
+            r"\b(?:at the back|on the back|behind|peeche)\b",
+            r"\bcard\b[^.!?]{0,30}?\b(?:number|no\.?)\b[^.!?]{0,35}?"
+            r"\b(?:batao|bataiye|bta|likhiye|send|share)\b",
+            r"(?:कार्ड (?:नंबर|नम्बर)|सीवीवी|पीछे के तीन (?:अंक|नंबर))"
+            r"[^।!?]{0,45}?(?:बताइए|बताओ|भेजिए|लिखिए)",
+        ],
+        veto=_CREDENTIAL_VETO,
+    ),
+    MarkerDef(
+        marker_id="MK_CREDENTIAL_ENTRY",
+        marker_type=MarkerType.INCRIMINATING,
+        category="credential_request",
+        weight=0.85,
+        description=(
+            "Caller directs the recipient to enter a PIN, password or card detail, "
+            "often into an app or link the caller supplied"
+        ),
+        patterns=[
+            # The generic case, weaker than the two above. "daal/daliye/dalna" is the
+            # Hinglish verb that carries this in practice and appears in no solicitation
+            # verb list, which is why every Hinglish QR-fraud transcript was missed.
+            r"\b(?:enter|type|put|key ?in|feed|fill(?: in)?)\b[^.!?]{0,35}?"
+            r"\b(?:pin|upi pin|password|cvv|card number|atm pin|net ?banking)\b",
+            r"\b(?:pin|upi pin|password|cvv|card number|atm pin)\b"
+            r"[^.!?]{0,35}?\b(?:daal|daliye|daaliye|dalna|dale|daalna|type|enter)\w*",
+            r"\b(?:open|click|download|install)\b[^.!?]{0,45}?"
+            r"\b(?:link|app|application|apk|form)\b[^.!?]{0,90}?"
+            r"\b(?:account number|card number|pin|password|otp|net ?banking"
+            r"|login|user ?id)\b",
+            r"(?:पिन|पासवर्ड|कार्ड (?:नंबर|नम्बर)|सीवीवी)"
+            r"[^।!?]{0,35}?(?:डाल|डालिए|डालो|भरिए|भरो)",
+            r"(?:लिंक|ऐप|एप्लिकेशन)[^।!?]{0,70}?"
+            r"(?:पिन|पासवर्ड|खाता (?:नंबर|संख्या)|कार्ड (?:नंबर|नम्बर))",
+        ],
+        veto=_CREDENTIAL_VETO,
     ),
     # --- exculpatory ---------------------------------------------------------
     MarkerDef(

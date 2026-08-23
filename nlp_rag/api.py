@@ -35,6 +35,7 @@ from nlp_rag.markers import find_markers
 from nlp_rag.reason_codes import build_intent_reason_codes
 from nlp_rag.retrieve import Encoder, RetrievalResult, Retriever
 from nlp_rag.score import abstain, score_script
+from nlp_rag.streaming import StreamingTranscriber
 from nlp_rag.warnings import warnings_by_band
 
 __all__ = [
@@ -42,6 +43,7 @@ __all__ = [
     "analyze_script",
     "build_reason_codes",
     "challenge_question",
+    "StreamingTranscriber",
     "configure",
     "reset",
 ]

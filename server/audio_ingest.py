@@ -149,8 +149,12 @@ def _vad_chunk(waveform: list[float], sample_rate: int) -> list[AudioChunk]:
     # Try Silero VAD
     try:
         import torch
+        # Same checkout audio_ml/embed.py uses. These were two different paths —
+        # models/silero-vad here, models/torch/hub/snakers4_silero-vad_master there
+        # — so whichever one was populated, the other branch silently fell back.
+        # This is torch.hub's own layout under TORCH_HOME (set by config).
         model, utils = torch.hub.load(
-            repo_or_dir=str(config.MODELS_DIR / "silero-vad"),
+            repo_or_dir=str(config.SILERO_VAD_DIR),
             model="silero_vad",
             source="local",
             force_reload=False,

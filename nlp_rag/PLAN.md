@@ -503,7 +503,7 @@ cut.
 | **2** | H4:00–H6:00 | **Stop building.** Sit next to C. Swap mocks one branch at a time: ASR → script → reason codes. Never two at once. |
 | **3** ✅ | H6:00–H9:00 | **Done.** Per-family guidance, exculpatory breadth, `citations.py`, `challenge.py`, `warnings.py`. |
 | **4** ◐ | H9:00–H11:00 | `eval_retrieval.py` done and extended with recall. `pretranscribe.py` built and measured; **needs A+D's clips to populate**. Then **floater rule** — join D. |
-| **5** | H11:00–H12:00 | Bug bash. Nothing new gets built. |
+| **5** ✅ | H11:00–H12:00 | **Done.** Recall 68% → 94% with benign FP unchanged; nine bug-bash inputs pinned as tests. See "Block 5 as built". |
 
 > **H12:00 — FEATURE FREEZE. ABSOLUTE.**
 
@@ -594,6 +594,161 @@ indistinguishable from a success.
 
 Build it once the clips exist: `python -m nlp_rag.pretranscribe data/demo_clips`.
 `nlp_rag/index/` is now gitignored, as §3 always said it should be.
+
+### Block 5 as built — the recall gap closed
+
+The harness's recall axis (§12.1) had been reporting **68% of held-out scams at or above
+amber** for two blocks, which means roughly one known scam in three showed the user no
+concern at all. Closing it turned out to need no threshold change and no new machinery.
+
+**The diagnosis was one line of the report: every one of the 16 misses had zero markers
+firing.** Not weak markers — none. And they clustered by family exactly where the corpus
+was thinnest:
+
+| family | corpus docs | recall, before |
+|---|---|---|
+| qr_code_fraud | 5 | 20% |
+| financial_fraud | 5 | 20% |
+| sms_fraud | 5 | 40% |
+| kyc_update | 5 | 60% |
+| digital_arrest | 10 | 80% |
+| family_emergency | 10 | 100% |
+| telecom_impersonation | 15 | 100% |
+
+Every family at 100% had 10–15 documents; every failing family had 5. Two independent
+causes, addressed independently.
+
+**Three credential-harvesting markers.** Reading the missed text showed one signature the
+marker set did not reach — being walked through *handing over* a credential.
+`MK_OTP_SOLICITATION` missed all of it for a structural reason rather than an oversight:
+it requires a solicitation verb (*share / tell / send / read*) beside the credential noun.
+Hinglish **"PIN daal dijiye"** puts the verb *daal* (enter) there instead, and *"read me
+the number on the front"* never says the noun at all.
+
+- `MK_PIN_TO_RECEIVE` (0.90) — the only marker here that is arithmetic rather than
+  heuristic: **no payment rail requires a PIN to credit you.** A PIN authorises money
+  leaving an account, never arriving. That single fact is the whole QR-fraud family.
+- `MK_CARD_READBACK` (0.88) — including the phrasings that avoid the words *card number*.
+- `MK_CREDENTIAL_ENTRY` (0.85) — the generic directed entry, and the Hinglish verb.
+
+All three share `_CREDENTIAL_VETO`, because a bank's *"we will never ask for your PIN"* —
+the most legitimate call there is — contains every phrase they match. Same lesson as the
+`kabhi`/`abhi` defect, generalised: always ask what a legitimate caller saying these words
+sounds like.
+
+**Patterns were measured against the whole corpus before any were written**: 0 hits across
+all 103 benign documents. `test_markers_credential.py` re-checks that on every run, because
+a false incriminating marker silently raises a real call — the harm `CLAUDE.md` names.
+
+**Twenty documents for the four starved families**, 5 → 10 each, level with the families
+already at 100%. Weighted toward `hi_latn`, still the weakest language.
+
+| | before | after |
+|---|---|---|
+| indexed documents | 70 | **90** |
+| scam recall @ amber | 68.0% | **94.0%** |
+| — `hi_latn` | 46.7% | **86.7%** |
+| P@3 strict · family | 94% · 96% | **98% · 100%** |
+| MRR | 0.900 | **0.950** |
+| **benign false positives** | 5.8% | **5.8%** |
+
+The last row is the one that matters. Recall bought by flagging real calls is not recall,
+and §5.2 predicted `SCRIPT_Z0` would have to rise with corpus growth. It did not: the
+growth was confined to four families the benign cohort does not resemble, so `max_scam_cos`
+rose for scam queries without dragging the benign background with it. **z0 stays 5.5.**
+`test_scenarios` still passes 12/12, legitimate-IVR row included.
+
+**`RC_TRANSCRIPT_UNRELIABLE` now exists.** §7 specified it and it had never been built —
+`build_intent_reason_codes` returned `[]` on every abstention path, so the panel showed
+*nothing* where the intent evidence belongs and a reader takes that for "we looked and
+found nothing". Confirmed live on a clip the ASR gate rejects. It is QUALITY/INFO, carries
+the gate reason, and says outright that absence of a warning is not evidence of safety —
+the same principle as `RC_SPOOF_UNAVAILABLE` on the authenticity branch. The abstention
+arithmetic is unchanged: `risk` 0.0 and `available` False, so fusion still renormalises.
+
+**Two §6 categories were measured and declined**, recorded so nobody re-opens them assuming
+they were merely forgotten:
+
+- *penalty for delay* — **4 benign hits against 1 scam.** Late-fee language is ordinary in
+  genuine utility and bank calls; the marker would actively hurt.
+- *gift card* — **0 hits in all 223 documents.** A US-centric rail with no support in this
+  corpus. Adding it is untested pattern surface, not coverage.
+
+**Three held-out scams still score below amber**, and this is the honest floor rather than a
+loose end: `held-utility-003` (0.111), `held-lottery-004` (0.130), `held-digital-arrest-005`
+(0.136). None asks for a credential or a transfer — they threaten a consequence and wait.
+Catching them means scoring *plausible pressure* as risk, which is what benign hospital
+deposits and real disconnection notices also look like. That trade is the false-positive
+rate, and it is the one number this work refused to move.
+
+### Recorded audio, as measured
+
+Every number above this line was measured on **written text**, because until now that is
+all that existed. Five human recordings of held-out scripts arrived, and they are the first
+evidence the branch survives a person actually speaking the words.
+
+| script | clean text | **spoken** | Δ | **8 kHz** | Δ |
+|---|---|---|---|---|---|
+| held-sms-fraud-001 | 0.628 | **0.574** | −0.054 | 0.499 | −0.074 |
+| held-telecom-002 | 0.499 | **0.495** | −0.004 | 0.494 | −0.001 |
+| held-credential-002 | 0.417 | **0.404** | −0.014 | 0.421 | +0.017 |
+| held-family-emergency-001 | 0.343 | **0.407** | +0.064 | above floor | — |
+| held-digital-arrest-004 | 0.259 | **0.278** | +0.019 | 0.278 | +0.000 |
+
+**All five clear the amber floor in both conditions**, two scored *higher* spoken than
+written, and `held-telecom-002` and `held-sms-fraud-001` retrieve their own family's anchor
+with a live citation. 8 kHz matters because speakerphone and phone audio are closer to
+narrowband than to a clean recording, and it discards everything above 4 kHz — where most
+consonant discrimination lives.
+
+The most informative row is `held-family-emergency-001`: spoken in Hinglish, transcribed by
+Whisper into badly-corrupted Devanagari — *"पप्पा मेरे अख्स्टेण्ट लोग अस्प्टल मे हु"* — and it
+still beat its own clean-text score. That is the multilingual corpus and the marker set
+doing what they were built for on genuinely degraded input.
+
+**Caveat on what this does not cover.** Four of the five are English; the five still missing
+are all three Devanagari and two of three Hinglish (`NEEDS_FROM_A.md` item 2). So the
+languages with no spoken evidence are exactly the ones whose text-only numbers are least
+safe to trust.
+
+### Streaming: accumulate before decoding, pin the language
+
+Two defects on the live-call path, both reproduced on real audio before anything was
+written. `server/ws_router.py` transcribes **every 3-second chunk independently**, with no
+accumulated state. On `friend_test.wav`:
+
+```
+OLD, 3s chunks:   langs ['unknown','unknown','en','unknown']
+                  'alert can product us from with the minger next week'
+NEW, accumulated: lang  'en' (pinned once)
+                  'never send money to unknown people and always verify before trusting…'
+```
+
+The 3-second window did not fail quietly — it produced a fluent, confident sentence that
+was never spoken. §7's ASR gate does not catch this: it checks `no_speech_prob` and
+repetition, and a hallucination trips neither, so the garbage reaches retrieval and markers
+as if it were speech. The language label also flapped (`en`/`hi` on identical audio
+depending only on slicing), and that selects which vernacular warning is spoken — so the
+warning could switch language between two rescores two seconds apart.
+
+`nlp_rag/streaming.py` owns both rules, because both are facts about Whisper rather than
+about session management:
+
+- **accumulate to `STREAM_MIN_DECODE_S` (9s)** before decoding, on a window that grows and
+  never slides — `analyze_script` scores the cumulative transcript (§1), and waiting is
+  nearly free because faster-whisper pads everything to a 30-second mel window (§8.1).
+- **pin the language** after the first detection that clears `STREAM_PIN_LANGUAGE_PROB`,
+  then pass it to `transcribe(audio, language=…)` on every later call. That parameter
+  already existed; the streaming path simply never used it.
+
+This does not contradict `INTEGRATION.md` §5's finding that auto-detection beats forcing a
+language: that was about forcing `hi` a priori on unheard audio. This uses what Whisper
+itself detected, once, on a long-enough window of *this* call.
+
+Exposed as `nlp_rag.api.StreamingTranscriber`. **`server/ws_router.py` is C's file and was
+not touched** — wiring is ~5 lines on `SessionState`, written up in `INTEGRATION.md`. Until
+C wires it the live path still chunks at 3s; the upload path, which the demo uses, is
+unaffected either way.
 
 ### Bug-bash inputs (Block 5)
 

@@ -222,7 +222,7 @@ def _fuse_inner(speaker, spoof, script, quality):
 
 def _result(trust, band, mode, breakdown, weights):
     try:
-        from contracts import FusionResult
+        from audio_ml.signals import FusionResult
         return FusionResult(trust_score=trust, band=band, mode=mode,
                             risk_breakdown=breakdown, weights_used=weights)
     except Exception:

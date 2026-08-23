@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Model paths — use forward slashes for cross-platform compatibility
 MODELS_DIR = Path(__file__).parent.parent / "models"
 ECAPA_MODEL_PATH = MODELS_DIR / "ecapa"
+# Shared with server/audio_ingest.py via config, so one checkout serves both.
 SILERO_VAD_REPO_PATH = MODELS_DIR / "torch" / "hub" / "snakers4_silero-vad_master"
 
 # Audio constants from CLAUDE.md architecture
@@ -83,9 +84,27 @@ def load_audio(audio_path: str) -> Tuple[np.ndarray, int]:
         (audio_array, sample_rate) — always returns valid defaults on error.
         audio_array is float32 in range [-1, 1), normalized via ffmpeg if needed.
         sample_rate is always 16000.
+
+    WAV takes the stdlib `wave` path first, and everything else goes to torchaudio.
+    That order is deliberate: torchaudio 2.9 delegates decoding to TorchCodec, which
+    is a separate install pinned to a particular ffmpeg, and without it every single
+    `load_audio` call logged an ERROR before quietly succeeding on the fallback.
+    A log full of red on a working path is worse than no log — during a demo it
+    sends you hunting the wrong bug.
+
+    WAV is the only format that reaches this function in practice anyway:
+    `server/audio_ingest.py` normalises every upload to 16k mono WAV with ffmpeg
+    before audio_ml sees it.
     """
+    if str(audio_path).lower().endswith(".wav"):
+        audio, sr = _load_audio_wave_fallback(audio_path)
+        if len(audio) > 0:
+            return audio, sr
+        logger.debug(f"load_audio({audio_path}): wave module declined, trying torchaudio")
+
     try:
-        # Use torchaudio for robust cross-format loading
+        # torchaudio for non-WAV, and for WAV variants `wave` cannot parse
+        # (24-bit, float, or WAVE_FORMAT_EXTENSIBLE).
         audio_tensor, sr = torchaudio.load(audio_path)
 
         # Convert to mono if needed
@@ -111,12 +130,6 @@ def load_audio(audio_path: str) -> Tuple[np.ndarray, int]:
 
     except Exception as e:
         logger.error(f"load_audio({audio_path}): {type(e).__name__}: {e}")
-
-        # Fallback: try wave module for .wav files
-        if str(audio_path).lower().endswith('.wav'):
-            logger.info(f"load_audio({audio_path}): trying wave module fallback...")
-            return _load_audio_wave_fallback(audio_path)
-
         return np.array([], dtype=np.float32), TARGET_SR
 
 
@@ -175,20 +188,68 @@ def vad_segments(audio: np.ndarray, sr: int) -> List[Tuple[float, float]]:
 
 def _load_ecapa_model(model_path: Path, device: str = "cpu"):
     """
-    Load ECAPA-TDNN model from SpeechBrain HuggingFace hub.
+    Load ECAPA-TDNN, preferring a local checkpoint directory over the HF cache.
+
+    Three routes, in this order:
+
+      1. `model_path` as a **local source** — if models/ecapa/hyperparams.yaml is
+         present, speechbrain reads the directory directly. No network, no HF cache
+         lookup, no symlinks. This is the route the demo runs on.
+      2. the HF hub id with `savedir`, for a machine that has network and privileges.
+      3. the HF hub id with no `savedir`, resolving from HF_HOME (set by `config`).
+
+    Route 1 exists because of two independent environment facts on the demo machine.
+    Something on the network intercepts TLS with a re-signing root that OpenSSL
+    rejects and browsers tolerate, so *Python cannot download from HuggingFace at
+    all* — `scripts/download_models.py` fails every step with
+    CERTIFICATE_VERIFY_FAILED while PowerShell's Invoke-WebRequest succeeds, because
+    it uses the Windows TLS stack. And speechbrain's `savedir` fetch symlinks by
+    default, which on Windows needs Developer Mode or elevation.
+
+    Fetch the five files into models/ecapa/ with Invoke-WebRequest and route 1
+    handles the rest. Do not disable certificate verification to work around the
+    interception.
 
     Raises:
-        Exception if model cannot be loaded.
+        Exception if the model cannot be loaded by any route.
     """
     from speechbrain.inference import EncoderClassifier
 
-    logger.info(f"Loading ECAPA model from {model_path}...")
-    model = EncoderClassifier.from_hparams(
-        source="speechbrain/spkrec-ecapa-voxceleb",
-        savedir=str(model_path),
-        run_opts={"device": device}
-    )
-    logger.info(f"✓ ECAPA model loaded successfully")
+    if (model_path / "hyperparams.yaml").is_file():
+        logger.info(f"Loading ECAPA model from local directory {model_path}")
+        # `overrides` is load-bearing, not tidiness. The published hyperparams.yaml
+        # sets `pretrained_path: speechbrain/spkrec-ecapa-voxceleb`, and the
+        # Pretrainer resolves its four checkpoint paths against *that* — so a purely
+        # local source still reaches for HuggingFace and dies with no network.
+        # Repointing it at the directory makes the four paths local files.
+        model = EncoderClassifier.from_hparams(
+            source=str(model_path),
+            overrides={"pretrained_path": str(model_path)},
+            run_opts={"device": device},
+        )
+        logger.info("✓ ECAPA model loaded successfully (local, offline)")
+        return model
+
+    source = "speechbrain/spkrec-ecapa-voxceleb"
+    try:
+        logger.info(f"Loading ECAPA model from {source} (savedir={model_path})...")
+        model = EncoderClassifier.from_hparams(
+            source=source,
+            savedir=str(model_path),
+            run_opts={"device": device},
+        )
+    except (OSError, NotImplementedError, PermissionError) as exc:
+        # OSError covers Windows' "a required privilege is not held" symlink error.
+        logger.warning(
+            f"ECAPA savedir load failed ({type(exc).__name__}: {exc}); "
+            "retrying from the HuggingFace cache without savedir"
+        )
+        model = EncoderClassifier.from_hparams(
+            source=source,
+            run_opts={"device": device},
+        )
+
+    logger.info("✓ ECAPA model loaded successfully")
     return model
 
 
@@ -228,11 +289,11 @@ def embed_chunks(
 
     # Load model (cached after first load)
     if _ecapa_model_cache is None:
-        if not ECAPA_MODEL_PATH.exists():
-            raise RuntimeError(
-                f"ECAPA model directory not found at {ECAPA_MODEL_PATH}. "
-                "Cannot proceed without real embeddings."
-            )
+        # No ECAPA_MODEL_PATH.exists() precondition. The model resolves from the
+        # HuggingFace cache under HF_HOME (set by config), which is what
+        # scripts/download_models.py actually populates — it deliberately does not
+        # create models/ecapa/. Checking for that directory rejected a machine
+        # whose model was present and loadable.
         _ecapa_model_cache = _load_ecapa_model(ECAPA_MODEL_PATH, device)
 
     ecapa_model = _ecapa_model_cache

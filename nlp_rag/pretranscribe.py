@@ -37,8 +37,13 @@ logger = logging.getLogger(__name__)
 #: `PLAN.md` §3 puts build artefacts here rather than in root `data/`, which has no owner.
 DEFAULT_CACHE = Path(__file__).resolve().parent / "index" / "pretranscribed.json"
 
-#: What `build` will look at. faster-whisper decodes more, but the demo clips are WAVs.
-AUDIO_SUFFIXES = (".wav", ".mp3", ".m4a", ".ogg", ".flac")
+#: What `build` will look at.
+#:
+#: `.mp4` and `.aac` are here because WhatsApp is how recordings actually reach this team,
+#: and it sends voice notes as `.mp4`. faster-whisper hands decoding to ffmpeg and reads
+#: them fine — the only thing that used to skip them was their absence from this tuple,
+#: silently, since `build` logs nothing for a file it never looks at.
+AUDIO_SUFFIXES = (".wav", ".mp3", ".m4a", ".mp4", ".aac", ".ogg", ".opus", ".flac")
 
 
 def audio_hash(path: str | Path) -> str:
