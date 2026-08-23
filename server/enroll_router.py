@@ -91,23 +91,47 @@ async def enroll_person_endpoint(
             relationship=relation,
             wav_paths=[ingested.normalized_wav_path]
         )
-        if result:
-            # We don't strictly need these for ML (A reads from disk), but we store them for DB constraints/UI
-            wideband_embedding = result.get("wb", [])
-            narrowband_embedding = result.get("nb8k_sim", [])
     except ImportError:
-        log.warning("audio_ml.api not available — storing placeholder embeddings (Block 0/1 mode)")
-        # Placeholder 192-dim zero embedding
-        wideband_embedding = [0.0] * 192
-        narrowband_embedding = [0.0] * 192
+        log.error("audio_ml.api not available — cannot enrol")
+        raise HTTPException(
+            status_code=503,
+            detail="Voice enrollment is unavailable on the server (audio_ml not importable).",
+        )
     except Exception as e:
         log.error(f"enroll_person ML call failed: {e}")
         raise HTTPException(status_code=500, detail=f"Enrollment ML step failed: {str(e)}")
 
-    if not wideband_embedding:
-        wideband_embedding = [0.0] * 192
-    if not narrowband_embedding:
-        narrowband_embedding = [0.0] * 192
+    # `audio_ml.api.enroll_person` never raises (CLAUDE.md rule 5) — it returns None. So a
+    # failure arrives here looking exactly like success, and the endpoint used to fall
+    # through, zero-fill the embedding and return 201 Created.
+    #
+    # That is the worst possible outcome: SQLite gets a person with an all-zero voiceprint
+    # and no .npz is written, so `verify_speaker` globs the directory, does not find them,
+    # and returns `unknown` forever. `unknown` is a legitimate verdict, so nothing errors —
+    # the user simply sees "unverified" for someone they enrolled seconds earlier, and
+    # there is no way to tell that from the app working correctly.
+    if not result:
+        log.error(f"enroll_person returned None for {person_id}; refusing to store a stub")
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Could not build a voiceprint from that recording. Record again with "
+                "more clear speech, closer to the microphone."
+            ),
+        )
+
+    wideband_embedding = result.get("wb") or []
+    narrowband_embedding = result.get("nb8k_sim") or []
+
+    # The .npz on disk is what verify_speaker actually reads; the DB copy is for the UI.
+    # If the file is missing the enrollment did not happen, whatever the dict says.
+    voiceprint_file = config.ENROLLMENTS_DIR / f"{person_id}.npz"
+    if not voiceprint_file.is_file():
+        log.error(f"no voiceprint written at {voiceprint_file}")
+        raise HTTPException(
+            status_code=500,
+            detail="The voiceprint could not be saved. Please try again.",
+        )
 
 
     # ── Store voiceprints (wideband + narrowband) ─────────────────────

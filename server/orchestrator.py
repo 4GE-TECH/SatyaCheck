@@ -492,6 +492,17 @@ async def screen_audio(
 
     # ── Quality gate: early exit ──────────────────────────────────────
     if not audio.quality.passed:
+        # Log it. This branch used to return in silence, so a call whose audio was captured,
+        # sent and received still produced no server-side trace at all — indistinguishable
+        # from audio that never arrived. Every "everything comes back unverified" report
+        # lands here, and without this line there is nothing to diagnose it with.
+        log.info(
+            f"[{session_id}] quality gate REJECTED: {audio.quality.reason} "
+            f"(speech={audio.quality.speech_duration_s:.2f}s "
+            f"snr={audio.quality.snr_db:.2f}dB "
+            f"min_speech={audio.quality.min_speech_threshold_s}s "
+            f"min_snr={audio.quality.min_snr_threshold_db}dB)"
+        )
         fusion = TrustScoreResult.insufficient(reason=audio.quality.reason or "Quality gate failed")
         elapsed_ms = round((time.perf_counter() - t_start) * 1000, 1)
         return ScreeningResponse(
