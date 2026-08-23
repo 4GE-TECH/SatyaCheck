@@ -1,6 +1,9 @@
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
+*.so
+.Python
 .venv/
 venv/
 *.db
@@ -15,6 +18,22 @@ nlp_rag/index/
 data/faiss_index.bin
 data/faiss_docstore.pkl
 .env
+
+# Audio files (raw or temporary)
+*.wav
+*.flac
+*.m4a
+*.mp3
+
+# EXCEPT: evaluation and demo clips — this exception is what lets A's recorded
+# clips reach the repo at all. data/demo_clips/ is ignored above, so `git add`
+# there is a silent no-op.
+!data/eval_set/clips/*.wav
+
+# Temporary/test files
+test_tone.wav
+setup.ps1
+*.tmp
 *.log
 node_modules/
 web/dist/

@@ -1,8 +1,9 @@
 import { useRef, useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { MockScenario } from "../api/mock";
 import { GlassButton } from "@/components/ui/glass-button";
 import { BackgroundCircles } from "@/components/ui/background-circles";
-import { UploadCloud } from "lucide-react";
+import { UploadCloud, ChevronDown, ChevronUp } from "lucide-react";
 
 interface IdleCheckScreenProps {
   onSelectScenario: (scenario: MockScenario) => void;
@@ -52,6 +53,13 @@ export default function IdleCheckScreen({
   onUploadFile,
   isLoading,
 }: IdleCheckScreenProps) {
+  const [searchParams] = useSearchParams();
+  const isDemoParam =
+    searchParams.get("demo") === "true" ||
+    searchParams.get("demo") === "1" ||
+    searchParams.get("judge") === "true";
+
+  const [showDemoTools, setShowDemoTools] = useState(isDemoParam);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isListening, setIsListening] = useState(false);
   const [listenTimer, setListenTimer] = useState(0);
@@ -133,23 +141,42 @@ export default function IdleCheckScreen({
         </div>
       </div>
 
-      {/* ── Discrete Demo Case Selector for Testing (Glass Buttons) ── */}
-      <div className="sec-card-subtle p-5 sm:p-6 text-center space-y-3.5">
-        <div className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">
-          Test All 6 Verification Bands (Judge Evaluation Presets):
+      {/* ── Demo / Judge Preset Controls (Gated & Collapsible) ── */}
+      <div className="space-y-3">
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setShowDemoTools(!showDemoTools)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer bg-transparent border border-[var(--border-subtle)] hover:border-[var(--border-default)] rounded-md"
+          >
+            <span>Judge & Dev Demo Presets</span>
+            {showDemoTools ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-2.5">
-          {PRESET_PILLS.map((pill) => (
-            <GlassButton
-              key={pill.scenario}
-              onClick={() => onSelectScenario(pill.scenario)}
-              variant={pill.variant}
-              size="sm"
-              label={pill.label}
-            />
-          ))}
-        </div>
+        {showDemoTools && (
+          <div className="sec-card-subtle p-5 sm:p-6 text-center space-y-3.5 animate-in fade-in duration-200">
+            <div className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase tracking-wider">
+              Test All 6 Verification Bands (Judge Evaluation Presets):
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              {PRESET_PILLS.map((pill) => (
+                <GlassButton
+                  key={pill.scenario}
+                  onClick={() => onSelectScenario(pill.scenario)}
+                  variant={pill.variant}
+                  size="sm"
+                  label={pill.label}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

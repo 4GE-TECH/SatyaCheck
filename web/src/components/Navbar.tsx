@@ -61,14 +61,20 @@ export default function Navbar() {
         </nav>
 
         {/* Right Controls: Helpline + Theme Toggle */}
-        <div className="flex items-center gap-2.5">
-          <a href="tel:1930" className="hidden md:inline-block no-underline">
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <a
+            href="tel:1930"
+            className="inline-block no-underline"
+            title="National Cybercrime Helpline: 1930"
+          >
             <GlassButton
               variant="danger"
               size="sm"
-              label="Helpline: 1930"
-              icon={<span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-            />
+              icon={<span className="w-2 h-2 rounded-full bg-white animate-pulse" />}
+            >
+              <span className="hidden sm:inline">Helpline: </span>
+              <span>1930</span>
+            </GlassButton>
           </a>
 
           <ThemeToggle />
