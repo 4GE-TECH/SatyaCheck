@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- No package= attribute. AGP 8+ rejects it outright ("Setting the namespace via the
+     package attribute in the source AndroidManifest.xml is no longer supported"); the
+     namespace lives in app/build.gradle instead. The M0 scaffold still had it. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- M1 · call state.
+         READ_PHONE_STATE is a runtime permission on API 23+; the manifest entry alone is
+         not enough and the user must grant it from inside the app. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <!-- M2 · the overlay.
+         SYSTEM_ALERT_WINDOW is NOT grantable through the normal runtime-permission dialog.
+         The user has to approve it on a dedicated settings screen, which the app opens via
+         ACTION_MANAGE_OVERLAY_PERMISSION. See OverlayManager.kt. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- M3 · audio capture.
+         Note what is NOT here: CAPTURE_AUDIO_OUTPUT. It is a signature-level permission
+         that third-party apps cannot hold, which is precisely why the far end is captured
+         acoustically over speakerphone rather than tapped from the call stream. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- The capture must survive the user leaving the app during a call, so it runs in a
+         foreground service. From API 34 a typed FOREGROUND_SERVICE_* permission is
+         mandatory and the service must declare a matching foregroundServiceType, or
+         startForeground throws at runtime. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <!-- M6 · notifications. Runtime-granted from API 33. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- M5 · the LAN backend. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:label="SatyaCheck"
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- M1 · fires on every call state transition.
+             exported="true" is required: the broadcast originates from the system, not
+             from this app, and an unexported receiver never hears it. -->
+        <receiver
+            android:name=".CallStateReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- M3 · holds the microphone for the duration of the call.
+             foregroundServiceType="microphone" must match the
+             FOREGROUND_SERVICE_MICROPHONE permission above. -->
+        <service
+            android:name=".CallAudioService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- Don't delete the meta-data below.
+             This is required by the Flutter runtime to display the correct
+             Android Platform Channel version to the Dart side of the
+             FlutterEngine. -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+</manifest>

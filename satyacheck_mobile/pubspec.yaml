@@ -1,0 +1,30 @@
+name: satyacheck
+description: "Voice-clone scam detector for Android."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Demo audio, bundled so the walkthrough needs no network, no second handset and no
+  # speakerphone. Each clip is screened through the real backend over the real API — the
+  # only thing skipped is the microphone, which Android forbids us during a call anyway.
+  assets:
+    - assets/demo/genuine.wav
+    - assets/demo/clone.wav
+    - assets/demo/stranger.wav
