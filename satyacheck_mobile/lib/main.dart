@@ -512,9 +512,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               enableSuggestions: false,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _saveBackendUrl(),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 isDense: true,
-                border: const OutlineInputBorder(),
+                border: OutlineInputBorder(),
                 hintText: 'https://xyz.trycloudflare.com',
                 helperText: 'Leave empty to use ${ApiClient.defaultBaseUrl}',
                 helperMaxLines: 2,
