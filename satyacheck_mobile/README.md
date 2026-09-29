@@ -125,7 +125,7 @@ still have to tap Speaker; the overlay says so when the request is refused.
 
 ```
 CallStateReceiver   PHONE_STATE -> RINGING / OFFHOOK / IDLE, de-duplicated
-CallAudioService    foreground service, holds the mic, 9s windows / 3s overlap
+CallAudioService    foreground service, holds the mic, 3s chunks, no overlap
 RingBuffer          pure arithmetic, unit-tested without a device
 OverlayManager      SYSTEM_ALERT_WINDOW banner
 VoiceRecorder       enrollment capture with live level metering
@@ -136,10 +136,20 @@ lib/call_session    orchestration; owns the WebSocket
 lib/api_client      the only place that makes network calls
 ```
 
-**9-second windows, not 3.** Whisper does not stay quiet on too-little audio — it invents
-fluent sentences. Measured on the same recording: a 3s slice returned *"alert can product us
-from with the minger next week"*; the 9s window returned the actual sentence. The ASR gate
-checks `no_speech_prob` and repetition, and a fluent hallucination trips neither.
+**3-second chunks, scored on 9 seconds.** Whisper does not stay quiet on too-little audio —
+it invents fluent sentences. Measured on the same recording: a 3s slice returned *"alert can
+product us from with the minger next week"*; the 9s window returned the actual sentence. The
+ASR gate checks `no_speech_prob` and repetition, and a fluent hallucination trips neither.
+So the app sends 3s chunks and the backend's WebSocket session keeps a rolling buffer,
+scoring the trailing 9s on every chunk (`STREAM_CONTEXT_S`): a long window for Whisper, a
+fresh verdict every 3s.
+
+## Backend address
+
+The home screen has a **Screening server** field. It takes a full base URL —
+`https://xyz.trycloudflare.com` or `http://192.168.137.1:8000` — and is saved across
+restarts. A saved address wins over `SATYACHECK_BACKEND`; clear the field and save to go
+back to the build's default. The WebSocket scheme follows it: `http` → `ws`, `https` → `wss`.
 
 ---
 
