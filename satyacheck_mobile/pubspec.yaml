@@ -12,6 +12,8 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
+  # The backend address typed on the home screen, kept across restarts.
+  shared_preferences: ^2.3.0
 
 dev_dependencies:
   flutter_test:

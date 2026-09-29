@@ -21,9 +21,12 @@ import 'models.dart';
 /// subnet must leave the call untouched — a screening app that interferes with answering
 /// the phone is worse than no screening app.
 class ApiClient {
-  ApiClient({String? baseUrl}) : _baseUrl = baseUrl ?? defaultBaseUrl;
+  ApiClient({String? baseUrl}) {
+    this.baseUrl = baseUrl ?? defaultBaseUrl;
+  }
 
-  /// Where the backend lives, from the phone's point of view.
+  /// Where the backend lives, from the phone's point of view, until the user sets one on
+  /// the home screen (which is saved and wins over this on later launches).
   ///
   /// Defaults to `localhost:8000` because the intended transport is a **USB tunnel**:
   ///
@@ -45,9 +48,44 @@ class ApiClient {
     defaultValue: 'http://localhost:8000',
   );
 
-  final String _baseUrl;
+  late String _baseUrl;
 
   String get baseUrl => _baseUrl;
+
+  /// Point every later request at another backend. Shared by the session and the
+  /// enrollment screen, so a change here applies to both.
+  set baseUrl(String value) => _baseUrl = normaliseBaseUrl(value) ?? value;
+
+  /// `input` as an absolute http(s) base URL with no trailing slash, or null if it is not
+  /// one. Everything else here appends `/api/...` to it, so `…/` and `…` must be the same.
+  static String? normaliseBaseUrl(String input) {
+    final uri = Uri.tryParse(input.trim());
+    if (uri == null ||
+        !(uri.isScheme('http') || uri.isScheme('https')) ||
+        uri.host.isEmpty) {
+      return null;
+    }
+    var path = uri.path;
+    while (path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
+    }
+    return '${uri.scheme}://${uri.authority}$path';
+  }
+
+  /// The WebSocket equivalent of an http(s) base URL: `http` → `ws`, `https` → `wss`.
+  ///
+  /// Spelled out rather than `replaceFirst('http', 'ws')`, which gets `https` right only
+  /// by the accident that `wss` is `ws` + `s`. A Cloudflare tunnel is https-only, so the
+  /// secure case is the one the demo depends on.
+  static String webSocketUrlFor(String httpBaseUrl) {
+    if (httpBaseUrl.startsWith('https://')) {
+      return 'wss://${httpBaseUrl.substring('https://'.length)}';
+    }
+    if (httpBaseUrl.startsWith('http://')) {
+      return 'ws://${httpBaseUrl.substring('http://'.length)}';
+    }
+    return httpBaseUrl;
+  }
 
   /// Is the backend reachable? Short timeout: this is called before a call is answered.
   Future<bool> ping() async {
@@ -199,11 +237,12 @@ class ApiClient {
 
   /// Open a streaming screening session. Returns null if the socket cannot be opened.
   Future<ScreeningSocket?> openStream(String sessionId) async {
+    final url = '${webSocketUrlFor(_baseUrl)}/api/ws/screen/$sessionId';
     try {
-      final url = '${_baseUrl.replaceFirst('http', 'ws')}/api/ws/screen/$sessionId';
       final socket = await WebSocket.connect(url).timeout(const Duration(seconds: 8));
       return ScreeningSocket._(socket, sessionId);
-    } catch (_) {
+    } catch (exc) {
+      print('SC/Api: WebSocket $url failed: $exc');
       return null;
     }
   }

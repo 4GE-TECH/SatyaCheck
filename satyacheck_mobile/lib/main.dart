@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 import 'call_session.dart';
@@ -51,6 +52,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _api = ApiClient();
   late final CallSession _session = CallSession(api: _api);
 
+  /// Where the server address typed on this screen is kept between launches.
+  static const _backendUrlKey = 'backend_url';
+  final _backendUrl = TextEditingController();
+
   StreamSubscription<CallSessionState>? _states;
 
   Permissions _permissions = Permissions.none;
@@ -64,7 +69,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _session.start();
     _states = _session.states.listen((s) => setState(() => _state = s));
-    _refresh();
+    _loadBackendUrl();
   }
 
   @override
@@ -72,7 +77,56 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _states?.cancel();
     _session.dispose();
+    _backendUrl.dispose();
     super.dispose();
+  }
+
+  /// Restore the server address saved on an earlier launch, then check it.
+  ///
+  /// A saved address wins over the build's `SATYACHECK_BACKEND`: a Cloudflare quick tunnel
+  /// gets a new hostname every time it restarts, and retyping it beats rebuilding the APK.
+  Future<void> _loadBackendUrl() async {
+    try {
+      final saved = (await SharedPreferences.getInstance()).getString(_backendUrlKey);
+      final url = saved == null ? null : ApiClient.normaliseBaseUrl(saved);
+      if (url != null) _api.baseUrl = url;
+    } catch (exc) {
+      print('SC/Home: could not read the saved server address ($exc); '
+          'using ${_api.baseUrl}');
+    }
+    _backendUrl.text = _api.baseUrl;
+    await _refresh();
+  }
+
+  /// Save the address typed on this screen and test it. Empty means the build's default.
+  Future<void> _saveBackendUrl() async {
+    final typed = _backendUrl.text.trim();
+    final url = typed.isEmpty
+        ? ApiClient.defaultBaseUrl
+        : ApiClient.normaliseBaseUrl(typed);
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Enter a full address starting with http:// or https://'),
+      ));
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    _api.baseUrl = url;
+    _backendUrl.text = _api.baseUrl;
+    setState(() => _backendUp = null);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (typed.isEmpty) {
+        await prefs.remove(_backendUrlKey);
+      } else {
+        await prefs.setString(_backendUrlKey, _api.baseUrl);
+      }
+    } catch (exc) {
+      // Still usable for this launch; it just will not survive a restart.
+      print('SC/Home: could not save the server address ($exc)');
+    }
+    await _refresh();
   }
 
   @override
@@ -136,6 +190,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             const SizedBox(height: 20),
             _captureTest(context),
           ],
+          const SizedBox(height: 20),
+          _server(context),
           const SizedBox(height: 24),
           _history(context),
         ],
@@ -208,8 +264,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               Text(
-                'Tried ${_api.baseUrl}. Check the phone and the server are on the same '
-                'Wi-Fi, and that the server is running.',
+                'Tried ${_api.baseUrl}. Check the address under Screening server below, '
+                'and that the server and its tunnel are running.',
                 style: const TextStyle(fontSize: 13, color: Colors.white70),
               ),
               const SizedBox(height: 10),
@@ -418,6 +474,62 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
         ),
       );
+
+  // --- server ----------------------------------------------------------------
+
+  /// Where the backend is, and whether it answered `/api/health`.
+  ///
+  /// Editable because the demo backend sits behind a tunnel whose address changes, and
+  /// rebuilding the APK to follow it is not an option on the day.
+  Widget _server(BuildContext context) {
+    final (colour, status) = switch (_backendUp) {
+      true => (_signalColors[Signal.green]!, 'Connected'),
+      false => (_signalColors[Signal.red]!, 'Not reachable'),
+      null => (_signalColors[Signal.grey]!, 'Checking…'),
+    };
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Screening server',
+                      style: Theme.of(context).textTheme.titleMedium),
+                ),
+                Icon(Icons.circle, size: 12, color: colour),
+                const SizedBox(width: 6),
+                Text(status, style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _backendUrl,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              enableSuggestions: false,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _saveBackendUrl(),
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                hintText: 'https://xyz.trycloudflare.com',
+                helperText: 'Leave empty to use ${ApiClient.defaultBaseUrl}',
+                helperMaxLines: 2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonal(
+              onPressed: _saveBackendUrl,
+              child: const Text('Save and test'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   // --- history ---------------------------------------------------------------
 
