@@ -67,6 +67,29 @@ enum TrustBand {
 
 enum Signal { green, amber, red, grey }
 
+/// The `overlay_update` frame the WebSocket sends after each `screening_update`.
+///
+/// Not a `contracts.py` mirror — `server/ws_router.py` builds it, pre-flattened so the
+/// overlay can be drawn without walking a whole `ScreeningResponse`. Only the two fields
+/// the overlay renders are read.
+class OverlayUpdate {
+  const OverlayUpdate({required this.signal, this.evidence});
+
+  /// `state` on the wire. Anything unrecognised is grey, never green.
+  final Signal signal;
+
+  /// The strongest incriminating phrase, or null when nothing stood out.
+  final String? evidence;
+
+  factory OverlayUpdate.fromJson(Map<String, dynamic> json) {
+    final evidence = (json['evidence'] as String?)?.trim();
+    return OverlayUpdate(
+      signal: Signal.values.asNameMap()[json['state']] ?? Signal.grey,
+      evidence: evidence == null || evidence.isEmpty ? null : evidence,
+    );
+  }
+}
+
 /// One line of evidence behind the score.
 class ReasonCode {
   const ReasonCode({

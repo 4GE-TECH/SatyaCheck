@@ -37,6 +37,7 @@ class CallSession {
   ScreeningSocket? _socket;
   CallRecord? _current;
   ScreeningResult? _latest;
+  OverlayUpdate? _overlay;
   int _chunksSent = 0;
   bool _started = false;
 
@@ -74,6 +75,7 @@ class CallSession {
   Future<void> startManualCapture() async {
     _current = CallRecord(startedAt: DateTime.now(), number: 'Manual test');
     _latest = null;
+    _overlay = null;
     _chunksSent = 0;
     _emit(CallPhase.screening);
     await _bridge.updateOverlay('Listening…');
@@ -140,10 +142,6 @@ class CallSession {
 
     _latest = result;
     _current?.result = result;
-    await _bridge.updateOverlay(
-      _overlayText(result),
-      signal: _signalName(result.signal),
-    );
     await _finish();
   }
 
@@ -159,6 +157,7 @@ class CallSession {
       case CallState.ringing:
         _current = CallRecord(startedAt: DateTime.now(), number: event.number);
         _latest = null;
+        _overlay = null;
         _chunksSent = 0;
         _emit(CallPhase.ringing);
         // Grey, not green. Nothing has been screened yet, and green would be a claim.
@@ -204,6 +203,7 @@ class CallSession {
     _socket = socket;
     print('SC/Session: socket $id open');
     socket.updates.listen(_onVerdict);
+    socket.overlays.listen(_onOverlay);
   }
 
   void _onAudioChunk(AudioChunk chunk) {
@@ -225,7 +225,9 @@ class CallSession {
     _latest = result;
     _current?.result = result;
     _emit(CallPhase.screening);
-    _bridge.updateOverlay(_overlayText(result), signal: _signalName(result.signal));
+    // The overlay_update for this chunk follows immediately and draws the overlay with its
+    // quote. Drawing here as well is only for a backend that never sends one.
+    if (_overlay == null) _renderOverlay();
 
     // Notify mid-call only when it is red. That is the one verdict worth interrupting a
     // live conversation for, and it is the moment the warning can still change what the
@@ -237,6 +239,11 @@ class CallSession {
         body: _notificationBody(result),
       );
     }
+  }
+
+  void _onOverlay(OverlayUpdate update) {
+    _overlay = update;
+    _renderOverlay();
   }
 
   Future<void> _finish() async {
@@ -260,7 +267,7 @@ class CallSession {
 
     final result = _latest;
     if (result != null) {
-      _bridge.updateOverlay(_overlayText(result), signal: _signalName(result.signal));
+      _renderOverlay();
       // Leave the verdict on screen briefly — the user has just hung up and this is the
       // moment they decide whether to call back.
       Future<void>.delayed(const Duration(seconds: 8), _bridge.hideOverlay);
@@ -279,10 +286,44 @@ class CallSession {
 
   // --- presentation ----------------------------------------------------------
 
-  String _overlayText(ScreeningResult result) {
-    switch (result.signal) {
+  /// Draw the overlay: a state line, then the evidence in quotes when there is some.
+  ///
+  /// Colour comes from the latest `overlay_update`, or from the full verdict if none has
+  /// arrived. Nothing is drawn before either, so "Checking this call…" stays up.
+  void _renderOverlay() {
+    final result = _latest;
+    final signal = _overlay?.signal ?? result?.signal;
+    if (signal == null) return;
+
+    final line = _stateLine(signal, result?.matchedPersonName);
+    final quote = _quotable(_overlay?.evidence, signal, result);
+    _bridge.updateOverlay(
+      quote == null ? line : '$line\n“$quote”',
+      signal: _signalName(signal),
+    );
+  }
+
+  /// The evidence phrase, if it should be put in quotation marks under [signal].
+  ///
+  /// Amber and red only: under grey or green a quoted phrase reads as an accusation the
+  /// score does not make. And only words the caller actually said — when no marker fires,
+  /// the backend's `evidence` falls back to the top playbook's excerpt, which is corpus
+  /// text, and quoting it would put someone else's words in the caller's mouth. Marker
+  /// text is an exact slice of the transcript, so the transcript is the test.
+  String? _quotable(String? evidence, Signal signal, ScreeningResult? result) {
+    if (evidence == null) return null;
+    if (signal != Signal.amber && signal != Signal.red) return null;
+    final transcript = result?.transcript.toLowerCase() ?? '';
+    if (!transcript.contains(evidence.toLowerCase())) {
+      print('SC/Session: evidence is not in the transcript, not quoting it: "$evidence"');
+      return null;
+    }
+    return evidence;
+  }
+
+  String _stateLine(Signal signal, String? who) {
+    switch (signal) {
       case Signal.green:
-        final who = result.matchedPersonName;
         return who == null ? 'Verified caller' : 'Verified: $who';
       case Signal.amber:
         return 'Caution — verify before acting';

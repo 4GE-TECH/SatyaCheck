@@ -253,8 +253,11 @@ class ScreeningSocket {
   ScreeningSocket._(this._socket, this.sessionId) {
     _socket.listen(
       _onMessage,
-      onDone: () => _updates.isClosed ? null : _updates.close(),
-      onError: (_) => _updates.isClosed ? null : _updates.close(),
+      onDone: _onClosed,
+      onError: (Object exc) {
+        print('SC/Api: socket $sessionId error: $exc');
+        _onClosed();
+      },
       cancelOnError: true,
     );
   }
@@ -262,6 +265,8 @@ class ScreeningSocket {
   final WebSocket _socket;
   final String sessionId;
   final _updates = StreamController<ScreeningResult>.broadcast();
+  final _overlays = StreamController<OverlayUpdate>.broadcast();
+  final _done = Completer<void>();
 
   int _chunkIndex = 0;
   bool _closed = false;
@@ -271,16 +276,41 @@ class ScreeningSocket {
   /// undone by a benign closing sentence.
   Stream<ScreeningResult> get updates => _updates.stream;
 
+  /// What the overlay should show, sent by the backend right after each [updates] entry
+  /// for the same chunk.
+  Stream<OverlayUpdate> get overlays => _overlays.stream;
+
+  /// Completes when the socket closes, from either end. The backend closes it after
+  /// scoring a chunk sent with `isFinal`, so this is how to wait for the last verdict.
+  Future<void> get done => _done.future;
+
   void _onMessage(dynamic raw) {
     try {
       final msg = jsonDecode(raw as String) as Map<String, dynamic>;
-      if (msg['type'] != 'screening_update') return;
-      final response = (msg['response'] as Map?)?.cast<String, dynamic>();
-      if (response == null) return;
-      if (!_updates.isClosed) _updates.add(ScreeningResult.fromJson(response));
+      switch (msg['type']) {
+        case 'screening_update':
+          final response = (msg['response'] as Map?)?.cast<String, dynamic>();
+          if (response == null) return;
+          if (!_updates.isClosed) _updates.add(ScreeningResult.fromJson(response));
+          break;
+        case 'overlay_update':
+          if (!_overlays.isClosed) _overlays.add(OverlayUpdate.fromJson(msg));
+          break;
+        case 'error':
+          // The backend rejected a chunk. Nothing to show, but say why, or a session that
+          // scores nothing looks the same as one that was never sent audio.
+          print('SC/Api: socket $sessionId server error: ${msg['detail']}');
+          break;
+      }
     } catch (_) {
       // A malformed frame must not tear down a call in progress.
     }
+  }
+
+  void _onClosed() {
+    if (!_updates.isClosed) _updates.close();
+    if (!_overlays.isClosed) _overlays.close();
+    if (!_done.isCompleted) _done.complete();
   }
 
   /// Send one window of audio. `wav` should be a complete RIFF file.
@@ -305,6 +335,6 @@ class ScreeningSocket {
     try {
       await _socket.close();
     } catch (_) {}
-    if (!_updates.isClosed) await _updates.close();
+    _onClosed();
   }
 }
