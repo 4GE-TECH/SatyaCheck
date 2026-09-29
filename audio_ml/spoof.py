@@ -1,16 +1,42 @@
 """
-audio_ml/spoof.py — Synthetic voice detection via anti-spoof model.
+audio_ml/spoof.py — Synthetic voice detection with Model A (fine-tuned AASIST).
 
-Pure pretrained inference. No training, no network calls.
-All errors caught internally; public functions return valid defaults.
+Model A is raw-waveform AASIST, 16 kHz, fixed 64,600-sample input, fine-tuned by
+Nikhil on IFD (checkpoint `best_model.pth`, "baseline" run: clean-audio training). It
+is the one fine-tuned model in this build — CLAUDE.md rule 1 ("we train nothing") has
+this documented exception; everything else is pretrained inference.
+
+Files, all under models/antispoof/ (gitignored, loaded by path, never downloaded at
+runtime — CLAUDE.md rule 4):
+
+    AASIST.py      model definition, official clovaai/aasist (MIT, NAVER Corp)
+    AASIST.conf    official model_config for that architecture
+    LICENSE        clovaai/aasist licence, kept beside the code it covers
+    model_a.pth    the checkpoint (a wrapper dict with `state_dict`)
+
+Inference is deterministic: `model.eval()`, `Freq_aug=False`, no random cropping —
+every window is a fixed slice of the file, and audio shorter than one window is tiled
+(repeated), not zero-padded or randomly placed.
+
+Output convention (clovaai): logits[:, 1] is bonafide, logits[:, 0] is spoof, so
+P(synthetic) = softmax(logits)[:, 0].
+
+It is a risk *multiplier* gated by intent (server/orchestrator.py fusion), never a
+standalone verdict. If anything is missing or fails, `detect_spoof` returns the
+neutral SpoofSignal(score=0.5, verdict="uncertain", n_chunks=0) and logs why;
+server/audio_adapter.py then marks the branch unavailable so fusion drops its weight.
 """
 
 from __future__ import annotations
 
+import importlib.util
+import json
 import logging
-import numpy as np
+import threading
 from pathlib import Path
 from typing import List, Tuple
+
+import numpy as np
 
 from . import embed
 from .spoof_aggregate import aggregate
@@ -18,149 +44,149 @@ from audio_ml.signals import SpoofSignal
 
 logger = logging.getLogger(__name__)
 
-# Model paths
-MODELS_DIR = Path(__file__).parent.parent / "models"
-ANTISPOOF_MODEL_PATH = MODELS_DIR / "antispoof"
+try:
+    import config as _config
+except ImportError:  # pragma: no cover
+    _config = None
 
-# Audio constants from embed.py
+_MODELS_DIR = Path(getattr(_config, "MODELS_DIR", Path(__file__).resolve().parent.parent / "models"))
+ANTISPOOF_DIR: Path = _MODELS_DIR / "antispoof"
+WEIGHTS_NAME = "model_a.pth"
+
 TARGET_SR = 16000
-CHUNK_LENGTH_S = 3.0
-CHUNK_OVERLAP_S = 1.0
+WINDOW_SAMPLES = 64600                                     # fixed by the architecture
+HOP_S: float = float(getattr(_config, "SPOOF_HOP_S", 2.0))  # timeline granularity
+
+_model = None
+_load_attempted = False
+_lock = threading.Lock()
 
 
-def _load_antispoof_model():
+def model_files_present() -> bool:
+    return all((ANTISPOOF_DIR / f).is_file() for f in ("AASIST.py", "AASIST.conf", WEIGHTS_NAME))
+
+
+def _neutral() -> SpoofSignal:
+    return SpoofSignal(score=0.5, verdict="uncertain")
+
+
+def _load_model():
+    """Load once and cache. Never retry a failure — this sits in the request path."""
+    global _model, _load_attempted
+    if _load_attempted:
+        return _model
+    with _lock:
+        if _load_attempted:
+            return _model
+        _load_attempted = True
+
+        if not model_files_present():
+            logger.warning(
+                "anti-spoof: Model A not found in %s (need AASIST.py, AASIST.conf, %s); "
+                "branch abstains", ANTISPOOF_DIR, WEIGHTS_NAME,
+            )
+            return None
+        try:
+            import torch
+
+            spec = importlib.util.spec_from_file_location("satyacheck_aasist", ANTISPOOF_DIR / "AASIST.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            d_args = json.loads((ANTISPOOF_DIR / "AASIST.conf").read_text())["model_config"]
+            model = module.Model(d_args)
+
+            checkpoint = torch.load(ANTISPOOF_DIR / WEIGHTS_NAME, map_location="cpu", weights_only=False)
+            state = checkpoint.get("state_dict", checkpoint) if isinstance(checkpoint, dict) else checkpoint
+            model.load_state_dict(state, strict=True)
+            model.eval()
+            _model = model
+            logger.info("anti-spoof: Model A loaded (epoch %s)", checkpoint.get("epoch") if isinstance(checkpoint, dict) else "?")
+        except Exception as exc:  # noqa: BLE001 - any load failure degrades identically
+            logger.error("anti-spoof: Model A failed to load (%s: %s); branch abstains", type(exc).__name__, exc)
+            _model = None
+        return _model
+
+
+def _windows(audio: np.ndarray, sr: int) -> Tuple[List[np.ndarray], List[Tuple[float, float]]]:
+    """Deterministic fixed-length windows covering the whole file.
+
+    Shorter than one window: tile (repeat) to length — the same padding the model was
+    trained with. Longer: windows every HOP_S, plus one final window aligned to the end
+    so the tail is always scored.
     """
-    Load pretrained anti-spoof model.
+    n = len(audio)
+    if n == 0:
+        return [], []
+    if n <= WINDOW_SAMPLES:
+        reps = int(np.ceil(WINDOW_SAMPLES / n))
+        return [np.tile(audio, reps)[:WINDOW_SAMPLES]], [(0.0, n / sr)]
 
-    Placeholder for Block 3 integration. Currently unavailable on this machine.
-    Returns None; detect_spoof() will return neutral default (score=0.5).
-
-    Returns:
-        None (model not yet available)
-    """
-    logger.warning(
-        "Anti-spoof model unavailable on this machine. "
-        "detect_spoof() will return neutral score (0.5) with verdict='uncertain'. "
-        "Real model checkpoint will be integrated in Block 3."
-    )
-    return None
-
-
-# Global model cache
-_antispoof_model_cache = None
+    hop = max(1, int(HOP_S * sr))
+    starts = list(range(0, n - WINDOW_SAMPLES + 1, hop))
+    if starts[-1] != n - WINDOW_SAMPLES:
+        starts.append(n - WINDOW_SAMPLES)
+    chunks = [audio[s:s + WINDOW_SAMPLES] for s in starts]
+    spans = [(s / sr, (s + WINDOW_SAMPLES) / sr) for s in starts]
+    return chunks, spans
 
 
 def detect_spoof(wav_path: str) -> SpoofSignal:
-    """
-    Detect synthetic speech in audio file.
+    """P(synthetic) per window, aggregated to median / peak / max run / timeline.
 
-    Placeholder implementation: returns neutral default until anti-spoof
-    model is available (Block 3). Chunking and aggregation logic are in place
-    for easy integration of the real model.
-
-    Args:
-        wav_path: Path to audio file (wav, mp3, m4a, etc.)
-
-    Returns:
-        SpoofSignal(score=0.5, verdict="uncertain") — neutral default.
-        Never raises.
-
-    Behavior:
-        - Anti-spoof model unavailable on this machine.
-        - Returns neutral default with clear warning log.
-        - Structure preserved for real model integration in Block 3.
+    Never raises. Neutral SpoofSignal (0.5, "uncertain", n_chunks=0) on any failure.
     """
     try:
-        # Load audio (validates file exists and is readable)
+        model = _load_model()
+        if model is None:
+            return _neutral()
+
         audio, sr = embed.load_audio(wav_path)
-
         if len(audio) == 0:
-            logger.warning(f"detect_spoof({wav_path}): audio is empty")
-            return SpoofSignal(score=0.5, verdict="uncertain")
+            logger.warning("detect_spoof(%s): empty audio; branch abstains", wav_path)
+            return _neutral()
 
-        # BLOCK 3: Real model will be integrated here.
-        # For now, return neutral default.
+        chunks, spans = _windows(np.asarray(audio, dtype=np.float32), sr)
+        if not chunks:
+            return _neutral()
+
+        import torch
+
+        with torch.no_grad():
+            batch = torch.from_numpy(np.stack(chunks)).float()
+            _, logits = model(batch, Freq_aug=False)
+            p_synthetic = torch.softmax(logits, dim=1)[:, 0].cpu().numpy().tolist()
+
+        result = aggregate(p_synthetic, spans)
         logger.info(
-            f"detect_spoof({wav_path}): anti-spoof model unavailable, "
-            "returning neutral verdict"
+            "detect_spoof(%s): %d window(s), median=%.3f peak=%.3f verdict=%s",
+            wav_path, len(chunks), result.score, result.peak, result.verdict,
         )
-        return SpoofSignal(score=0.5, verdict="uncertain")
-
-        # ===== BLOCK 3: Replace above with real model =====
-        # Load model (cached)
-        # global _antispoof_model_cache
-        # if _antispoof_model_cache is None:
-        #     _antispoof_model_cache = _load_antispoof_model()
-        # model = _antispoof_model_cache
-        # if model is None:
-        #     return SpoofSignal(score=0.5, verdict="uncertain")
-        #
-        # # Extract chunks with 3s length and 1s overlap
-        # chunk_samples = int(CHUNK_LENGTH_S * sr)
-        # overlap_samples = int(CHUNK_OVERLAP_S * sr)
-        # stride_samples = chunk_samples - overlap_samples
-        # chunk_scores = []
-        # chunk_spans = []
-        # pos = 0
-        # while pos + chunk_samples <= len(audio):
-        #     chunk = audio[pos : pos + chunk_samples]
-        #     start_s = pos / sr
-        #     end_s = (pos + chunk_samples) / sr
-        #     score = _score_chunk(model, chunk, sr)
-        #     chunk_scores.append(score)
-        #     chunk_spans.append((start_s, end_s))
-        #     pos += stride_samples
-        # if not chunk_scores:
-        #     return SpoofSignal(score=0.5, verdict="uncertain")
-        # result = aggregate(chunk_scores, chunk_spans)
-        # logger.info(f"detect_spoof({wav_path}): {len(chunk_scores)} chunk(s), verdict={result.verdict}")
-        # return result
-        # ===== END BLOCK 3 =====
-
-    except Exception as e:
-        logger.error(f"detect_spoof({wav_path}): {type(e).__name__}: {e}")
-        return SpoofSignal(score=0.5, verdict="uncertain")
+        return result
+    except Exception as exc:  # noqa: BLE001
+        logger.error("detect_spoof(%s): %s: %s", wav_path, type(exc).__name__, exc)
+        return _neutral()
 
 
 if __name__ == "__main__":
-    """
-    Smoke test: verify detect_spoof returns valid SpoofSignal.
-    """
     import sys
 
-    # Configure logging for test
-    logging.basicConfig(
-        level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s"
-    )
-
-    print("\n" + "=" * 60)
+    logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s")
+    print("=" * 60)
     print("audio_ml.spoof smoke test")
     print("=" * 60)
 
-    # Test with nonexistent file (should return neutral default)
-    print("\n[1] Testing error handling (nonexistent file)...")
-    result = detect_spoof("/nonexistent/file.wav")
-    assert isinstance(result, SpoofSignal), f"Result is not SpoofSignal: {type(result)}"
-    assert result.score == 0.5, f"Score should be 0.5, got {result.score}"
-    assert result.verdict == "uncertain", f"Verdict should be 'uncertain', got {result.verdict}"
-    print(f"    ✓ Graceful fallback to neutral SpoofSignal")
+    neutral = detect_spoof("/nonexistent/file.wav")
+    assert isinstance(neutral, SpoofSignal) and neutral.verdict == "uncertain"
+    print("  ok: missing file -> neutral")
 
-    # Test return type validation
-    print("\n[2] Testing return type...")
-    assert hasattr(result, "score"), "Missing 'score' field"
-    assert hasattr(result, "verdict"), "Missing 'verdict' field"
-    assert hasattr(result, "peak"), "Missing 'peak' field"
-    assert hasattr(result, "max_synth_run_s"), "Missing 'max_synth_run_s' field"
-    assert hasattr(result, "timeline"), "Missing 'timeline' field"
-    assert hasattr(result, "n_chunks"), "Missing 'n_chunks' field"
-    print(f"    ✓ SpoofSignal has all required fields")
-    print(f"      verdict:        {result.verdict}")
-    print(f"      score:          {result.score:.4f}")
-    print(f"      peak:           {result.peak:.4f}")
-    print(f"      max_synth_run:  {result.max_synth_run_s:.2f}s")
-    print(f"      n_chunks:       {result.n_chunks}")
+    if not model_files_present():
+        print(f"  skip: Model A not installed in {ANTISPOOF_DIR}")
+        sys.exit(0)
 
-    print("\n" + "=" * 60)
-    print("✓ All smoke tests passed!")
-    print("=" * 60)
+    clips = Path(__file__).resolve().parent.parent / "data" / "eval_set" / "clips"
+    for name in ("friend_test", "me", "cloned_scam", "friend_clone"):
+        s = detect_spoof(str(clips / f"{name}.wav"))
+        print(f"  {name:<14} median={s.score:.4f} peak={s.peak:.4f} "
+              f"run={s.max_synth_run_s:.1f}s windows={s.n_chunks} verdict={s.verdict}")
     sys.exit(0)

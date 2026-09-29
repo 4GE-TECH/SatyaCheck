@@ -284,14 +284,16 @@ ENABLE_PDF_REPORTS: bool = True
 # Flipped to True one branch at a time during Block 2 integration
 USE_REAL_SPEAKER: bool = os.getenv("USE_REAL_SPEAKER", "true").lower() == "true"
 
-# Anti-spoof is CUT — PLAN.md's H6:00 contingency, exercised.
-# `audio_ml/spoof.py` has no model: it returns a hardcoded
-# SpoofSignal(score=0.5, verdict="uncertain") with the real implementation
-# commented out beneath. Turning this on does not add a third signal, it feeds a
-# constant into fusion and calls it authenticity. Off, the branch abstains and
-# fusion renormalises over the two signals that are real.
-# Set USE_REAL_SPOOF=true only once a checkpoint is actually wired.
-USE_REAL_SPOOF: bool = os.getenv("USE_REAL_SPOOF", "false").lower() == "true"
+# Anti-spoof: Model A (fine-tuned AASIST) in audio_ml/spoof.py, loaded from
+# models/antispoof/. On by default. If the checkpoint is missing or fails to load,
+# detect_spoof scores no windows, server/audio_adapter.py marks the branch
+# unavailable, and fusion drops w_cm and renormalises — the same outcome as off.
+# USE_REAL_SPOOF=false forces it off (e.g. for a two-signal demo).
+USE_REAL_SPOOF: bool = os.getenv("USE_REAL_SPOOF", "true").lower() == "true"
+
+# Anti-spoof window hop in seconds. Windows are fixed at 64,600 samples (4.04 s) by the
+# architecture; the hop sets timeline granularity. Measured on this laptop's CPU.
+SPOOF_HOP_S: float = 2.0
 
 USE_REAL_NLP: bool = os.getenv("USE_REAL_NLP", "true").lower() == "true"
 

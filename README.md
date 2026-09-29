@@ -101,12 +101,14 @@ satyacheck/
 
 ---
 
-## Models used (all pretrained, none fine-tuned)
+## Models used
+
+All pretrained except the anti-spoof model, which is AASIST fine-tuned by the team.
 
 | Model | Purpose |
 |---|---|
 | `speechbrain/spkrec-ecapa-voxceleb` | 192-dim speaker embedding |
-| AASIST-family anti-spoof checkpoint | synthetic-speech probability |
+| Model A: AASIST ([clovaai/aasist](https://github.com/clovaai/aasist), MIT), fine-tuned on IFD by the team | synthetic-speech probability |
 | `faster-whisper` small (int8) | ASR — Hindi / English / Hinglish |
 | `BAAI/bge-m3` | multilingual text embedding |
 | `snakers4/silero-vad` | voice activity detection |

@@ -130,7 +130,10 @@ def _signal(score, peak, max_run, timeline, verdict, n_chunks):
         "n_chunks": n_chunks,
     }
     try:
-        from contracts import SpoofSignal
+        # audio_ml's own vocabulary (see audio_ml/signals.py). contracts.py does not
+        # define SpoofSignal, so importing it from there silently returned this dict
+        # instead — invisible until a real model fed this function real scores.
+        from audio_ml.signals import SpoofSignal
         return SpoofSignal(**payload)
     except Exception:
         return payload

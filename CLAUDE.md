@@ -15,7 +15,7 @@ Hackathon build: 15 hours, 4 people, hard feature freeze.
 
 ## Hard rules
 
-1. **We train nothing.** Every model is pretrained inference. If a task seems to need training, the design is wrong — re-read the PRD.
+1. **We train nothing.** Every model is pretrained inference. If a task seems to need training, the design is wrong — re-read the PRD. One documented exception: the anti-spoof branch runs Model A, AASIST fine-tuned by the team (see `audio_ml/spoof.py`). Do not add others.
 2. **Folder ownership is absolute.** `audio_ml/` → A · `nlp_rag/` → B · `server/` + `contracts.py` + `config.py` → C · `web/` → D. Never edit another owner's folder. Propose the change instead.
 3. **`contracts.py` is frozen.** Three people code against it. Do not rename, reorder or "improve" fields. Contract changes are announced out-of-band before being made.
 4. **No runtime network calls.** Everything loads from `./models/`. The demo runs with wifi off.

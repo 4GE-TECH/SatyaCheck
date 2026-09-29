@@ -105,6 +105,10 @@ def to_spoof_result(signal: SpoofSignal) -> contracts.AntiSpoofResult:
         details={
             "verdict": signal.verdict,
             "n_chunks": signal.n_chunks,
+            # No window scored means the model never ran (missing checkpoint, load
+            # failure, empty audio). Without this flag fusion reads the placeholder
+            # 0.5 as real evidence; with it, fusion drops w_cm and renormalises.
+            "available": signal.n_chunks > 0,
         },
     )
 
