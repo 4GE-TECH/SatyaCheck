@@ -41,6 +41,8 @@ _MODELS_DIR = getattr(_config, "MODELS_DIR", None) or (
 MODEL_SIZE: str = getattr(_config, "WHISPER_MODEL_SIZE", "small")
 COMPUTE_TYPE: str = getattr(_config, "WHISPER_COMPUTE_TYPE", "int8")
 DEFAULT_LANGUAGE: str | None = getattr(_config, "WHISPER_LANGUAGE", None)
+DEVICE_PREFERENCE: str = getattr(_config, "WHISPER_DEVICE", "auto")
+GPU_COMPUTE_TYPE: str = getattr(_config, "WHISPER_GPU_COMPUTE_TYPE", "float16")
 
 MODEL_DIR = Path(_MODELS_DIR) / f"faster-whisper-{MODEL_SIZE}"
 
@@ -48,8 +50,54 @@ _model = None
 _load_attempted = False
 
 
+def _add_nvidia_dll_dirs() -> None:
+    """Windows-only: put the pip-installed cuBLAS/cuDNN DLLs on the search path.
+
+    CTranslate2 (faster-whisper's backend) links against `cublas64_12.dll` and
+    `cudnn64_9.dll` at runtime. The `nvidia-cublas-cu12` / `nvidia-cudnn-cu12` wheels
+    ship those DLLs inside the venv's site-packages rather than on PATH, so a CUDA
+    load fails with "Library cublas64_12.dll is not found or cannot be loaded" even
+    with a driver and a GPU present — measured on the demo laptop.
+
+    `os.add_dll_directory` alone did not fix it: `ctypes.WinDLL("cublas64_12.dll")`
+    succeeded after calling it, but ctranslate2's own loader still failed the same
+    way. Measured: prepending the same directories to `PATH` is what actually made
+    ctranslate2 find them — its native loader resolves via classic PATH search, not
+    the `AddDllDirectory` API `os.add_dll_directory` wraps. Both are set for safety.
+    Harmless no-op if the packages are not installed (CPU-only machines fall through).
+    """
+    import os
+    import sys
+
+    if sys.platform != "win32":
+        return
+    try:
+        import importlib.util
+
+        dll_dirs = []
+        for pkg, subdir in (("nvidia.cublas", "bin"), ("nvidia.cudnn", "bin")):
+            spec = importlib.util.find_spec(pkg)
+            if spec and spec.submodule_search_locations:
+                for loc in spec.submodule_search_locations:
+                    dll_dir = Path(loc) / subdir
+                    if dll_dir.is_dir():
+                        dll_dirs.append(str(dll_dir))
+                        if hasattr(os, "add_dll_directory"):
+                            os.add_dll_directory(str(dll_dir))
+        if dll_dirs:
+            os.environ["PATH"] = os.pathsep.join(dll_dirs) + os.pathsep + os.environ.get("PATH", "")
+    except Exception:  # noqa: BLE001 - DLL path setup must never block loading
+        pass
+
+
 def _load_model():
-    """Load once, cache, and never retry a failure — this sits in the request path."""
+    """Load once, cache, and never retry a failure — this sits in the request path.
+
+    Tries CUDA first when `WHISPER_DEVICE` is "auto" or "cuda" — a 9s window on this
+    laptop's CPU int8 path measured 5 to 15s, too slow to keep pace with a live call.
+    Any CUDA failure (no GPU, missing driver, missing cuBLAS/cuDNN) falls back to CPU
+    int8 rather than leaving transcription disabled.
+    """
     global _model, _load_attempted
     if _load_attempted:
         return _model
@@ -58,10 +106,39 @@ def _load_model():
     if not MODEL_DIR.exists():
         logger.warning("faster-whisper not found at %s; transcription disabled", MODEL_DIR)
         return None
-    try:
-        from faster_whisper import WhisperModel  # deferred: heavy import
 
+    # DLL directories must be registered before faster_whisper (ctranslate2) is
+    # imported, not merely before WhisperModel() is constructed. Measured: calling
+    # `_add_nvidia_dll_dirs()` after this import still failed the CUDA warmup below —
+    # ctranslate2's native extension resolves its CUDA dependencies at import time.
+    if DEVICE_PREFERENCE in ("auto", "cuda"):
+        _add_nvidia_dll_dirs()
+
+    from faster_whisper import WhisperModel  # deferred: heavy import
+
+    if DEVICE_PREFERENCE in ("auto", "cuda"):
+        try:
+            candidate = WhisperModel(str(MODEL_DIR), device="cuda", compute_type=GPU_COMPUTE_TYPE)
+            # Construction alone does not prove CUDA works. Measured: with the cuBLAS
+            # DLL missing, `WhisperModel(device="cuda", ...)` succeeds and only the
+            # first *inference* call raises "Library cublas64_12.dll is not found or
+            # cannot be loaded" — a request would be the one to discover that, and the
+            # discovery cost was 90+ seconds, not a clean fast failure. A one-line
+            # warmup transcription forces that failure here, inside the fallback path.
+            list(candidate.transcribe(np.zeros(16000, dtype=np.float32), beam_size=1)[0])
+            _model = candidate
+            logger.info("faster-whisper loaded on cuda (%s)", GPU_COMPUTE_TYPE)
+            return _model
+        except Exception as exc:  # noqa: BLE001 - fall through to CPU
+            if DEVICE_PREFERENCE == "cuda":
+                logger.warning("faster-whisper failed to load on cuda (%s); transcription disabled", exc)
+                _model = None
+                return _model
+            logger.warning("faster-whisper cuda load/warmup failed (%s); falling back to cpu", exc)
+
+    try:
         _model = WhisperModel(str(MODEL_DIR), device="cpu", compute_type=COMPUTE_TYPE)
+        logger.info("faster-whisper loaded on cpu (%s)", COMPUTE_TYPE)
     except Exception as exc:  # noqa: BLE001 - any load failure degrades identically
         logger.warning("faster-whisper failed to load (%s); transcription disabled", exc)
         _model = None

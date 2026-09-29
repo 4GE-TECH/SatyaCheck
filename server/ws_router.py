@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 import shutil
 import logging
 import uuid
+import wave
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -36,6 +38,71 @@ log = logging.getLogger("satyacheck.ws")
 router = APIRouter(prefix="/api/ws", tags=["websocket"])
 
 
+# TrustBand -> the four colours the overlay renders, matching the app's own mapping
+# in satyacheck_mobile/lib/models.dart (`TrustBand.signal`). Kept here rather than in
+# contracts.py because it is a presentation choice for this one client, not a shared
+# contract field — a second client could map the same bands differently.
+_OVERLAY_STATE = {
+    TrustBand.VERIFIED: "green",
+    TrustBand.CAUTION: "amber",
+    TrustBand.SUSPICIOUS: "red",
+    TrustBand.HIGH_RISK: "red",
+    TrustBand.UNVERIFIED: "grey",
+    TrustBand.INSUFFICIENT: "grey",
+}
+
+
+def _overlay_evidence(response: ScreeningResponse) -> Optional[str]:
+    """The one line worth quoting on the overlay: the strongest incriminating marker's
+    exact matched text, or the top playbook's excerpt if no marker fired. Never a bare
+    score — CLAUDE.md's evidence-not-verdict rule applies to the overlay too."""
+    script = response.script
+    if script.incriminating_markers:
+        return script.incriminating_markers[0].matched_text
+    if script.playbooks:
+        return script.playbooks[0].matched_excerpt
+    return None
+
+
+def _build_overlay_update(session_id: str, response: ScreeningResponse) -> dict:
+    return {
+        "type": "overlay_update",
+        "session_id": session_id,
+        "state": _OVERLAY_STATE.get(response.fusion.band, "grey"),
+        "signals": {
+            "identity": response.speaker.verdict.value,
+            "intent": response.script.risk,
+            # AntiSpoofResult has no verdict string of its own (only the frozen
+            # contract's `is_synthetic` bool); "unavailable" when the branch abstained
+            # (details["available"] is the flag orchestrator.py itself sets and reads —
+            # see server/orchestrator.py:64,108,188) matches how the other two demo
+            # signals are worded, and is honest about the branch being a stub today.
+            "authenticity": (
+                "unavailable"
+                if response.spoof.details.get("available", True) is False
+                else ("synthetic" if response.spoof.is_synthetic else "bonafide")
+            ),
+        },
+        "evidence": _overlay_evidence(response),
+        "latency_ms": response.processing_time_ms,
+    }
+
+
+def _pcm_to_wav_bytes(samples: list[float], sample_rate: int) -> bytes:
+    """Wrap normalised float samples in a RIFF header — ffmpeg cannot infer sample
+    rate or bit depth from bare PCM. Mirrors `scripts/live_screen.py`'s `to_wav`."""
+    import struct
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sample_rate)
+        clipped = (max(-1.0, min(1.0, s)) for s in samples)
+        w.writeframes(struct.pack(f"<{len(samples)}h", *(int(s * 32767) for s in clipped)))
+    return buf.getvalue()
+
+
 class SessionState:
     """Rolling state maintained across chunks for a single screening session."""
     def __init__(self, session_id: str) -> None:
@@ -43,6 +110,21 @@ class SessionState:
         self.chunk_index: int = 0
         self.min_trust_score: float = 100.0  # monotone: only decreases
         self.last_response: Optional[ScreeningResponse] = None
+        # Accumulated 16kHz mono float samples, across chunks. Each chunk is scored
+        # against the trailing config.STREAM_CONTEXT_S seconds of this buffer, not in
+        # isolation — see config.py's comment on why the app's small chunks would
+        # otherwise feed Whisper hallucination-prone slivers.
+        self.buffer: list[float] = []
+        self.sample_rate: int = config.TARGET_SAMPLE_RATE
+
+    def append_and_window(self, waveform: list[float], sample_rate: int) -> bytes:
+        """Append decoded samples, trim to the trailing context window, return a WAV."""
+        self.sample_rate = sample_rate or self.sample_rate
+        self.buffer.extend(waveform)
+        max_samples = int(config.STREAM_CONTEXT_S * self.sample_rate)
+        if len(self.buffer) > max_samples:
+            self.buffer = self.buffer[-max_samples:]
+        return _pcm_to_wav_bytes(self.buffer, self.sample_rate)
 
     def update(self, response: ScreeningResponse) -> ScreeningResponse:
         """Apply monotone escalation: trust score can only decrease within a session."""
@@ -142,13 +224,25 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
                 except Exception as e:  # never break a live call over a debug artefact
                     log.warning(f"could not retain session audio: {e}")
 
-            # ── Screen the chunk ───────────────────────────────────────
+            # ── Build the trailing context window and screen that, not the raw
+            # chunk alone ───────────────────────────────────────────────────
+            # A small chunk in isolation is fine for identity (ECAPA does not need
+            # 9s), but Whisper on an isolated tail mid-sentence hallucinates fluent,
+            # wrong sentences — see config.STREAM_CONTEXT_S. Both branches run on the
+            # same window: the alternative (a separate, shorter window for identity)
+            # was considered and dropped — identity scored correctly on 9-10s windows
+            # in testing (0.5 to 3s per clip), so splitting windows bought nothing but
+            # a second ffmpeg/quality-gate pass per chunk.
+            window_wav = state.append_and_window(ingested.waveform, ingested.sample_rate)
+            windowed = ingest_audio(audio_bytes=window_wav)
+
+            # ── Screen the window ──────────────────────────────────────
             # Load enrolled embeddings from DB
             from server.screen_router import _load_enrolled_embeddings
             enrolled = _load_enrolled_embeddings(db)
 
             response = await screen_audio(
-                audio=ingested,
+                audio=windowed,
                 enrolled_embeddings=enrolled,
             )
             response = response.model_copy(update={"session_id": session_id})
@@ -174,6 +268,13 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
                 response=response,
             )
             await ws.send_text(update.model_dump_json())
+
+            # ── overlay_update ─────────────────────────────────────────
+            # A second message, not a replacement: `screening_update` carries the full
+            # ScreeningResponse (contracts.py, frozen) for anything that needs it; this
+            # is only what the phone overlay renders, pre-flattened so the app does not
+            # need to know contracts.py's shape to show a state and a quoted line.
+            await ws.send_json(_build_overlay_update(session_id, response))
 
             # ── Guardian alert if HIGH_RISK ────────────────────────────
             if response.fusion.band in (TrustBand.HIGH_RISK, TrustBand.SUSPICIOUS):

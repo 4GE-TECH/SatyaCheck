@@ -85,6 +85,14 @@ FFMPEG_TIMEOUT_S: int = 30               # ffmpeg subprocess timeout
 VAD_CHUNK_S: float = 3.0                  # chunk window in seconds
 VAD_OVERLAP_S: float = 1.0               # overlap between consecutive chunks
 
+# Live WebSocket streaming (server/ws_router.py): the app sends small chunks
+# (3s, no overlap — the backend buffers) so the overlay can update responsively, but
+# Whisper hallucinates fluent, wrong sentences on isolated 3s slices mid-sentence —
+# see satyacheck_mobile's CallAudioService.kt comment on the same measurement, made
+# against this same ASR. Every chunk is instead scored against the trailing window
+# of buffered audio, long enough to be Whisper-safe.
+STREAM_CONTEXT_S: float = 9.0             # trailing window used to score each chunk
+
 # Minimum enrollment quality.
 #
 # 15s, not 30s. Every recorded clip tops out at 23.1s of VAD-detected speech
@@ -236,8 +244,15 @@ def risk_to_band(risk: float, is_authority_check: bool = False) -> str:
 # =====================================================================
 
 WHISPER_MODEL_SIZE: str = "small"        # Use 'small' + int8 — medium is too slow on CPU
-WHISPER_COMPUTE_TYPE: str = "int8"
+WHISPER_COMPUTE_TYPE: str = "int8"       # CPU fallback compute type
 WHISPER_LANGUAGE: str = "hi"            # Primary language; Whisper auto-detects Hinglish
+
+# GPU decoding — measured on the demo laptop's RTX 4070: a 9s window took 5 to 15s on
+# CPU int8, which cannot keep pace with a live call. CUDA float16 is the target; "auto"
+# tries it first and falls back to CPU int8 on any load failure (missing driver, no
+# GPU, missing cuBLAS/cuDNN DLLs), so the demo still works on a CPU-only machine.
+WHISPER_DEVICE: str = os.getenv("WHISPER_DEVICE", "auto")     # "auto" | "cuda" | "cpu"
+WHISPER_GPU_COMPUTE_TYPE: str = "float16"
 
 BGE_MODEL_NAME: str = "BAAI/bge-m3"
 FAISS_INDEX_PATH: Path = DATA_DIR / "faiss_index.bin"
