@@ -41,7 +41,14 @@ def client(tmp_path, monkeypatch):
 
     with TestClient(app) as c:
         c.enrollments = tmp_path / "enrollments"
+        # The voiceprints above are isolated in tmp_path, but the SQLite database is the
+        # real config.DB_PATH. Without this cleanup every run left another "Friend" row
+        # behind: 42 of them had piled up in the phone's "Known voices" list.
+        before = {p["person_id"] for p in c.get("/api/persons").json()}
         yield c
+        for p in c.get("/api/persons").json():
+            if p["person_id"] not in before:
+                c.delete(f"/api/persons/{p['person_id']}")
 
 
 def _enroll(client, name: str, clip: str):

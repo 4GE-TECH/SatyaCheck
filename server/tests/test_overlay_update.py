@@ -93,7 +93,7 @@ def test_build_overlay_update_quotes_the_marker_when_one_fired():
     assert overlay["latency_ms"] == 123.4
 
 
-def test_build_overlay_update_falls_back_to_the_playbook_excerpt():
+def test_build_overlay_update_never_quotes_corpus_text_as_the_callers_words():
     playbook = RetrievedPlaybook(
         playbook_id="PB_DIGITAL_ARREST_01", title="Digital arrest", category="Digital Arrest",
         similarity_score=0.8, matched_excerpt="crime branch, do not cut the call",
@@ -102,7 +102,9 @@ def test_build_overlay_update_falls_back_to_the_playbook_excerpt():
     response = _response(band=TrustBand.SUSPICIOUS, mode=OperatingMode.AUTHORITY_CHECK, playbooks=[playbook])
     overlay = _build_overlay_update("sess-2", response)
     assert overlay["state"] == "red"
-    assert overlay["evidence"] == "crime branch, do not cut the call"
+    # The excerpt is corpus text, not something the caller said: never quoted.
+    assert overlay["evidence"] is None
+    assert overlay["pattern"] == "Digital arrest"
 
 
 def test_build_overlay_update_evidence_is_none_with_nothing_to_quote():
