@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show min;
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 
@@ -85,24 +87,36 @@ class CallSession {
 
   /// Screen a bundled clip as though it had arrived as a call.
   ///
-  /// Not a mock. The bytes go to `POST /api/screen`, are normalised by ffmpeg, embedded by
+  /// Not a mock. The clip goes up the same WebSocket live capture uses, in the same
+  /// 3-second chunks at the same real-time pace, and is normalised by ffmpeg, embedded by
   /// ECAPA, transcribed by Whisper, retrieved against the corpus and fused exactly as live
-  /// audio is; the verdict, the reason codes and the citations all come back from the
-  /// server. The single thing this skips is the microphone — and on a real call Android
-  /// hands third-party apps digital silence anyway, so there is no version of this
-  /// walkthrough where the phone's own mic hears the caller.
+  /// audio is; the verdict, the reason codes, the citations and the overlay's colour and
+  /// quote all come back from the server. The single thing this skips is the microphone —
+  /// and on a real call Android hands third-party apps digital silence anyway, so there is
+  /// no version of this walkthrough where the phone's own mic hears the caller.
   ///
-  /// It drives the same overlay and the same verdict card a live call drives, because it
-  /// goes through the same [CallRecord] and [_emit] path.
+  /// If the socket cannot be opened, the whole clip goes to `POST /api/screen` instead —
+  /// one verdict at the end rather than a running one, but still a verdict.
   Future<void> screenBundledClip(String assetPath, String label) async {
     _current = CallRecord(startedAt: DateTime.now(), number: label);
     _latest = null;
+    _overlay = null;
     _chunksSent = 0;
     _emit(CallPhase.ringing);
     await _bridge.updateOverlay('Checking this call…');
 
+    // A view of exactly the asset's bytes: `bytes.buffer` may be larger than the asset,
+    // and the RIFF walk in [_pcm16Mono] reads from offset zero.
     final bytes = await rootBundle.load(assetPath);
-    final wav = bytes.buffer.asUint8List();
+    final wav = Uint8List.sublistView(bytes);
+
+    // Open before playback starts, so the handshake over the tunnel does not hold up the
+    // first chunk.
+    final id = 'demo-${DateTime.now().millisecondsSinceEpoch}';
+    final socket = await _api.openStream(id);
+    if (socket == null) {
+      print('SC/Session: demo socket $id FAILED to open; screening the clip in one POST');
+    }
 
     // Play it aloud while it is scored. The audio and the verdict arrive together, which is
     // the whole point: a red card is a claim, a cloned voice asking for money over a red
@@ -120,29 +134,86 @@ class CallSession {
 
     _emit(CallPhase.screening);
 
-    final result = await _api.screenWav(wav, filename: '$label.wav');
-
-    // Hold the verdict until the caller has stopped speaking.
-    //
-    // Scoring takes about three seconds and the clips run five to eleven, so without this
-    // the card flips to "likely scam" while the cloned voice is still mid-sentence — which
-    // reads as though the app decided before it had heard anything. Waiting also matches
-    // what actually happens on a call: the evidence accumulates, then the verdict lands.
-    final remaining = clipMs - DateTime.now().difference(startedAt).inMilliseconds;
-    if (remaining > 0) {
-      await Future<void>.delayed(Duration(milliseconds: remaining));
+    if (socket != null) {
+      socket.updates.listen(_onVerdict);
+      socket.overlays.listen(_onOverlay);
+      if (await _streamClip(socket, wav, startedAt)) {
+        // The backend closes the socket once it has scored the final chunk. Wait for
+        // that rather than guessing how long scoring takes over a tunnel.
+        await socket.done.timeout(const Duration(seconds: 30), onTimeout: () {
+          print('SC/Session: demo socket $id still open 30s after the final chunk');
+        });
+      }
+      await socket.close();
     }
 
-    if (result == null) {
-      _current?.error = 'The backend did not return a verdict';
-      _emit(CallPhase.failed, detail: 'Could not reach the screening server');
-      await _bridge.updateOverlay('Could not screen this call');
-      return;
+    if (_latest == null) {
+      // No socket, or it returned nothing: screen the whole clip in one request.
+      final result = await _api.screenWav(wav, filename: '$label.wav');
+
+      // Hold the verdict until the caller has stopped speaking. Scoring takes about three
+      // seconds and the clips run five to seventeen, so without this the card flips to
+      // "likely scam" while the cloned voice is still mid-sentence — which reads as though
+      // the app decided before it had heard anything.
+      final remaining = clipMs - DateTime.now().difference(startedAt).inMilliseconds;
+      if (remaining > 0) {
+        await Future<void>.delayed(Duration(milliseconds: remaining));
+      }
+
+      if (result == null) {
+        _current?.error = 'The backend did not return a verdict';
+        _emit(CallPhase.failed, detail: 'Could not reach the screening server');
+        await _bridge.updateOverlay('Could not screen this call');
+        return;
+      }
+
+      _latest = result;
+      _current?.result = result;
     }
 
-    _latest = result;
-    _current?.result = result;
     await _finish();
+  }
+
+  /// Send a clip up [socket] the way live capture would: 3-second WAV chunks, each one
+  /// sent once that much of the clip has played, the last marked final.
+  ///
+  /// Returns false, having sent nothing, if the clip is not 16-bit mono PCM.
+  Future<bool> _streamClip(
+      ScreeningSocket socket, Uint8List wav, DateTime startedAt) async {
+    final clip = _pcm16Mono(wav);
+    if (clip == null) {
+      print('SC/Session: demo clip is not 16-bit mono PCM WAV; cannot stream it');
+      return false;
+    }
+
+    final bytesPerSecond = clip.sampleRate * 2;
+    final bytesPerChunk = bytesPerSecond * _chunkSeconds;
+    final total = clip.pcm16.length;
+
+    for (var start = 0, index = 0; start < total; start += bytesPerChunk, index++) {
+      final end = min(start + bytesPerChunk, total);
+
+      // Real-time pacing: a chunk goes up once its last sample has been heard, which is
+      // when live capture would have it.
+      final due = startedAt.add(Duration(milliseconds: end * 1000 ~/ bytesPerSecond));
+      final wait = due.difference(DateTime.now());
+      if (wait > Duration.zero) await Future<void>.delayed(wait);
+
+      final chunk = AudioChunk(
+        sessionId: socket.sessionId,
+        index: index,
+        sampleRate: clip.sampleRate,
+        durationMs: (end - start) * 1000 ~/ bytesPerSecond,
+        pcm16: Uint8List.sublistView(clip.pcm16, start, end),
+      );
+      final last = end == total;
+      socket.send(chunk.toWav(), isFinal: last);
+      _chunksSent++;
+      print('SC/Session: demo chunk $index sent (${chunk.durationMs}ms'
+          '${last ? ', final' : ''}, total $_chunksSent)');
+      _emit(CallPhase.screening);
+    }
+    return true;
   }
 
   Future<void> stopManualCapture() async {
@@ -391,6 +462,43 @@ class CallSession {
       detail: detail,
     ));
   }
+}
+
+/// Seconds of audio per chunk. Matches `windowSeconds` in `CallAudioService.kt`; the
+/// backend keeps its own trailing context window, so chunks carry no overlap.
+const _chunkSeconds = 3;
+
+/// The sample rate and PCM of a 16-bit mono WAV, or null for anything else.
+///
+/// Walks the RIFF chunks rather than assuming a 44-byte header: editors often write LIST
+/// or fact chunks ahead of `data`.
+({int sampleRate, Uint8List pcm16})? _pcm16Mono(Uint8List wav) {
+  if (wav.length < 12) return null;
+  final bytes = ByteData.sublistView(wav);
+  String tag(int at) => String.fromCharCodes(wav, at, at + 4);
+  if (tag(0) != 'RIFF' || tag(8) != 'WAVE') return null;
+
+  int? sampleRate;
+  var offset = 12;
+  while (offset + 8 <= wav.length) {
+    final id = tag(offset);
+    final size = bytes.getUint32(offset + 4, Endian.little);
+    final body = offset + 8;
+    if (id == 'fmt ' && size >= 16 && body + 16 <= wav.length) {
+      final format = bytes.getUint16(body, Endian.little);
+      final channels = bytes.getUint16(body + 2, Endian.little);
+      final bits = bytes.getUint16(body + 14, Endian.little);
+      if (format != 1 || channels != 1 || bits != 16) return null;
+      sampleRate = bytes.getUint32(body + 4, Endian.little);
+    } else if (id == 'data') {
+      if (sampleRate == null || sampleRate <= 0) return null;
+      var end = min(body + size, wav.length);
+      end -= (end - body) % 2; // whole samples only
+      return (sampleRate: sampleRate, pcm16: Uint8List.sublistView(wav, body, end));
+    }
+    offset = body + size + size % 2; // chunks are word-aligned
+  }
+  return null;
 }
 
 enum CallPhase { idle, ringing, screening, done, failed }
