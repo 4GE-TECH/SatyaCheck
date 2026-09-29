@@ -68,7 +68,7 @@ class CallSession {
   /// Screen audio now, without waiting for the phone to ring.
   ///
   /// Drives the identical path a real call takes — the same foreground service, forced
-  /// speakerphone, 9-second windows and backend socket. Only the telephony trigger is
+  /// speakerphone, 3-second chunks and backend socket. Only the telephony trigger is
   /// absent. That makes it both the way to verify capture works on a new handset and the
   /// fallback when a live call misbehaves mid-demo.
   Future<void> startManualCapture() async {

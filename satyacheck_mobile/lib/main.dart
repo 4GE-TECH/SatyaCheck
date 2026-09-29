@@ -328,7 +328,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   /// Runs the whole pipeline without waiting for someone to ring the phone.
   ///
-  /// Same service, same speakerphone forcing, same 9-second windows, same backend — only
+  /// Same service, same speakerphone forcing, same 3-second chunks, same backend — only
   /// the telephony trigger is missing. That makes it the way to verify capture works on a
   /// given handset, and the fallback if a live call misbehaves during a demo.
   /// The walkthrough a judge sees: three callers, one tap each.

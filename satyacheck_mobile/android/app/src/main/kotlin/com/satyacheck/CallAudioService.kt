@@ -348,7 +348,7 @@ class CallAudioService : Service() {
     }
 
     private fun readLoop(record: AudioRecord, bufferSize: Int) {
-        // 9-second windows, not 3.
+        // 3-second chunks, no overlap: the backend now buffers.
         //
         // Whisper does not stay silent on too-little audio — it invents fluent sentences.
         // Measured on this project's own eval clips, the same recording sliced three ways:
@@ -356,19 +356,15 @@ class CallAudioService : Service() {
         //   3s windows -> "alert can product us from with the minger next week"  (invented)
         //   9s window  -> "never send money to unknown people and always verify" (correct)
         //
-        // The backend's ASR gate does not catch this: it checks no_speech_prob and
-        // repetition, and a fluent hallucination trips neither, so the garbage reaches
-        // retrieval and the markers as if it were speech. Sending 3-second chunks would
-        // feed the scoring pipeline noise and call it evidence.
-        //
-        // Waiting costs almost nothing: faster-whisper pads every input to a 30-second mel
-        // window, so decoding 9 seconds costs about what decoding 3 seconds costs.
-        //
-        // 3s of overlap keeps a phrase spanning a boundary whole in at least one window.
+        // So nothing is scored on 3 seconds alone. The WebSocket session appends each chunk
+        // to a rolling buffer and scores the trailing 9 seconds (config.STREAM_CONTEXT_S in
+        // server/ws_router.py), which gives Whisper the long window it needs while a verdict
+        // comes back every 3 seconds instead of every 6. Overlap would now only duplicate
+        // audio inside that buffer, so there is none.
         val ring = RingBuffer(
             sampleRate = SAMPLE_RATE,
-            windowSeconds = 9.0,
-            overlapSeconds = 3.0,
+            windowSeconds = 3.0,
+            overlapSeconds = 0.0,
         )
         val scratch = ShortArray(bufferSize / 2)
         var index = 0
