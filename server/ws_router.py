@@ -30,6 +30,7 @@ from contracts import (
     TrustBand,
 )
 from server.audio_ingest import ingest_audio
+from server.escalation import EscalationGate
 from server.database import SessionLocal, ScreeningSession, ScreeningResult
 from server.guardian import publish_alert_from_response
 from server.orchestrator import screen_audio
@@ -49,15 +50,6 @@ _OVERLAY_STATE = {
     TrustBand.HIGH_RISK: "red",
     TrustBand.UNVERIFIED: "grey",
     TrustBand.INSUFFICIENT: "grey",
-}
-
-
-# Warning severity for session escalation. Neutral bands rank 0: they never replace an
-# earlier warning, and an earlier neutral band never replaces a later one.
-_WARNING_RANK = {
-    TrustBand.CAUTION: 1,
-    TrustBand.SUSPICIOUS: 2,
-    TrustBand.HIGH_RISK: 3,
 }
 
 
@@ -124,9 +116,10 @@ class SessionState:
     def __init__(self, session_id: str) -> None:
         self.session_id = session_id
         self.chunk_index: int = 0
-        self.min_trust_score: float = 100.0  # monotone: only decreases
         self.last_response: Optional[ScreeningResponse] = None
-        self.worst_band: Optional[TrustBand] = None  # worst warning band so far
+        # Persistence then latch — see server/escalation.py. Read per session so a
+        # changed config takes effect on the next call, not the next restart.
+        self.escalation = EscalationGate(config.ESCALATION_PERSISTENCE_N)
         # Accumulated 16kHz mono float samples, across chunks. Each chunk is scored
         # against the trailing config.STREAM_CONTEXT_S seconds of this buffer, not in
         # isolation — see config.py's comment on why the app's small chunks would
@@ -144,36 +137,16 @@ class SessionState:
         return _pcm_to_wav_bytes(self.buffer, self.sample_rate)
 
     def update(self, response: ScreeningResponse) -> ScreeningResponse:
-        """Apply monotone escalation: neither trust nor the warning band can improve
-        within a session.
+        """Apply session escalation: a warning band must persist for
+        `config.ESCALATION_PERSISTENCE_N` windows, then neither trust nor band can
+        improve within the session.
 
         Carrying the trust floor alone was not enough: the band comes from the current
         9 s window, so once the scam phrase scrolled out of it the band fell back to
-        `unverified` and the overlay went red -> grey mid-call. The worst warning band
-        is carried the same way. Neutral bands (verified / unverified / insufficient)
-        never override an earlier warning, and never overwrite each other here.
+        `unverified` and the overlay went red -> grey mid-call. `EscalationGate`
+        latches the band the same way it latches the floor.
         """
-        current_score = response.fusion.trust_score
-        if current_score < self.min_trust_score:
-            self.min_trust_score = current_score
-        elif current_score > self.min_trust_score:
-            # Re-score shows improvement, but we keep the session floor
-            response = response.model_copy(
-                update={
-                    "fusion": response.fusion.model_copy(
-                        update={"trust_score": self.min_trust_score}
-                    )
-                }
-            )
-
-        band = response.fusion.band
-        if _WARNING_RANK.get(band, 0) >= _WARNING_RANK.get(self.worst_band, 0):
-            if _WARNING_RANK.get(band, 0) > 0:
-                self.worst_band = band
-        else:
-            response = response.model_copy(
-                update={"fusion": response.fusion.model_copy(update={"band": self.worst_band})}
-            )
+        response = self.escalation.apply(response)
         self.last_response = response
         self.chunk_index += 1
         return response

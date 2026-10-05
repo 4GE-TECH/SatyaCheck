@@ -93,6 +93,13 @@ VAD_OVERLAP_S: float = 1.0               # overlap between consecutive chunks
 # of buffered audio, long enough to be Whisper-safe.
 STREAM_CONTEXT_S: float = 9.0             # trailing window used to score each chunk
 
+# Escalation persistence (server/escalation.py, item 9). A warning band is shown only
+# after this many consecutive windows reach it; once shown it latches for the session.
+# 1 = escalate on a single window, the behaviour the demo was measured with. Raise it
+# only after measuring false positives on genuine calls (item 14): each step delays the
+# first alert by one hop (~2 s at the app's chunk rate).
+ESCALATION_PERSISTENCE_N: int = int(os.getenv("ESCALATION_PERSISTENCE_N", "1"))
+
 # Minimum enrollment quality.
 #
 # 15s, not 30s. Every recorded clip tops out at 23.1s of VAD-detected speech
