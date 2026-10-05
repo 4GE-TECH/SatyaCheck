@@ -1,0 +1,204 @@
+"""Item 15: no audio at rest unless retention is explicitly on.
+
+Two places leave call audio on disk today:
+
+  * every `ingest_audio` writes a normalised 16 kHz WAV to the OS temp directory and
+    never deletes it — two per WebSocket chunk (the chunk, then the trailing window);
+  * `ws_router` copies each chunk to `data/sessions/<id>/chunk_NNNN.wav`, which is what
+    `scripts/enrol_from_call.py` enrols from.
+
+`CLEANUP_TEMP_AUDIO` deletes the first, `RETAIN_SESSION_AUDIO` gates the second. Both
+default to today's behaviour (cleanup off, retention on) until after the demo, because
+the demo's channel-matched enrollment reads the retained chunks.
+
+Branch models are stubbed: what is under test is which files exist afterwards, not
+the verdict. Ingestion is real (ffmpeg), because that is where the temp files come from.
+"""
+
+from __future__ import annotations
+
+import base64
+import json
+import uuid
+from pathlib import Path
+
+import pytest
+
+import config
+from contracts import create_mock_fixture
+
+CLIP = config.REPO_ROOT / "data" / "eval_set" / "clips" / "friend_test.wav"
+
+pytestmark = pytest.mark.skipif(not CLIP.is_file(), reason="needs data/eval_set/clips/")
+
+
+@pytest.fixture
+def temp_wavs(monkeypatch):
+    """Record every normalised WAV that ingestion writes, through every router."""
+    import server.audio_ingest as ingest
+    import server.enroll_router
+    import server.screen_router
+    import server.ws_router
+
+    written: list[Path] = []
+    real = ingest.ingest_audio
+
+    def recording(*args, **kwargs):
+        result = real(*args, **kwargs)
+        if result.normalized_wav_path:
+            written.append(Path(result.normalized_wav_path))
+        return result
+
+    for module in (server.screen_router, server.ws_router, server.enroll_router):
+        monkeypatch.setattr(module, "ingest_audio", recording)
+    return written
+
+
+@pytest.fixture
+def client(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    import server.screen_router
+    import server.ws_router
+    from server.main import app
+
+    async def stub_screen(audio, caller_metadata=None, enrolled_embeddings=None):
+        return create_mock_fixture("unverified")
+
+    monkeypatch.setattr(server.screen_router, "screen_audio", stub_screen)
+    monkeypatch.setattr(server.ws_router, "screen_audio", stub_screen)
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    with TestClient(app) as c:
+        yield c
+
+
+def _screen(client):
+    with CLIP.open("rb") as fh:
+        r = client.post("/api/screen", files={"file": ("c.wav", fh, "audio/wav")})
+    assert r.status_code == 200, r.text
+
+
+def _stream_one_chunk(client) -> str:
+    session_id = f"test-retention-{uuid.uuid4().hex[:8]}"
+    with client.websocket_connect(f"/api/ws/screen/{session_id}") as ws:
+        ws.send_text(json.dumps({
+            "type": "audio_chunk",
+            "session_id": session_id,
+            "chunk_index": 0,
+            "audio_base64": base64.b64encode(CLIP.read_bytes()).decode(),
+            "is_final": True,
+        }))
+        assert json.loads(ws.receive_text())["type"] == "screening_update"
+        assert json.loads(ws.receive_text())["type"] == "overlay_update"
+    return session_id
+
+
+# --- defaults are today's behaviour -------------------------------------------
+
+def test_defaults_keep_the_demo_behaviour():
+    assert config.RETAIN_SESSION_AUDIO is True
+    assert config.CLEANUP_TEMP_AUDIO is False
+
+
+def test_retention_on_keeps_the_session_chunks(client):
+    session_id = _stream_one_chunk(client)
+    assert (config.DATA_DIR / "sessions" / session_id / "chunk_0000.wav").is_file()
+
+
+# --- retention off -------------------------------------------------------------
+
+def test_retention_off_writes_no_session_audio(client, monkeypatch):
+    monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", False)
+    session_id = _stream_one_chunk(client)
+    assert not (config.DATA_DIR / "sessions" / session_id).exists()
+
+
+# --- temp cleanup ---------------------------------------------------------------
+
+def test_cleanup_off_leaves_temp_wavs_as_today(client, temp_wavs):
+    _screen(client)
+    assert temp_wavs and all(p.exists() for p in temp_wavs)
+    for p in temp_wavs:
+        p.unlink(missing_ok=True)
+
+
+def test_cleanup_on_removes_the_screen_temp_wav(client, temp_wavs, monkeypatch):
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", True)
+    _screen(client)
+    assert temp_wavs, "ingestion wrote nothing — the test is not observing anything"
+    assert not [p for p in temp_wavs if p.exists()]
+
+
+def test_cleanup_on_removes_both_ws_temp_wavs(client, temp_wavs, monkeypatch):
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", True)
+    _stream_one_chunk(client)
+    assert len(temp_wavs) == 2, "chunk + trailing window"
+    assert not [p for p in temp_wavs if p.exists()]
+
+
+def test_cleanup_does_not_remove_the_retained_copy(client, temp_wavs, monkeypatch):
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", True)
+    session_id = _stream_one_chunk(client)
+    assert (config.DATA_DIR / "sessions" / session_id / "chunk_0000.wav").is_file()
+
+
+# --- the helper itself ------------------------------------------------------------
+
+def test_discard_never_touches_a_caller_supplied_input(tmp_path, monkeypatch):
+    from server.audio_ingest import discard, ingest_audio
+
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", True)
+    source = tmp_path / "input.wav"
+    source.write_bytes(CLIP.read_bytes())
+    ingested = ingest_audio(audio_path=str(source))
+    discard(ingested)
+    assert source.is_file()
+    assert not Path(ingested.normalized_wav_path).exists()
+
+
+def test_discard_tolerates_missing_and_absent_paths(monkeypatch):
+    from server.audio_ingest import IngestedAudio, discard
+    from contracts import QualityGateResult
+
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", True)
+    for path in (None, "/nonexistent/already-gone.wav"):
+        discard(IngestedAudio("", 16000, 0.0, [], [], QualityGateResult.insufficient(),
+                              normalized_wav_path=path))
+
+
+# --- enrollment, real ECAPA ---------------------------------------------------------
+
+@pytest.mark.skipif(not (config.MODELS_DIR / "ecapa").is_dir(), reason="needs models/ecapa/")
+def test_cleanup_on_still_enrolls_and_removes_the_temp_wav(tmp_path, temp_wavs, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from audio_ml import enroll
+    from server.main import app
+
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", True)
+    monkeypatch.setattr(enroll, "ENROLLMENTS_DIR", tmp_path)
+    monkeypatch.setattr(config, "ENROLLMENTS_DIR", tmp_path)
+
+    clip = config.REPO_ROOT / "data" / "eval_set" / "clips" / "friend.wav"
+    with TestClient(app) as c:
+        with clip.open("rb") as fh:
+            r = c.post("/api/enroll", data={"name": "Retention test", "relation": "Friend"},
+                       files={"file": ("f.wav", fh, "audio/wav")})
+        assert r.status_code == 201, r.text
+        person_id = r.json()["person_id"]
+        try:
+            assert (tmp_path / f"{person_id}.npz").is_file()
+            assert temp_wavs and not [p for p in temp_wavs if p.exists()]
+        finally:
+            c.delete(f"/api/persons/{person_id}")
+
+
+# --- enrol_from_call explains an empty list --------------------------------------
+
+def test_enrol_from_call_says_retention_is_off(monkeypatch, tmp_path, capsys):
+    from scripts import enrol_from_call
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", False)
+    enrol_from_call.list_sessions()
+    assert "RETAIN_SESSION_AUDIO" in capsys.readouterr().out

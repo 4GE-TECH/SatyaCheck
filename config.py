@@ -100,6 +100,20 @@ STREAM_CONTEXT_S: float = 9.0             # trailing window used to score each c
 # first alert by one hop (~2 s at the app's chunk rate).
 ESCALATION_PERSISTENCE_N: int = int(os.getenv("ESCALATION_PERSISTENCE_N", "1"))
 
+# Audio at rest (item 15). Voice is biometric data under the DPDP Act 2023; the default
+# end state is that no call audio outlives the request that scored it.
+#
+# RETAIN_SESSION_AUDIO: copy every streamed chunk to data/sessions/<id>/. This is what
+# scripts/enrol_from_call.py enrols from — the only way to enrol over the same acoustic
+# chain a call arrives on (see DEMO_RUNBOOK, "speaker always unknown").
+# CLEANUP_TEMP_AUDIO: delete the normalised temp WAV every ingest_audio writes, once the
+# branches have read it. Off, those accumulate in the OS temp directory indefinitely.
+#
+# Both default to the behaviour the demo was measured with (retain on, cleanup off).
+# After the demo the defaults flip, and the demo machine sets RETAIN_SESSION_AUDIO=true.
+RETAIN_SESSION_AUDIO: bool = os.getenv("RETAIN_SESSION_AUDIO", "true").lower() == "true"
+CLEANUP_TEMP_AUDIO: bool = os.getenv("CLEANUP_TEMP_AUDIO", "false").lower() == "true"
+
 # Minimum enrollment quality.
 #
 # 15s, not 30s. Every recorded clip tops out at 23.1s of VAD-detected speech
