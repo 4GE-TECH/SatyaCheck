@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 import config
 from contracts import CallerMetadata, ScreeningResponse
-from server.audio_ingest import ingest_audio
+from server.audio_ingest import discard, ingest_audio
 from server.database import (
     Person,
     ScreeningSession,
@@ -119,6 +119,8 @@ async def screen_audio_endpoint(
         db.commit()
         log.error(f"Orchestration failed for session {session_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Screening failed: {str(e)}")
+    finally:
+        discard(ingested)
 
     # ── Persist result ────────────────────────────────────────────────
     db_result = ScreeningResult(

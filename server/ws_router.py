@@ -29,7 +29,7 @@ from contracts import (
     StreamScreeningUpdateMessage,
     TrustBand,
 )
-from server.audio_ingest import ingest_audio
+from server.audio_ingest import discard, ingest_audio
 from server.escalation import EscalationGate
 from server.database import SessionLocal, ScreeningSession, ScreeningResult
 from server.guardian import publish_alert_from_response
@@ -220,7 +220,7 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
             # ffmpeg already wrote a 16 kHz mono WAV per chunk and left it on disk, so this
             # is a copy, not a re-encode. `enroll_person` takes a list of WAV paths, which
             # is exactly the shape a session produces.
-            if ingested.normalized_wav_path:
+            if config.RETAIN_SESSION_AUDIO and ingested.normalized_wav_path:
                 try:
                     session_dir = config.DATA_DIR / "sessions" / session_id
                     session_dir.mkdir(parents=True, exist_ok=True)
@@ -241,6 +241,7 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
             # in testing (0.5 to 3s per clip), so splitting windows bought nothing but
             # a second ffmpeg/quality-gate pass per chunk.
             window_wav = state.append_and_window(ingested.waveform, ingested.sample_rate)
+            discard(ingested)  # copied above if retained; the buffer holds the samples
             windowed = ingest_audio(audio_bytes=window_wav)
 
             # ── Screen the window ──────────────────────────────────────
@@ -248,10 +249,13 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
             from server.screen_router import _load_enrolled_embeddings
             enrolled = _load_enrolled_embeddings(db)
 
-            response = await screen_audio(
-                audio=windowed,
-                enrolled_embeddings=enrolled,
-            )
+            try:
+                response = await screen_audio(
+                    audio=windowed,
+                    enrolled_embeddings=enrolled,
+                )
+            finally:
+                discard(windowed)
             response = response.model_copy(update={"session_id": session_id})
 
             # Apply monotone escalation

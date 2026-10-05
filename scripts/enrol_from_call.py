@@ -38,6 +38,10 @@ def sessions_dir() -> Path:
 
 def list_sessions() -> None:
     root = sessions_dir()
+    if not config.RETAIN_SESSION_AUDIO:
+        # Without this, retention being off looks exactly like no call ever arriving.
+        print("RETAIN_SESSION_AUDIO is off, so new calls keep no audio to enrol from.")
+        print("Start the server with RETAIN_SESSION_AUDIO=true, screen a call, then retry.")
     if not root.is_dir():
         print(f"no retained sessions yet ({root})")
         print("Screen a call first — chunks are kept as they are scored.")

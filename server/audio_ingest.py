@@ -358,6 +358,21 @@ def ingest_audio(
                 pass
 
 
+def discard(audio: IngestedAudio) -> None:
+    """Delete the normalised temp WAV, if `config.CLEANUP_TEMP_AUDIO` is on. Never raises.
+
+    Only ever the file `ingest_audio` itself created: `normalized_wav_path` is always a
+    fresh temp file, never the caller's `audio_path`. Call it once every branch that
+    reads the path has finished.
+    """
+    if not config.CLEANUP_TEMP_AUDIO or not audio.normalized_wav_path:
+        return
+    try:
+        Path(audio.normalized_wav_path).unlink(missing_ok=True)
+    except Exception as e:  # a locked temp file must not fail the request
+        log.warning(f"could not delete temp audio {audio.normalized_wav_path}: {e}")
+
+
 if __name__ == "__main__":
     import sys
     path = sys.argv[1] if len(sys.argv) > 1 else None
