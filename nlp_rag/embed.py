@@ -35,6 +35,11 @@ _MODELS_DIR = getattr(_config, "MODELS_DIR", None) or (
 MODEL_NAME: str = getattr(_config, "BGE_MODEL_NAME", "BAAI/bge-m3")
 MODEL_DIR = Path(_MODELS_DIR) / MODEL_NAME.split("/")[-1]
 
+#: Why the last `load_encoder` returned None, or None if it succeeded. `load_encoder`
+#: degrades instead of raising, so without this the cause survives only in the log —
+#: `nlp_rag.api.retrieval_status()` reports it to /api/health.
+LAST_LOAD_ERROR: str | None = None
+
 
 class BGEM3Encoder:
     """Wraps `BAAI/bge-m3` behind the two-line `Encoder` protocol."""
@@ -56,14 +61,19 @@ def load_encoder(model_dir: Path = MODEL_DIR) -> BGEM3Encoder | None:
     Returning None rather than raising is deliberate: a missing checkpoint degrades the
     intent branch to markers, and C's request still completes.
     """
+    global LAST_LOAD_ERROR
     if not model_dir.exists():
+        LAST_LOAD_ERROR = f"BGE-m3 not found at {model_dir}"
         logger.warning("BGE-m3 not found at %s; intent branch runs markers-only", model_dir)
         return None
     try:
-        return BGEM3Encoder(model_dir)
+        encoder = BGEM3Encoder(model_dir)
     except Exception as exc:  # noqa: BLE001 - any load failure degrades identically
+        LAST_LOAD_ERROR = f"{type(exc).__name__}: {exc}"
         logger.warning("BGE-m3 failed to load (%s); intent branch runs markers-only", exc)
         return None
+    LAST_LOAD_ERROR = None
+    return encoder
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI smoke test

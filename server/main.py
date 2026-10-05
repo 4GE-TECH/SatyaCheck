@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
             from nlp_rag.api import configure as configure_nlp
             configure_nlp(person_lookup=get_person_by_id)
             log.info("  nlp_rag person_lookup configured: OK")
+            _log_retrieval_status()
         except Exception as nlp_err:
             log.warning(f"  nlp_rag configuration skipped: {nlp_err}")
     except ImportError:
@@ -64,6 +65,29 @@ async def lifespan(app: FastAPI):
 
     yield
     log.info("SatyaCheck server shutting down.")
+
+
+def _retrieval_status() -> dict:
+    """nlp_rag's retrieval wiring, or an 'unknown' status if it cannot be read."""
+    try:
+        from nlp_rag.api import retrieval_status
+        return retrieval_status()
+    except Exception as e:
+        return {"configured": False, "available": False, "reason": f"status unreadable: {e}"}
+
+
+def _log_retrieval_status() -> None:
+    """ERROR, not WARNING: a markers-only intent branch still returns valid verdicts,
+    so this line is the only place the degradation is visible. See
+    nlp_rag/tests/test_import_order.py for the known cause."""
+    status = _retrieval_status()
+    if status["available"]:
+        log.info("  nlp_rag retrieval: OK")
+    else:
+        log.error(
+            f"  nlp_rag retrieval UNAVAILABLE — intent branch runs markers-only: "
+            f"{status.get('reason') or 'no reason recorded'}"
+        )
 
 
 app = FastAPI(
@@ -99,6 +123,7 @@ app.include_router(ws_router)
 # ── Health ────────────────────────────────────────────────────────────
 @app.get("/api/health", tags=["system"])
 async def health_check() -> JSONResponse:
+    retrieval = _retrieval_status()
     return JSONResponse(content={
         "status": "ok",
         "version": app.version,
@@ -106,6 +131,8 @@ async def health_check() -> JSONResponse:
         "use_real_spoof": config.USE_REAL_SPOOF,
         "use_real_nlp": config.USE_REAL_NLP,
         "use_real_fusion": config.USE_REAL_FUSION,
+        "nlp_retrieval_available": retrieval["available"],
+        "nlp_retrieval_reason": retrieval.get("reason"),
     })
 
 

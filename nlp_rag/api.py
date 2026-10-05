@@ -46,6 +46,7 @@ __all__ = [
     "StreamingTranscriber",
     "configure",
     "reset",
+    "retrieval_status",
 ]
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,9 @@ CORPUS_DIR = Path(__file__).resolve().parent / "corpus"
 _retriever: Retriever | None = None
 _person_lookup: "Callable[[str], EnrolledPerson | None] | None" = None
 _configured = False
+#: Why the last `configure()` left the retriever unwired, or None. Read via
+#: `retrieval_status()`; see that function for why it exists.
+_retrieval_error: str | None = None
 
 
 # --- composition root --------------------------------------------------------
@@ -73,16 +77,19 @@ def configure(
     and `nlp_rag` may not import `server/` (CLAUDE.md rule 2). C registers a resolver
     once at startup; without one, `challenge_question` degrades to None.
     """
-    global _retriever, _configured, _person_lookup
+    global _retriever, _configured, _person_lookup, _retrieval_error
     _configured = True
     _retriever = None
+    _retrieval_error = None
     if person_lookup is not None:
         _person_lookup = person_lookup
     try:
         if encoder is None:
-            from nlp_rag.embed import load_encoder
+            from nlp_rag import embed
 
-            encoder = load_encoder()
+            encoder = embed.load_encoder()
+            if encoder is None:
+                _retrieval_error = embed.LAST_LOAD_ERROR or "encoder unavailable"
         if encoder is None:
             logger.warning("no encoder available; intent branch runs markers-only")
             return
@@ -109,12 +116,27 @@ def configure(
     except Exception as exc:  # noqa: BLE001 - a broken corpus degrades, never raises
         logger.warning("retriever unavailable (%s); intent branch runs markers-only", exc)
         _retriever = None
+        _retrieval_error = f"{type(exc).__name__}: {exc}"
 
 
 def reset() -> None:
     """Drop the wired retriever and person lookup. Restores the un-configured state."""
-    global _retriever, _configured, _person_lookup
-    _retriever, _configured, _person_lookup = None, False, None
+    global _retriever, _configured, _person_lookup, _retrieval_error
+    _retriever, _configured, _person_lookup, _retrieval_error = None, False, None, None
+
+
+def retrieval_status() -> dict:
+    """Whether retrieval is wired, and if not, why. Never raises.
+
+    Wiring, like `configure`; not one of C's four scoring functions. A failed BGE-m3 load
+    degrades the branch to markers-only and every request still succeeds, so without
+    this the only evidence is a startup WARNING. C surfaces it on /api/health.
+    """
+    return {
+        "configured": _configured,
+        "available": _retriever is not None,
+        "reason": None if _retriever is not None else _retrieval_error,
+    }
 
 
 def _ensure_configured() -> None:
