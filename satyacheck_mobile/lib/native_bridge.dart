@@ -113,6 +113,11 @@ class NativeBridge {
 
   Future<void> stopCapture() => _channel.invokeMethod<void>('stopCapture');
 
+  /// Whether a phone call starts capture through this phone's microphone. Off while the
+  /// backend's live feed screens calls; the native side remembers it across restarts.
+  Future<void> setCallCapture(bool enabled) =>
+      _channel.invokeMethod<void>('setCallCapture', {'enabled': enabled});
+
   /// Update the in-call banner. `signal` is green / amber / red / grey.
   /// Play a WAV out loud through the speaker.
   ///

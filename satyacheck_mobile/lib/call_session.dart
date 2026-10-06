@@ -82,6 +82,14 @@ class CallSession {
       _liveConnection = live.connection.listen((_) => _emit(_phase, detail: _detail));
       live.start();
     }
+    // With the feed on, a call must not start the microphone service at all: it cannot
+    // hear the call, and when it gives up it takes the receiver's call state with it, so
+    // the hang-up never reaches here (see CallStateReceiver.setCallCapture).
+    try {
+      await _bridge.setCallCapture(_live == null);
+    } catch (exc) {
+      print('SC/Session: could not set call capture (${exc.runtimeType}): $exc');
+    }
     _emit(_phase, detail: _detail);
   }
 
@@ -295,10 +303,10 @@ class CallSession {
         _current ??= CallRecord(startedAt: DateTime.now());
         _inCall = true;
         if (_live != null) {
-          // The live feed screens this call. The receiver has already started local
-          // capture on OFFHOOK; it can only fail or record silence here, so stop it, and
-          // do not open a /api/ws/screen session that would never receive audio.
-          unawaited(_bridge.stopCapture());
+          // The live feed screens this call, so the receiver started no local capture
+          // (setCallCapture) and there is no audio to open a /api/ws/screen session for.
+          // Stopping the capture service from here instead raced its startForeground and
+          // crashed the app (ForegroundServiceDidNotStartInTimeException).
           if (_latest == null) {
             _emit(CallPhase.screening, detail: 'Waiting for the backend’s verdict on this call');
             _bridge.updateOverlay('Checking this call…');
@@ -408,6 +416,10 @@ class CallSession {
   }
 
   void _applyLive(LiveVerdict verdict) {
+    // The screen is usually off during a call, so this line is how to tell afterwards
+    // what the phone showed.
+    print('SC/Live: ${verdict.sessionId} -> ${verdict.listening ? 'listening' : verdict.signal.name}'
+        '${verdict.isFinal ? ' (final)' : ''}');
     final wasRed = _liveApplied?.signal == Signal.red;
     _liveSessionId = verdict.sessionId;
     _liveApplied = verdict;

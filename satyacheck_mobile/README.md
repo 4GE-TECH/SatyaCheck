@@ -160,8 +160,9 @@ token** set the app follows that feed during a call instead of trying the microp
 
 - the overlay and verdict card follow the feed's newest call, about every 2 s
   (`insufficient` shows "Listening…");
-- the futile local capture is stopped, and its "microphone unavailable" error is logged,
-  not shown;
+- no microphone capture starts for the call at all (`CallStateReceiver.setCallCapture`).
+  Stopping it from Dart instead raced the service's `startForeground` and crashed the app,
+  and a capture that fails mid-call resets the receiver, so the hang-up never reached Dart;
 - after hang-up the app waits up to 4 s for the call's final verdict, then keeps it in
   Recent calls and posts the notification.
 

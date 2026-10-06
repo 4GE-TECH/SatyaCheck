@@ -88,6 +88,12 @@ class MainActivity : FlutterActivity(),
                     result.success(true)
                 }
 
+                // Off while the backend's live feed screens calls (CallStateReceiver).
+                "setCallCapture" -> {
+                    CallStateReceiver.setCallCapture(this, call.argument<Boolean>("enabled") ?: true)
+                    result.success(true)
+                }
+
                 "updateOverlay" -> {
                     val text = call.argument<String>("text") ?: "Checking…"
                     val signal = call.argument<String>("signal") ?: "grey"

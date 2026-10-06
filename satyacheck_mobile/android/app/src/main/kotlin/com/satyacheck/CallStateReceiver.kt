@@ -51,6 +51,30 @@ class CallStateReceiver : BroadcastReceiver() {
         fun reset() {
             lastState = null
         }
+
+        private const val PREFS = "satyacheck"
+        private const val KEY_CALL_CAPTURE = "capture_call_audio"
+
+        /**
+         * Whether to record a call through this phone's microphone. Dart turns it off when
+         * the backend's live feed screens calls: Exotel streams the call to the backend, and
+         * the phone in the call could not record it anyway (the dialer holds the microphone).
+         *
+         * Persisted rather than a field, because this receiver can run in a fresh process
+         * before Dart has said anything.
+         *
+         * Off matters beyond saving a doomed attempt: CallAudioService.onDestroy calls
+         * [reset], so a capture that fails mid-call made the hang-up look like "IDLE with no
+         * prior call" and Dart never heard the call end.
+         */
+        fun setCallCapture(context: Context, enabled: Boolean) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_CALL_CAPTURE, enabled).apply()
+        }
+
+        private fun callCaptureEnabled(context: Context): Boolean =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_CALL_CAPTURE, true)
     }
 
     /** What the Flutter side implements to hear about calls. */
@@ -93,7 +117,11 @@ class CallStateReceiver : BroadcastReceiver() {
                 // Answered, or an outgoing call began. Either way there is now live audio.
                 listener?.onCallAnswered()
                 OverlayManager.show(context, "Checking…")
-                CallAudioService.start(context)
+                if (callCaptureEnabled(context)) {
+                    CallAudioService.start(context)
+                } else {
+                    Log.i(TAG, "call capture off: the backend's live feed screens this call")
+                }
             }
 
             TelephonyManager.EXTRA_STATE_IDLE -> {
