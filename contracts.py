@@ -426,7 +426,7 @@ class CallerMetadata(BaseModel):
     claimed_number: Optional[str] = Field(None, description="Caller ID number displayed on phone")
     claimed_name: Optional[str] = Field(None, description="Truecaller / Telco CNAM displayed name")
     claimed_identity: Optional[str] = Field(None, description="Enrolled contact ID caller claims to be")
-    channel_type: Literal["speakerphone", "voicemail", "upload", "whatsapp"] = Field("speakerphone")
+    channel_type: Literal["speakerphone", "voicemail", "upload", "whatsapp", "telephony"] = Field("speakerphone")
 
 
 class ScreeningRequest(BaseModel):
@@ -449,6 +449,11 @@ class ScreeningResponse(BaseModel):
     fusion: TrustScoreResult = Field(..., description="Final fused trust score and evidence")
     processing_time_ms: float = Field(..., description="Total server processing latency in milliseconds")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    # C3 (item 11). Appended, not inserted, so existing field order is untouched.
+    caller_context: Optional[CallerMetadata] = Field(
+        None,
+        description="Caller ID / claimed identity as received. Explanation only — never an input to fusion (FR-17).",
+    )
 
 
 # =====================================================================

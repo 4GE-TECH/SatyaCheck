@@ -515,6 +515,7 @@ async def screen_audio(
             script=ScriptAnalysisResult.neutral(),
             fusion=fusion,
             processing_time_ms=elapsed_ms,
+            caller_context=caller_metadata,
         )
 
     # ── Select branch implementations ─────────────────────────────────
@@ -577,6 +578,8 @@ async def screen_audio(
         script=script_result,
         fusion=fusion,
         processing_time_ms=elapsed_ms,
+        # Carried, never read: _compute_fusion takes no caller input (CLAUDE.md, FR-17).
+        caller_context=caller_metadata,
     )
 
 
