@@ -186,6 +186,41 @@ def vad_segments(audio: np.ndarray, sr: int) -> List[Tuple[float, float]]:
         return []
 
 
+def _import_speechbrain_encoder():
+    """Import speechbrain's EncoderClassifier without poisoning the rest of the process.
+
+    `import speechbrain` leaves seven `DeprecatedModuleRedirect` aliases in
+    `sys.modules` (old paths like `speechbrain.k2_integration`). Any later
+    `inspect.getmodule` — torch's op registration does one when `transformers` imports
+    `torch.distributed.tensor` — touches them, and the k2 alias raises ImportError
+    because k2 is not installed. speechbrain's guard against exactly this checks
+    `endswith("/inspect.py")`, which never matches a Windows path. The visible symptom
+    was BGE-m3 failing to load after ECAPA, silently dropping the intent branch to
+    markers-only (audio_ml/tests/test_speechbrain_redirects.py).
+
+    Dropping the aliases nobody has loaded removes the hazard. Nothing in this repo
+    imports a deprecated speechbrain path; the same test enforces that.
+    """
+    import sys
+
+    from speechbrain.inference import EncoderClassifier
+
+    try:
+        from speechbrain.utils.importutils import DeprecatedModuleRedirect
+
+        stale = [
+            name for name, module in list(sys.modules.items())
+            if isinstance(module, DeprecatedModuleRedirect) and module.lazy_module is None
+        ]
+        for name in stale:
+            del sys.modules[name]
+        if stale:
+            logger.debug(f"dropped {len(stale)} unloaded speechbrain redirect aliases")
+    except ImportError:  # a speechbrain without this mechanism has nothing to drop
+        pass
+    return EncoderClassifier
+
+
 def _load_ecapa_model(model_path: Path, device: str = "cpu"):
     """
     Load ECAPA-TDNN, preferring a local checkpoint directory over the HF cache.
@@ -213,7 +248,7 @@ def _load_ecapa_model(model_path: Path, device: str = "cpu"):
     Raises:
         Exception if the model cannot be loaded by any route.
     """
-    from speechbrain.inference import EncoderClassifier
+    EncoderClassifier = _import_speechbrain_encoder()
 
     if (model_path / "hyperparams.yaml").is_file():
         logger.info(f"Loading ECAPA model from local directory {model_path}")
