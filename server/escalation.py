@@ -50,7 +50,7 @@ class EscalationGate:
         if n < 1:
             raise ValueError(f"persistence N must be >= 1, got {n}")
         self.n = n
-        self._recent: deque[tuple[int, float]] = deque(maxlen=n)  # (rank, trust)
+        self._recent: deque[tuple[int, float, bool]] = deque(maxlen=n)  # (rank, trust, scored)
         self._latched_rank = 0
         self._floor: Optional[float] = None
         self._shown: Optional[tuple[TrustBand, float]] = None
@@ -63,14 +63,18 @@ class EscalationGate:
         band = response.fusion.band
         rank = _WARNING_RANK.get(band, 0)
         trust = response.fusion.trust_score
-        self._recent.append((rank, trust))
+        # An insufficient window still breaks a persistence run (it is not evidence the
+        # warning continued), but its placeholder trust is a refusal to score, not a
+        # measurement: it never sets the floor.
+        scored = band != TrustBand.INSUFFICIENT
+        self._recent.append((rank, trust, scored))
 
-        confirmed = min(r for r, _ in self._recent) if len(self._recent) == self.n else 0
+        confirmed = min(r for r, _, _ in self._recent) if len(self._recent) == self.n else 0
         self._latched_rank = max(self._latched_rank, confirmed)
         effective = self._latched_rank
 
         # Windows in the persistence run whose band the session now stands behind.
-        counted = [t for r, t in self._recent if r <= effective]
+        counted = [t for r, t, ok in self._recent if ok and r <= effective]
         if counted:
             low = min(counted)
             self._floor = low if self._floor is None else min(self._floor, low)
@@ -88,7 +92,7 @@ class EscalationGate:
             if shown_band == TrustBand.VERIFIED:
                 shown_band = TrustBand.UNVERIFIED
         else:
-            shown_band, shown_trust = band, self._floor
+            shown_band, shown_trust = band, self._floor if self._floor is not None else trust
 
         # `insufficient` is never held over a later window: that window *was* scored,
         # and "too short to evaluate" would misdescribe it.

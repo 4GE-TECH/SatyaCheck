@@ -118,12 +118,17 @@ def test_n_below_one_is_rejected():
 
 
 def _old_session_update(windows):
-    """The pre-item-9 `SessionState.update`, copied verbatim in logic, as the oracle."""
+    """The pre-item-9 `SessionState.update` as the oracle, with one deliberate change:
+    an `insufficient` window's placeholder trust (50) no longer sets the floor. It is a
+    refusal to score, not a measurement — counting it capped every runner call, whose
+    first windows are always too short, at trust 50 for the whole call."""
     rank = {C: 1, S: 2, H: 3}
     floor, worst, out = 100.0, None, []
     for band, trust in windows:
         shown_trust = trust
-        if trust < floor:
+        if band == TrustBand.INSUFFICIENT:
+            shown_trust = trust if floor == 100.0 else floor
+        elif trust < floor:
             floor = trust
         elif trust > floor:
             shown_trust = floor
@@ -146,3 +151,13 @@ def test_n1_matches_the_old_session_logic_on_random_calls():
         windows = [(rng.choice(bands), round(rng.uniform(5, 99), 1)) for _ in range(rng.randint(1, 12))]
         got = [(f.band, f.trust_score) for f in _run(1, windows)]
         assert got == _old_session_update(windows), windows
+
+
+def test_insufficient_windows_never_set_the_trust_floor():
+    """Measured on a real call through the runner: two insufficient windows, then a
+    scored caution window, and the overlay read trust 50 for the rest of the call."""
+    shown = _run(1, [(TrustBand.INSUFFICIENT, 50.0), (TrustBand.INSUFFICIENT, 50.0),
+                     (U, 88.0), (C, 70.0), (TrustBand.INSUFFICIENT, 50.0), (U, 90.0)])
+    assert [f.band for f in shown] == [TrustBand.INSUFFICIENT, TrustBand.INSUFFICIENT, U, C,
+                                       C, C]
+    assert [f.trust_score for f in shown] == [50.0, 50.0, 88.0, 70.0, 70.0, 70.0]
