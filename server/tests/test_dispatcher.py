@@ -152,7 +152,7 @@ def test_bank_api_is_a_quiet_stub():
 # --- building from config ---------------------------------------------------------------------
 
 def test_the_default_sinks():
-    assert config.DISPATCH_SINKS == ["app_overlay", "guardian", "report"]
+    assert config.DISPATCH_SINKS == ["app_overlay", "guardian", "report", "live_feed"]
 
 
 def test_build_from_config_skips_unknown_names(monkeypatch, caplog):

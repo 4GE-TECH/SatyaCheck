@@ -156,3 +156,63 @@ python -m audio_ml.eval.test_scenarios   # twelve scenarios, must exit 0
 
 Run after any threshold or fusion change. It is the only thing standing between a
 calibration tweak and silently breaking the legitimate-IVR case.
+
+---
+
+## Track D — live Exotel call, frontends on another laptop
+
+The backend and models run here; the dashboard and app run on a teammate's laptop and
+reach this machine through one Cloudflare tunnel. Exotel streams the call into the same
+tunnel. Frontend side: `docs/LIVE_FEED.md`.
+
+**1. Backend (PowerShell, this machine).** Pick a user/password for Exotel and a token for
+the live feed — any long random strings; never commit them.
+
+```powershell
+$env:ENABLE_EXOTEL = "true"
+$env:EXOTEL_BASIC_USER = "satya"
+$env:EXOTEL_BASIC_PASS = "<long random password>"
+$env:LIVE_FEED_TOKEN = "<long random token>"
+$env:RETAIN_SESSION_AUDIO = "true"        # only if you will enrol_from_call
+python -m uvicorn server.main:app --host 0.0.0.0 --port 8000
+```
+
+The startup log must show `Exotel stream route mounted at /api/exotel/stream`. Model A is on
+by default on this branch (`/api/health` → `"use_real_spoof": true`).
+
+**2. Tunnel (second PowerShell).**
+
+```powershell
+cloudflared tunnel --url http://localhost:8000
+```
+
+It prints `https://<random>.trycloudflare.com`. A quick tunnel gets a **new URL every time it
+starts** — keep it running for the whole demo. Check from any machine:
+`https://<random>.trycloudflare.com/api/health`.
+
+**3. Exotel call flow.** In the Stream applet (Action: Start), set the URL to:
+
+```
+wss://satya:<password>@<random>.trycloudflare.com/api/exotel/stream
+```
+
+Add `?sample-rate=16000` at the end for wideband audio if your account offers it; without it
+Exotel sends 8 kHz. The adapter reads the encoding and rate from Exotel's `start` message, so
+either works.
+
+**4. Send your teammate:** the `https://<random>.trycloudflare.com` URL and the live-feed
+token. Nothing else — no Exotel credentials.
+
+**5. Make the call.** In the backend log: `exotel: stream started`, then one verdict per ~2 s
+of speech. The teammate's live feed shows the same verdicts.
+
+| symptom | cause | fix |
+|---|---|---|
+| no `stream started` in the log | Exotel cannot reach the URL or auth failed | log shows `exotel: refused connection … credentials`: user/password in the applet URL must match the env vars |
+| `refusing every stream — EXOTEL_BASIC_USER … not set` | env vars missing in this PowerShell | set them in the same window that runs uvicorn |
+| `unsupported encoding` / `unsupported sample rate` in the log | Exotel sent a format the docs did not list | note the value from the log and tell Nikhil; media is dropped rather than guessed |
+| `stream silent` warning | Exotel is streaming digital silence (e.g. ringing, wrong leg) | check `EXOTEL_TRACK` (`inbound` default; `any` accepts both legs) |
+| teammate's feed closes at once | wrong token | resend `LIVE_FEED_TOKEN` |
+
+Unconfirmed in Exotel's docs, so watch the first test call: which leg is streamed, whether Basic
+auth is honoured on the Stream applet (it is documented for Voicebot), and the real message size.

@@ -134,6 +134,17 @@ class ReportSink:
         await asyncio.to_thread(self._write, event)
 
 
+class LiveFeedSink:
+    """Publishes every verdict to `/api/ws/live` subscribers (server/live_feed.py) —
+    how a dashboard watches an Exotel call, which has no app socket of its own."""
+    name = "live_feed"
+
+    async def deliver(self, event: VerdictEvent) -> None:
+        from server import live_feed
+
+        await live_feed.publish(live_feed.verdict_message(event))
+
+
 class BankApiSink:
     """Placeholder for a bank / telco integration. Logs at debug, delivers nowhere."""
     name = "bank_api"
@@ -155,6 +166,8 @@ def build_dispatcher(ws=None, session_factory: Optional[Callable] = None) -> Dis
             sinks.append(GuardianSink())
         elif name == "report":
             sinks.append(ReportSink(session_factory))
+        elif name == "live_feed":
+            sinks.append(LiveFeedSink())
         elif name == "bank_api":
             sinks.append(BankApiSink())
         else:

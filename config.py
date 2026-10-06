@@ -70,6 +70,9 @@ CORS_ORIGINS: list[str] = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
 ]
+# Extra origins for a dashboard served from another host that calls the API directly
+# (not through Vite's dev proxy), comma separated: SATYACHECK_CORS_ORIGINS=https://a,https://b
+CORS_ORIGINS += [o.strip() for o in os.getenv("SATYACHECK_CORS_ORIGINS", "").split(",") if o.strip()]
 
 MAX_UPLOAD_SIZE_MB: int = 50
 MAX_UPLOAD_SIZE_BYTES: int = MAX_UPLOAD_SIZE_MB * 1024 * 1024
@@ -308,7 +311,12 @@ ENABLE_FLAGGED_VOICE_LIST: bool = True
 
 # Verdict dispatch (item 6, server/pipeline/dispatcher.py). Each sink runs isolated,
 # under its own timeout, so one slow output never delays the overlay.
-DISPATCH_SINKS: list[str] = ["app_overlay", "guardian", "report"]  # + "bank_api" (stub)
+DISPATCH_SINKS: list[str] = ["app_overlay", "guardian", "report", "live_feed"]  # + "bank_api" (stub)
+
+# Live verdict feed (/api/ws/live, docs/LIVE_FEED.md). Messages carry call transcripts:
+# whenever the server is reachable through a public tunnel, set a token and give it only
+# to the dashboard/app (they connect with ?token=...). Empty = no token required.
+LIVE_FEED_TOKEN: str = os.getenv("LIVE_FEED_TOKEN", "")
 DISPATCH_SINK_TIMEOUT_S: float = 2.0
 
 # Streaming runner (item 5, server/pipeline/runner.py). On: the WebSocket feeds frames
