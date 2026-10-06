@@ -241,6 +241,28 @@ class ApiClient {
     }
   }
 
+  /// The stored final verdict of a finished call, `GET /api/screen/{session_id}`, or null
+  /// if the backend has none or cannot be reached. How a call's verdict is recovered when
+  /// the live feed missed its final message.
+  Future<ScreeningResult?> storedVerdict(String sessionId) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+    try {
+      final uri = Uri.parse('$_baseUrl/api/screen/${Uri.encodeComponent(sessionId)}');
+      final response = await (await client.getUrl(uri)).close().timeout(const Duration(seconds: 10));
+      final body = await response.transform(utf8.decoder).join();
+      if (response.statusCode != 200) {
+        print('SC/Api: no stored verdict for $sessionId (HTTP ${response.statusCode})');
+        return null;
+      }
+      return ScreeningResult.fromJson(jsonDecode(body) as Map<String, dynamic>);
+    } catch (exc) {
+      print('SC/Api: could not fetch the stored verdict for $sessionId ($exc)');
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   /// Open a streaming screening session. Returns null if the socket cannot be opened.
   Future<ScreeningSocket?> openStream(String sessionId) async {
     final url = '${webSocketUrlFor(_baseUrl)}/api/ws/screen/$sessionId';

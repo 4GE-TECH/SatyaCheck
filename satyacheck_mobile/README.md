@@ -163,8 +163,18 @@ token** set the app follows that feed during a call instead of trying the microp
 - no microphone capture starts for the call at all (`CallStateReceiver.setCallCapture`).
   Stopping it from Dart instead raced the service's `startForeground` and crashed the app,
   and a capture that fails mid-call resets the receiver, so the hang-up never reached Dart;
-- after hang-up the app waits up to 4 s for the call's final verdict, then keeps it in
-  Recent calls and posts the notification.
+- a silent **"Watching for calls"** notification stays up while the feed is on. It is a
+  foreground service (`LiveFeedService`) with no audio, and it is what keeps the feed
+  connected during a call: Android 15+ blocks network for background apps, and during a
+  call the dialer is in front (`dumpsys netpolicy` on the OnePlus: `blocked=APP_BACKGROUND`;
+  without it the socket broke seconds into every call and could not reconnect until the
+  call ended);
+- after hang-up the app waits up to 4 s for the call's final verdict; if the feed missed
+  it, it fetches the stored one (`GET /api/screen/{session_id}`), then keeps it in Recent
+  calls and posts the notification.
+
+Do not swipe the app away from recents during a demo: the feed runs in the app, and the
+keep-alive service stops with it.
 
 The token comes from whoever runs the backend (`LIVE_FEED_TOKEN`). Set it in the field
 under Screening server, or at build time:

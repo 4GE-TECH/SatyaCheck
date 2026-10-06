@@ -28,6 +28,8 @@
          startForeground throws at runtime. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- LiveFeedService: keeps network access open during calls (see that class). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- M6 · notifications. Runtime-granted from API 33. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -76,6 +78,18 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- Keeps the backend's live feed connected during calls: Android blocks network
+             for background apps, and during a call the dialer is in front. No audio. -->
+        <service
+            android:name=".LiveFeedService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps a call-screening verdict feed connected while the user is on a phone call" />
+        </service>
 
         <!-- Don't delete the meta-data below.
              This is required by the Flutter runtime to display the correct

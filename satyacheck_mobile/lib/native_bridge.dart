@@ -118,6 +118,11 @@ class NativeBridge {
   Future<void> setCallCapture(bool enabled) =>
       _channel.invokeMethod<void>('setCallCapture', {'enabled': enabled});
 
+  /// A silent foreground service that keeps the app on the network during calls, when
+  /// Android would otherwise block it as a background app. On while the live feed is on.
+  Future<void> setKeepAlive(bool enabled) =>
+      _channel.invokeMethod<void>('setKeepAlive', {'enabled': enabled});
+
   /// Update the in-call banner. `signal` is green / amber / red / grey.
   /// Play a WAV out loud through the speaker.
   ///

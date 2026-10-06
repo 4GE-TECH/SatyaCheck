@@ -60,6 +60,7 @@ class CallSession {
   LiveVerdict? _lastLive;
   DateTime? _lastLiveAt;
   Completer<void>? _finalVerdict;
+  bool _keepAlive = false;
 
   /// Every change worth redrawing for.
   Stream<CallSessionState> get states => _state.stream;
@@ -89,6 +90,18 @@ class CallSession {
       await _bridge.setCallCapture(_live == null);
     } catch (exc) {
       print('SC/Session: could not set call capture (${exc.runtimeType}): $exc');
+    }
+    // And during a call this app is in the background, where Android blocks its network;
+    // a silent foreground service keeps the feed connected (LiveFeedService). Only on a
+    // change: stopping it straight after a start would race its startForeground.
+    final keepAlive = _live != null;
+    if (keepAlive != _keepAlive) {
+      _keepAlive = keepAlive;
+      try {
+        await _bridge.setKeepAlive(keepAlive);
+      } catch (exc) {
+        print('SC/Session: could not ${keepAlive ? 'start' : 'stop'} the keep-alive service: $exc');
+      }
     }
     _emit(_phase, detail: _detail);
   }
@@ -452,13 +465,31 @@ class CallSession {
   /// backend's final verdict, which lands when Exotel's stream ends and can trail the
   /// phone's own hang-up by a moment. It is the one to keep.
   Future<void> _endCall() async {
-    if (_liveSessionId != null && !(_liveApplied?.isFinal ?? false)) {
+    final session = _liveSessionId;
+    if (session != null && !(_liveApplied?.isFinal ?? false)) {
       final waiter = Completer<void>();
       _finalVerdict = waiter;
-      await waiter.future.timeout(const Duration(seconds: 4), onTimeout: () {
-        print('SC/Live: no final verdict within 4 s of hang-up; keeping the last one');
-      });
+      await waiter.future.timeout(const Duration(seconds: 4), onTimeout: () {});
       _finalVerdict = null;
+      if (!(_liveApplied?.isFinal ?? false)) {
+        // Missed on the feed, which nothing replays. The backend stores every call's
+        // final verdict, so ask for it rather than keep a mid-call one.
+        final stored = await _api.storedVerdict(session);
+        if (stored != null) {
+          print('SC/Live: $session final verdict fetched from the backend');
+          _liveApplied = LiveVerdict(
+            sessionId: session,
+            isFinal: true,
+            signal: stored.signal,
+            result: stored,
+            threat: _liveApplied?.threat,
+          );
+          _latest = stored;
+          _current?.result = stored;
+        } else {
+          print('SC/Live: no final verdict for $session; keeping the last one');
+        }
+      }
     }
     _inCall = false;
     final live = _liveApplied;

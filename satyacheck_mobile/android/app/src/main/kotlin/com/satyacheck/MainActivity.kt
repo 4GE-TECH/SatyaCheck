@@ -94,6 +94,16 @@ class MainActivity : FlutterActivity(),
                     result.success(true)
                 }
 
+                // On while the live feed is on: network access during calls (LiveFeedService).
+                "setKeepAlive" -> {
+                    if (call.argument<Boolean>("enabled") == true) {
+                        LiveFeedService.start(this)
+                    } else {
+                        LiveFeedService.stop(this)
+                    }
+                    result.success(true)
+                }
+
                 "updateOverlay" -> {
                     val text = call.argument<String>("text") ?: "Checking…"
                     val signal = call.argument<String>("signal") ?: "grey"
@@ -166,6 +176,9 @@ class MainActivity : FlutterActivity(),
         if (CallStateReceiver.listener === this) CallStateReceiver.listener = null
         if (CallAudioService.listener === this) CallAudioService.listener = null
         if (VoiceRecorder.listener === this) VoiceRecorder.listener = null
+        // The live feed runs in this activity's Flutter engine, which goes with it; a
+        // keep-alive service left behind would only be a stale notification.
+        LiveFeedService.stop(this)
         stopClip()
         channel = null
         super.onDestroy()
