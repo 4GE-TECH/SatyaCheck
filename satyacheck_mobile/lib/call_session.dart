@@ -42,9 +42,48 @@ class CallSession {
   OverlayUpdate? _overlay;
   int _chunksSent = 0;
   bool _started = false;
+  CallPhase _phase = CallPhase.idle;
+  String? _detail;
+
+  // --- live feed (Exotel calls) ---
+  //
+  // During a phone call this phone cannot record the call: Android gives the dialer the
+  // microphone (CLAUDE.md, "Call audio cannot be captured on the phone that is in the
+  // call"). With Exotel, the call's audio goes straight to the backend instead, and the
+  // backend publishes its verdicts on /api/ws/live. That feed is what screens a call here.
+  LiveFeed? _live;
+  StreamSubscription<LiveVerdict>? _liveVerdicts;
+  StreamSubscription<bool>? _liveConnection;
+  bool _inCall = false;
+  String? _liveSessionId;
+  LiveVerdict? _liveApplied;
+  LiveVerdict? _lastLive;
+  DateTime? _lastLiveAt;
+  Completer<void>? _finalVerdict;
 
   /// Every change worth redrawing for.
   Stream<CallSessionState> get states => _state.stream;
+
+  LiveFeedState get liveFeedState => _live == null
+      ? LiveFeedState.off
+      : (_live!.connected ? LiveFeedState.connected : LiveFeedState.connecting);
+
+  /// Follow the backend's live feed for calls on this phone. A null or empty token turns
+  /// it off, which brings back the old behaviour: try the microphone during a call.
+  Future<void> setLiveFeedToken(String? token) async {
+    await _liveVerdicts?.cancel();
+    await _liveConnection?.cancel();
+    await _live?.stop();
+    _live = null;
+    if (token != null && token.isNotEmpty) {
+      final live = LiveFeed(_api, token);
+      _live = live;
+      _liveVerdicts = live.verdicts.listen(_onLiveVerdict);
+      _liveConnection = live.connection.listen((_) => _emit(_phase, detail: _detail));
+      live.start();
+    }
+    _emit(_phase, detail: _detail);
+  }
 
   List<CallRecord> get history => List.unmodifiable(_history);
 
@@ -63,6 +102,9 @@ class CallSession {
     await _calls?.cancel();
     await _audio?.cancel();
     await _socket?.close();
+    await _liveVerdicts?.cancel();
+    await _liveConnection?.cancel();
+    await _live?.stop();
     await _state.close();
   }
 
@@ -230,13 +272,39 @@ class CallSession {
         _latest = null;
         _overlay = null;
         _chunksSent = 0;
+        _inCall = true;
+        _liveSessionId = null;
+        _liveApplied = null;
         _emit(CallPhase.ringing);
         // Grey, not green. Nothing has been screened yet, and green would be a claim.
         _bridge.updateOverlay('Checking this call…');
+        // Exotel starts streaming when it answers the caller, before it rings this phone,
+        // so the backend may already be scoring this call.
+        final recent = _lastLive;
+        final at = _lastLiveAt;
+        if (_live != null &&
+            recent != null &&
+            !recent.isFinal &&
+            at != null &&
+            DateTime.now().difference(at) < const Duration(seconds: 60)) {
+          _applyLive(recent);
+        }
         break;
 
       case CallState.answered:
         _current ??= CallRecord(startedAt: DateTime.now());
+        _inCall = true;
+        if (_live != null) {
+          // The live feed screens this call. The receiver has already started local
+          // capture on OFFHOOK; it can only fail or record silence here, so stop it, and
+          // do not open a /api/ws/screen session that would never receive audio.
+          unawaited(_bridge.stopCapture());
+          if (_latest == null) {
+            _emit(CallPhase.screening, detail: 'Waiting for the backend’s verdict on this call');
+            _bridge.updateOverlay('Checking this call…');
+          }
+          break;
+        }
         _emit(CallPhase.screening);
         _bridge.updateOverlay('Checking this call…');
         // Native capture has already started by this point — the receiver starts the
@@ -245,10 +313,17 @@ class CallSession {
         break;
 
       case CallState.ended:
-        unawaited(_finish());
+        unawaited(_endCall());
         break;
 
       case CallState.error:
+        if (_inCall && _live != null) {
+          // Expected: the dialer holds the microphone during a call. Not a failure to
+          // screen — the live feed does that — so log it rather than show it.
+          print('SC/Session: local capture unavailable during the call (${event.detail}); '
+              'the live feed screens it');
+          break;
+        }
         _current?.error = event.detail;
         _emit(CallPhase.failed, detail: event.detail);
         _bridge.updateOverlay('Could not screen this call');
@@ -315,6 +390,73 @@ class CallSession {
   void _onOverlay(OverlayUpdate update) {
     _overlay = update;
     _renderOverlay();
+  }
+
+  void _onLiveVerdict(LiveVerdict verdict) {
+    _lastLive = verdict;
+    _lastLiveAt = DateTime.now();
+    // Calls on other phones belong on the dashboard; this phone shows its own call only.
+    if (!_inCall) return;
+    final following = _liveSessionId;
+    if (following != null && verdict.sessionId != following) {
+      // The feed carries every call. One call at a time — the demo — means a newer call
+      // is this one; a finished call that is not the one being followed is not.
+      if (verdict.isFinal) return;
+      print('SC/Live: now following ${verdict.sessionId} (was $following)');
+    }
+    _applyLive(verdict);
+  }
+
+  void _applyLive(LiveVerdict verdict) {
+    final wasRed = _liveApplied?.signal == Signal.red;
+    _liveSessionId = verdict.sessionId;
+    _liveApplied = verdict;
+    _latest = verdict.result;
+    _current?.result = verdict.result;
+    _emit(CallPhase.screening);
+    _bridge.updateOverlay(_liveOverlayText(verdict), signal: _signalName(verdict.signal));
+
+    // As for the app's own sessions: interrupt a live call only for red, and only once.
+    if (verdict.signal == Signal.red && !wasRed) {
+      _bridge.showVerdictNotification(
+        signal: 'red',
+        title: 'Likely scam call',
+        body: _notificationBody(verdict.result),
+      );
+    }
+    if (verdict.isFinal && !(_finalVerdict?.isCompleted ?? true)) _finalVerdict!.complete();
+  }
+
+  String _liveOverlayText(LiveVerdict verdict) {
+    // docs/LIVE_FEED.md: `insufficient` is "listening", never a colour judgement.
+    if (verdict.listening) return 'Listening…';
+    final line = _stateLine(verdict.signal, null);
+    final threat = verdict.threat;
+    final warning = verdict.signal == Signal.amber || verdict.signal == Signal.red;
+    return threat != null && warning ? '$line\nResembles $threat' : line;
+  }
+
+  /// The phone hung up. When the live feed is screening the call, wait briefly for the
+  /// backend's final verdict, which lands when Exotel's stream ends and can trail the
+  /// phone's own hang-up by a moment. It is the one to keep.
+  Future<void> _endCall() async {
+    if (_liveSessionId != null && !(_liveApplied?.isFinal ?? false)) {
+      final waiter = Completer<void>();
+      _finalVerdict = waiter;
+      await waiter.future.timeout(const Duration(seconds: 4), onTimeout: () {
+        print('SC/Live: no final verdict within 4 s of hang-up; keeping the last one');
+      });
+      _finalVerdict = null;
+    }
+    _inCall = false;
+    final live = _liveApplied;
+    await _finish();
+    if (live != null) {
+      // _finish draws from the app's own overlay state; a live verdict has its own text.
+      _bridge.updateOverlay(_liveOverlayText(live), signal: _signalName(live.signal));
+    }
+    _liveSessionId = null;
+    _liveApplied = null;
   }
 
   Future<void> _finish() async {
@@ -453,6 +595,8 @@ class CallSession {
   }
 
   void _emit(CallPhase phase, {String? detail}) {
+    _phase = phase;
+    _detail = detail;
     if (_state.isClosed) return;
     _state.add(CallSessionState(
       phase: phase,
@@ -460,9 +604,13 @@ class CallSession {
       chunksSent: _chunksSent,
       number: _current?.number,
       detail: detail,
+      liveFeed: liveFeedState,
     ));
   }
 }
+
+/// Whether the backend's live feed is screening this phone's calls.
+enum LiveFeedState { off, connecting, connected }
 
 /// Seconds of audio per chunk. Matches `windowSeconds` in `CallAudioService.kt`; the
 /// backend keeps its own trailing context window, so chunks carry no overlap.
@@ -510,6 +658,7 @@ class CallSessionState {
     this.chunksSent = 0,
     this.number,
     this.detail,
+    this.liveFeed = LiveFeedState.off,
   });
 
   final CallPhase phase;
@@ -517,6 +666,7 @@ class CallSessionState {
   final int chunksSent;
   final String? number;
   final String? detail;
+  final LiveFeedState liveFeed;
 
   Signal get signal => result?.signal ?? Signal.grey;
 }

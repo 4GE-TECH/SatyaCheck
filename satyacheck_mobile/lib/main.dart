@@ -56,6 +56,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   static const _backendUrlKey = 'backend_url';
   final _backendUrl = TextEditingController();
 
+  /// The live-feed token, kept the same way. Lets the backend's verdicts screen calls
+  /// on this phone, which cannot record its own calls.
+  static const _liveTokenKey = 'live_feed_token';
+  final _liveToken = TextEditingController();
+
   StreamSubscription<CallSessionState>? _states;
 
   Permissions _permissions = Permissions.none;
@@ -78,6 +83,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _states?.cancel();
     _session.dispose();
     _backendUrl.dispose();
+    _liveToken.dispose();
     super.dispose();
   }
 
@@ -86,15 +92,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   /// A saved address wins over the build's `SATYACHECK_BACKEND`: a Cloudflare quick tunnel
   /// gets a new hostname every time it restarts, and retyping it beats rebuilding the APK.
   Future<void> _loadBackendUrl() async {
+    var token = ApiClient.defaultLiveToken;
     try {
-      final saved = (await SharedPreferences.getInstance()).getString(_backendUrlKey);
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_backendUrlKey);
       final url = saved == null ? null : ApiClient.normaliseBaseUrl(saved);
       if (url != null) _api.baseUrl = url;
+      token = prefs.getString(_liveTokenKey) ?? token;
     } catch (exc) {
       print('SC/Home: could not read the saved server address ($exc); '
           'using ${_api.baseUrl}');
     }
     _backendUrl.text = _api.baseUrl;
+    _liveToken.text = token;
+    await _session.setLiveFeedToken(token);
     await _refresh();
   }
 
@@ -113,6 +124,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     FocusScope.of(context).unfocus();
     _api.baseUrl = url;
     _backendUrl.text = _api.baseUrl;
+    final typedToken = _liveToken.text.trim();
+    final token = typedToken.isEmpty ? ApiClient.defaultLiveToken : typedToken;
+    _liveToken.text = token;
     setState(() => _backendUp = null);
 
     try {
@@ -122,10 +136,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       } else {
         await prefs.setString(_backendUrlKey, _api.baseUrl);
       }
+      if (typedToken.isEmpty) {
+        await prefs.remove(_liveTokenKey);
+      } else {
+        await prefs.setString(_liveTokenKey, typedToken);
+      }
     } catch (exc) {
       // Still usable for this launch; it just will not survive a restart.
       print('SC/Home: could not save the server address ($exc)');
     }
+    // Reconnect the live feed to the new address with the new token.
+    await _session.setLiveFeedToken(token);
     await _refresh();
   }
 
@@ -487,6 +508,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       false => (_signalColors[Signal.red]!, 'Not reachable'),
       null => (_signalColors[Signal.grey]!, 'Checking…'),
     };
+    final (liveColour, liveStatus) = switch (_state.liveFeed) {
+      LiveFeedState.connected => (_signalColors[Signal.green]!, 'Live feed connected'),
+      LiveFeedState.connecting => (_signalColors[Signal.amber]!, 'Live feed connecting…'),
+      LiveFeedState.off => (_signalColors[Signal.grey]!, 'Live feed off'),
+    };
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -519,6 +545,30 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 helperText: 'Leave empty to use ${ApiClient.defaultBaseUrl}',
                 helperMaxLines: 2,
               ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _liveToken,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _saveBackendUrl(),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(),
+                labelText: 'Live-feed token',
+                helperText: 'Screens Exotel calls on this phone. Empty turns it off.',
+                helperMaxLines: 2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.circle, size: 10, color: liveColour),
+                const SizedBox(width: 6),
+                Text(liveStatus, style: const TextStyle(fontSize: 13)),
+              ],
             ),
             const SizedBox(height: 12),
             FilledButton.tonal(
@@ -594,6 +644,12 @@ class _VerdictCard extends StatelessWidget {
         detail = state.number ?? 'Screening starts when you answer.';
         break;
       case CallPhase.screening:
+        if (result != null && result.band == TrustBand.insufficient) {
+          // Too little speech so far: a state, not a verdict (docs/LIVE_FEED.md).
+          headline = 'Listening…';
+          detail = 'Not enough clear speech yet to judge this call.';
+          break;
+        }
         headline = result == null ? 'Checking…' : _headlineFor(result);
         detail = result == null
             ? (state.detail ?? 'Listening. ${state.chunksSent} clip(s) sent.')

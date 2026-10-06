@@ -48,6 +48,12 @@ class ApiClient {
     defaultValue: 'http://localhost:8000',
   );
 
+  /// The token for the live feed (`/api/ws/live`) when the backend sets one, until the
+  /// user saves another on the home screen. Empty means the live feed is off.
+  ///
+  ///     flutter run --dart-define=SATYACHECK_LIVE_TOKEN=...
+  static const defaultLiveToken = String.fromEnvironment('SATYACHECK_LIVE_TOKEN');
+
   late String _baseUrl;
 
   String get baseUrl => _baseUrl;
@@ -336,5 +342,116 @@ class ScreeningSocket {
       await _socket.close();
     } catch (_) {}
     _onClosed();
+  }
+}
+
+/// The backend's live verdict feed, `/api/ws/live` (docs/LIVE_FEED.md).
+///
+/// Receive-only and live-only: the backend replays nothing, so a dropped socket is
+/// reopened straight away and keeps being reopened, with backoff, until [stop]. The
+/// server address is read on every attempt, so a new one saved on the home screen is
+/// picked up by the next connect.
+class LiveFeed {
+  LiveFeed(this._api, this._token);
+
+  final ApiClient _api;
+  final String _token;
+  final _verdicts = StreamController<LiveVerdict>.broadcast();
+  final _connection = StreamController<bool>.broadcast();
+
+  WebSocket? _socket;
+  Timer? _retry;
+  int _attempt = 0;
+  bool _stopped = false;
+  bool _connected = false;
+
+  Stream<LiveVerdict> get verdicts => _verdicts.stream;
+
+  /// True on connect, false on every drop or failed attempt.
+  Stream<bool> get connection => _connection.stream;
+
+  bool get connected => _connected;
+
+  void start() => unawaited(_connect());
+
+  Future<void> stop() async {
+    _stopped = true;
+    _retry?.cancel();
+    try {
+      await _socket?.close();
+    } catch (_) {}
+    _setConnected(false);
+    await _verdicts.close();
+    await _connection.close();
+  }
+
+  Future<void> _connect() async {
+    if (_stopped) return;
+    final url = '${ApiClient.webSocketUrlFor(_api.baseUrl)}/api/ws/live'
+        '?token=${Uri.encodeQueryComponent(_token)}';
+    try {
+      final ws = await WebSocket.connect(url).timeout(const Duration(seconds: 8));
+      if (_stopped) {
+        await ws.close();
+        return;
+      }
+      _socket = ws;
+      _attempt = 0;
+      _setConnected(true);
+      print('SC/Live: connected to ${_api.baseUrl}');
+      ws.listen(
+        _onMessage,
+        onDone: () => _onDropped('closed (code ${ws.closeCode})'),
+        onError: (Object exc) => _onDropped('error: $exc'),
+        cancelOnError: true,
+      );
+    } catch (exc) {
+      // The backend refuses a wrong token before accepting, so a bad token arrives here as
+      // a failed handshake (HTTP 403), indistinguishable from an unreachable server.
+      // The exception text carries the URL, token included; keep the token out of logcat.
+      final why = '$exc'
+          .replaceAll(Uri.encodeQueryComponent(_token), '<token>')
+          .replaceAll(_token, '<token>');
+      print('SC/Live: could not connect to ${_api.baseUrl} ($why). '
+          'Check the server address and the live-feed token.');
+      _scheduleRetry();
+    }
+  }
+
+  void _onMessage(dynamic raw) {
+    try {
+      final msg = jsonDecode(raw as String) as Map<String, dynamic>;
+      final version = msg['schema_version'];
+      if (version != null && version != 1) {
+        print('SC/Live: feed schema $version; this app was built for 1');
+      }
+      final verdict = LiveVerdict.tryParse(msg);
+      if (verdict != null && !_verdicts.isClosed) _verdicts.add(verdict);
+      // `hello` and any type this app does not know are ignored, as the doc asks.
+    } catch (exc) {
+      print('SC/Live: ignoring a malformed frame ($exc)');
+    }
+  }
+
+  void _onDropped(String why) {
+    _socket = null;
+    if (_stopped) return;
+    print('SC/Live: feed $why; reconnecting');
+    _scheduleRetry();
+  }
+
+  void _scheduleRetry() {
+    _setConnected(false);
+    if (_stopped) return;
+    final seconds = _attempt >= 5 ? 30 : 1 << _attempt; // 1, 2, 4, 8, 16, then 30
+    _attempt++;
+    _retry?.cancel();
+    _retry = Timer(Duration(seconds: seconds), () => unawaited(_connect()));
+  }
+
+  void _setConnected(bool value) {
+    if (_connected == value) return;
+    _connected = value;
+    if (!_connection.isClosed) _connection.add(value);
   }
 }

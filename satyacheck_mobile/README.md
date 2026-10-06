@@ -151,6 +151,31 @@ The home screen has a **Screening server** field. It takes a full base URL —
 restarts. A saved address wins over `SATYACHECK_BACKEND`; clear the field and save to go
 back to the build's default. The WebSocket scheme follows it: `http` → `ws`, `https` → `wss`.
 
+## Exotel calls — the live feed
+
+With Exotel, a call's audio goes from Exotel straight to the backend; this phone, being in
+the call, could not record it anyway (the dialer holds the microphone). The backend
+publishes its verdicts on `/api/ws/live` (`docs/LIVE_FEED.md`), and with a **Live-feed
+token** set the app follows that feed during a call instead of trying the microphone:
+
+- the overlay and verdict card follow the feed's newest call, about every 2 s
+  (`insufficient` shows "Listening…");
+- the futile local capture is stopped, and its "microphone unavailable" error is logged,
+  not shown;
+- after hang-up the app waits up to 4 s for the call's final verdict, then keeps it in
+  Recent calls and posts the notification.
+
+The token comes from whoever runs the backend (`LIVE_FEED_TOKEN`). Set it in the field
+under Screening server, or at build time:
+
+```bash
+flutter run --dart-define=SATYACHECK_BACKEND=https://<host> --dart-define=SATYACHECK_LIVE_TOKEN=<token>
+```
+
+Empty turns the feed off, which brings back the old behaviour of trying the microphone during
+a call. The feed carries every call on the backend; one call at a time is assumed, so the
+phone shows whichever call is live while it is in a call.
+
 ---
 
 ## Tests

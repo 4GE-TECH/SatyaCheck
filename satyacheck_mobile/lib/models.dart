@@ -203,6 +203,73 @@ class ScreeningResult {
   }
 }
 
+/// One `verdict` from the backend's live feed, `/api/ws/live` (docs/LIVE_FEED.md, schema 1).
+///
+/// How the phone learns about its own Exotel calls. Exotel streams the call's audio
+/// straight to the backend; the phone in the call cannot record it, because Android gives
+/// the dialer the microphone (CLAUDE.md). The backend scores the call and publishes a
+/// verdict about every 2 seconds of audio, plus one final one.
+class LiveVerdict {
+  const LiveVerdict({
+    required this.sessionId,
+    required this.isFinal,
+    required this.signal,
+    required this.result,
+    this.threat,
+  });
+
+  /// One call. Every call on the backend shares the feed, so verdicts are grouped by this.
+  final String sessionId;
+
+  /// True exactly once per call, on its last verdict.
+  final bool isFinal;
+
+  /// `overlay_state`: the colour to show, as the backend decided it.
+  final Signal signal;
+
+  /// The same verdict in the shape the rest of the app renders.
+  final ScreeningResult result;
+
+  /// The scam it resembles, e.g. "KYC update fraud". Only on warning bands.
+  final String? threat;
+
+  /// `insufficient`: too little speech so far. "Listening", not a judgement.
+  bool get listening => result.band == TrustBand.insufficient;
+
+  /// Null for anything that is not a well-formed verdict.
+  static LiveVerdict? tryParse(Map<String, dynamic> json) {
+    if (json['type'] != 'verdict') return null;
+    final sessionId = json['session_id'];
+    if (sessionId is! String || sessionId.isEmpty) return null;
+    final signals = (json['signals'] as Map?)?.cast<String, dynamic>() ?? {};
+    final threat = (json['threat_label'] as Map?)?.cast<String, dynamic>();
+    return LiveVerdict(
+      sessionId: sessionId,
+      isFinal: json['is_final'] == true,
+      signal: Signal.values.asNameMap()[json['overlay_state']] ?? Signal.grey,
+      threat: threat?['threat'] as String?,
+      result: ScreeningResult(
+        sessionId: sessionId,
+        band: TrustBand.parse(json['band'] as String?),
+        trustScore: (json['trust_score'] as num?)?.toDouble() ?? 50.0,
+        mode: json['mode'] as String? ?? 'authority_check',
+        transcript: json['transcript'] as String? ?? '',
+        detectedLanguage: json['language'] as String? ?? 'unknown',
+        speakerVerdict: signals['identity'] as String? ?? 'unknown',
+        scriptRisk: (signals['intent_risk'] as num?)?.toDouble() ?? 0.0,
+        reasonCodes: ((json['reason_codes'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((e) => ReasonCode.fromJson(e.cast<String, dynamic>()))
+            .toList(),
+        recommendedActions: ((json['recommended_actions'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+        vernacularWarning: json['vernacular_warning'] as String?,
+      ),
+    );
+  }
+}
+
 /// Someone with a stored voiceprint.
 class EnrolledPerson {
   const EnrolledPerson({
