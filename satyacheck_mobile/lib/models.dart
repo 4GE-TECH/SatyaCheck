@@ -97,6 +97,7 @@ class ReasonCode {
     required this.signal,
     required this.explanation,
     this.value,
+    this.threshold,
     this.citationTitle,
     this.citationUrl,
     this.severity,
@@ -108,6 +109,9 @@ class ReasonCode {
   final String signal;
   final String explanation;
   final String? value;
+
+  /// The bar `value` was measured against, e.g. "> 40%".
+  final String? threshold;
   final String? citationTitle;
   final String? citationUrl;
   final String? severity;
@@ -117,6 +121,7 @@ class ReasonCode {
         signal: json['signal'] as String? ?? '',
         explanation: json['explanation'] as String? ?? '',
         value: json['value'] as String?,
+        threshold: json['threshold'] as String?,
         citationTitle: json['citation_title'] as String?,
         citationUrl: json['citation_url'] as String?,
         severity: json['severity'] as String?,
@@ -215,7 +220,12 @@ class LiveVerdict {
     required this.isFinal,
     required this.signal,
     required this.result,
+    this.windowIndex = 0,
+    this.escalated = false,
+    this.authenticity = 'unavailable',
+    this.callerNumber,
     this.threat,
+    this.threatSector,
   });
 
   /// One call. Every call on the backend shares the feed, so verdicts are grouped by this.
@@ -230,8 +240,24 @@ class LiveVerdict {
   /// The same verdict in the shape the rest of the app renders.
   final ScreeningResult result;
 
+  /// 0, 1, 2… per call, one per ~2 s of audio. The final verdict may repeat the last one.
+  final int windowIndex;
+
+  /// True when this verdict raised the call's warning level.
+  final bool escalated;
+
+  /// `synthetic` · `bonafide` · `unavailable`. Unavailable means the voice check did not
+  /// run: "not measured", never "genuine".
+  final String authenticity;
+
+  /// The caller's number as Exotel reported it. Display only; never part of the score.
+  final String? callerNumber;
+
   /// The scam it resembles, e.g. "KYC update fraud". Only on warning bands.
   final String? threat;
+
+  /// The sector of that scam, e.g. "banking".
+  final String? threatSector;
 
   /// `insufficient`: too little speech so far. "Listening", not a judgement.
   bool get listening => result.band == TrustBand.insufficient;
@@ -243,11 +269,17 @@ class LiveVerdict {
     if (sessionId is! String || sessionId.isEmpty) return null;
     final signals = (json['signals'] as Map?)?.cast<String, dynamic>() ?? {};
     final threat = (json['threat_label'] as Map?)?.cast<String, dynamic>();
+    final caller = (json['caller_context'] as Map?)?.cast<String, dynamic>();
     return LiveVerdict(
       sessionId: sessionId,
       isFinal: json['is_final'] == true,
       signal: Signal.values.asNameMap()[json['overlay_state']] ?? Signal.grey,
+      windowIndex: (json['window_index'] as num?)?.toInt() ?? 0,
+      escalated: json['escalated'] == true,
+      authenticity: signals['authenticity'] as String? ?? 'unavailable',
+      callerNumber: caller?['claimed_number'] as String?,
       threat: threat?['threat'] as String?,
+      threatSector: threat?['sector'] as String?,
       result: ScreeningResult(
         sessionId: sessionId,
         band: TrustBand.parse(json['band'] as String?),

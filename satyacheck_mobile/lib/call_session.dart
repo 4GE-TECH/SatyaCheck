@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'api_client.dart';
+import 'live_calls.dart';
 import 'models.dart';
 import 'native_bridge.dart';
 
@@ -64,6 +65,9 @@ class CallSession {
 
   /// Every change worth redrawing for.
   Stream<CallSessionState> get states => _state.stream;
+
+  /// Every call on the live feed, this phone's or not — the live view draws these.
+  final liveCalls = LiveCalls();
 
   LiveFeedState get liveFeedState => _live == null
       ? LiveFeedState.off
@@ -126,6 +130,7 @@ class CallSession {
     await _liveVerdicts?.cancel();
     await _liveConnection?.cancel();
     await _live?.stop();
+    liveCalls.dispose();
     await _state.close();
   }
 
@@ -414,6 +419,7 @@ class CallSession {
   }
 
   void _onLiveVerdict(LiveVerdict verdict) {
+    liveCalls.add(verdict);
     _lastLive = verdict;
     _lastLiveAt = DateTime.now();
     // Calls on other phones belong on the dashboard; this phone shows its own call only.
@@ -485,13 +491,19 @@ class CallSession {
         }
         if (stored != null) {
           print('SC/Live: $session final verdict fetched from the backend');
+          final previous = _liveApplied;
           _liveApplied = LiveVerdict(
             sessionId: session,
             isFinal: true,
             signal: stored.signal,
             result: stored,
-            threat: _liveApplied?.threat,
+            windowIndex: previous?.windowIndex ?? 0,
+            authenticity: previous?.authenticity ?? 'unavailable',
+            callerNumber: previous?.callerNumber,
+            threat: previous?.threat,
+            threatSector: previous?.threatSector,
           );
+          liveCalls.add(_liveApplied!);
           _latest = stored;
           _current?.result = stored;
         } else {

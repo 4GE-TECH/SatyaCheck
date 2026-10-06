@@ -6,8 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_client.dart';
 import 'call_session.dart';
 import 'enroll_screen.dart';
+import 'live_screen.dart';
 import 'models.dart';
 import 'native_bridge.dart';
+import 'palette.dart';
 
 void main() {
   runApp(const SatyaCheckApp());
@@ -31,14 +33,8 @@ class SatyaCheckApp extends StatelessWidget {
   }
 }
 
-/// Colours for the four verdicts. Kept in one place so the overlay, the notification and
-/// this screen cannot drift apart.
-const _signalColors = {
-  Signal.green: Color(0xFF16A34A),
-  Signal.amber: Color(0xFFD97706),
-  Signal.red: Color(0xFFDC2626),
-  Signal.grey: Color(0xFF6B7280),
-};
+/// Colours for the four verdicts, shared with the live view (palette.dart).
+const _signalColors = signalColors;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -169,6 +165,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
+  /// The live view: every call on the backend's live feed, as the dashboard shows it.
+  void _openLive() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LiveScreen(session: _session)),
+    );
+  }
+
   Future<void> _openEnroll() async {
     final name = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => EnrollScreen(api: _api)),
@@ -190,12 +193,28 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return Scaffold(
       appBar: AppBar(
         title: const Text('SatyaCheck'),
-        actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh))],
+        actions: [
+          IconButton(
+            onPressed: _openLive,
+            tooltip: 'Live calls',
+            icon: const Icon(Icons.sensors),
+          ),
+          IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _VerdictCard(state: _state, ready: _ready),
+          if (_state.liveFeed != LiveFeedState.off)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: OutlinedButton.icon(
+                onPressed: _openLive,
+                icon: const Icon(Icons.sensors),
+                label: const Text('Open live view — score, signals and evidence'),
+              ),
+            ),
           const SizedBox(height: 20),
           if (!_permissions.allGranted) _setup(context),
           if (_permissions.allGranted && _backendUp == false) _backendOffline(),
@@ -665,6 +684,13 @@ class _VerdictCard extends StatelessWidget {
         break;
     }
 
+    // The trust score, as the dashboard shows it — only once there is a verdict to score.
+    final score = result != null &&
+            result.band != TrustBand.insufficient &&
+            (state.phase == CallPhase.screening || state.phase == CallPhase.done)
+        ? result.trustScore.round()
+        : null;
+
     return Card(
       color: state.phase == CallPhase.idle ? null : colour.withValues(alpha: 0.22),
       shape: RoundedRectangleBorder(
@@ -676,12 +702,35 @@ class _VerdictCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(headline,
-                // Large type: CLAUDE.md asks for something readable from three metres.
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(headline,
+                      // Large type: CLAUDE.md asks for something readable from three metres.
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                ),
+                if (score != null) ...[
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('$score',
+                          style: const TextStyle(
+                              fontSize: 36,
+                              height: 1.0,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'monospace')),
+                      const Text('trust / 100',
+                          style: TextStyle(fontSize: 11, color: Colors.white60)),
+                    ],
+                  ),
+                ],
+              ],
+            ),
             const SizedBox(height: 6),
             Text(detail, style: Theme.of(context).textTheme.bodyMedium),
             if (result != null && result.transcript.isNotEmpty) ...[
