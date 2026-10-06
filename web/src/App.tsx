@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 import ScreenPage from "./pages/ScreenPage";
 import EnrollPage from "./pages/EnrollPage";
 import ReportPage from "./pages/ReportPage";
+import LivePage from "./pages/LivePage";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
             <Route path="/" element={<ScreenPage />} />
             <Route path="/enroll" element={<EnrollPage />} />
             <Route path="/report" element={<ReportPage />} />
+            <Route path="/live" element={<LivePage />} />
           </Routes>
         </Layout>
       </BrowserRouter>

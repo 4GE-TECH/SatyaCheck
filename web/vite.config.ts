@@ -11,8 +11,17 @@ export default defineConfig(({ mode }) => {
   // involved. changeOrigin rewrites Host to the target's, which a Cloudflare tunnel
   // needs to route the request at all; ws forwards the WebSocket upgrades too
   // (/api/ws/live, /api/ws/guardian — see docs/LIVE_FEED.md).
-  const backend =
-    loadEnv(mode, import.meta.dirname, '').SATYACHECK_BACKEND || 'http://localhost:8000'
+  const env = loadEnv(mode, import.meta.dirname, '')
+  const backend = env.SATYACHECK_BACKEND || 'http://localhost:8000'
+
+  // The live feed's ?token= is added here, by the dev server, from SATYACHECK_LIVE_TOKEN.
+  // The feed carries call transcripts, so the token stays out of the page, its URL and
+  // the browser. Listed before /api because the first matching prefix wins.
+  const liveToken = env.SATYACHECK_LIVE_TOKEN
+  const withLiveToken = (path: string) =>
+    liveToken && !/[?&]token=/.test(path)
+      ? `${path}${path.includes('?') ? '&' : '?'}token=${encodeURIComponent(liveToken)}`
+      : path
 
   return {
     plugins: [react(), tailwindcss()],
@@ -23,6 +32,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
+        '/api/ws/live': { target: backend, changeOrigin: true, ws: true, rewrite: withLiveToken },
         '/api': { target: backend, changeOrigin: true, ws: true },
       },
     },

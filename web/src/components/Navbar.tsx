@@ -34,6 +34,19 @@ export default function Navbar() {
           </NavLink>
 
           <NavLink
+            to="/live"
+            className={({ isActive }) =>
+              `px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all no-underline flex items-center gap-1.5 cursor-pointer ${
+                isActive
+                  ? "bg-[var(--text-primary)] text-[var(--bg-primary)] font-mono shadow-sm"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+              }`
+            }
+          >
+            Live Calls
+          </NavLink>
+
+          <NavLink
             to="/enroll"
             className={({ isActive }) =>
               `px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all no-underline flex items-center gap-1.5 cursor-pointer ${
