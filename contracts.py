@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # =====================================================================
@@ -515,6 +515,57 @@ class StreamScreeningUpdateMessage(BaseModel):
     session_id: str = Field(...)
     chunk_index: int = Field(...)
     response: ScreeningResponse = Field(...)
+
+
+# =====================================================================
+# Transport-Agnostic Audio Frames (C1 — items 1–6)
+# =====================================================================
+
+class AudioSource(str, Enum):
+    """Where a session's audio comes from.
+
+    CRITICAL RULE:
+    Named only on `SessionOpen`, which only the runner and dispatcher read. The checks
+    (identity, authenticity, intent) receive `AudioFrame`s and must never learn the
+    transport — server/tests/test_transport_invariant.py enforces it.
+    """
+    EXOTEL = "exotel"
+    APP_WS = "app_ws"
+    UPLOAD = "upload"
+    BYSTANDER = "bystander"
+
+
+class SessionOpen(BaseModel):
+    """Start of one screened call, from any source."""
+    session_id: str = Field(...)
+    source: AudioSource = Field(..., description="The only place a transport is named")
+    caller_context: Optional[CallerMetadata] = Field(None, description="Explanation only, never scored (FR-17)")
+    opened_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class AudioFrame(BaseModel):
+    """A slice of call audio as every check path receives it.
+
+    Always 16 kHz mono signed 16-bit little-endian. Adapters resample and decode before
+    constructing one; nothing downstream knows the original codec or rate. Telephony
+    audio arrives at 8 kHz — upsampling adds no information, which is why enrollment is
+    condition-matched (narrowband voiceprints).
+    """
+    # PCM is arbitrary binary; Pydantic's default UTF-8 bytes serialisation fails on it.
+    model_config = ConfigDict(ser_json_bytes="base64", val_json_bytes="base64")
+
+    session_id: str = Field(...)
+    seq: int = Field(..., ge=0, description="Monotonic per session; gaps are logged, not fatal")
+    t_start_s: float = Field(..., ge=0.0, description="Session-relative time of the first sample")
+    pcm_s16le: bytes = Field(..., description="16 kHz mono s16le samples")
+    sample_rate: Literal[16000] = Field(16000)
+    is_final: bool = Field(False)
+
+
+class SessionClose(BaseModel):
+    """End of a session, and why."""
+    session_id: str = Field(...)
+    reason: str = Field(..., description="e.g. 'stop event', 'client disconnected', 'max duration'")
 
 
 # =====================================================================

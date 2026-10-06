@@ -92,6 +92,8 @@ VAD_OVERLAP_S: float = 1.0               # overlap between consecutive chunks
 # against this same ASR. Every chunk is instead scored against the trailing window
 # of buffered audio, long enough to be Whisper-safe.
 STREAM_CONTEXT_S: float = 9.0             # trailing window used to score each chunk
+STREAM_HOP_S: float = 2.0                 # server/pipeline/buffer.py: a window every hop (FR-13 "~2s")
+STREAM_MAX_SESSION_S: float = 1800.0      # stop scoring after 30 min of audio, loudly
 
 # Minimum enrollment quality.
 #
