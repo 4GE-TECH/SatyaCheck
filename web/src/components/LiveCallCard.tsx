@@ -3,7 +3,7 @@ import { AlertTriangle, Mic, Phone, ShieldCheck, UserRound } from "lucide-react"
 import type { LiveCall } from "../hooks/useLiveFeed";
 import type { Authenticity, LiveVerdict } from "../types/liveFeed";
 import type { SeverityLevel, SpeakerVerdict, TrustBand } from "../types/contracts";
-import { BAND_LABEL, DOT, INK, SURFACE, knownState } from "./liveFeedDisplay";
+import { BAND_LABEL, DOT, INK, SURFACE, knownState, windowView } from "./liveFeedDisplay";
 
 /**
  * One call from the live feed, as large as a judge three metres away needs.
@@ -76,24 +76,64 @@ function formatDuration(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function WindowStrip({ windows }: { windows: LiveVerdict[] }) {
+/**
+ * Each window's own trust score as a bar, coloured by its own band. Unlike the session
+ * verdict above it, this goes up as well as down: it shows where in the call the risk was.
+ */
+function WindowChart({ windows }: { windows: LiveVerdict[] }) {
   return (
     <div>
       <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-        Every 2 seconds of the call, oldest first
+        Trust in every 2 seconds of the call, oldest first
       </div>
-      <div className="flex flex-wrap gap-1" role="list" aria-label="Verdict per scoring window">
-        {windows.map((w) => (
-          <span
-            key={`${w.window_index}-${w.is_final}`}
-            role="listitem"
-            title={`Window ${w.window_index} · ${BAND_LABEL[w.band] ?? w.band} · trust ${Math.round(w.trust_score)}${w.is_final ? " · final" : ""}`}
-            className={`h-6 w-3 rounded-sm ${DOT[knownState(w.overlay_state)]} ${
-              w.is_final ? "ring-2 ring-offset-1 ring-[var(--text-primary)] ring-offset-[var(--bg-primary)]" : ""
-            }`}
-          />
-        ))}
+      <div
+        className="flex items-end gap-1 h-16 border-b border-[var(--border-default)] overflow-x-auto"
+        role="list"
+        aria-label="Trust score per scoring window"
+      >
+        {windows.map((w) => {
+          const win = windowView(w);
+          const listening = win.band === "insufficient";
+          return (
+            <span
+              key={`${w.window_index}-${w.is_final}`}
+              role="listitem"
+              title={`Window ${w.window_index} · ${BAND_LABEL[win.band] ?? win.band} · ${
+                listening ? "listening" : `trust ${Math.round(win.score)}`
+              }${w.is_final ? " · final" : ""}`}
+              style={{ height: listening ? "12%" : `${Math.max(8, Math.min(100, win.score))}%` }}
+              className={`w-3 shrink-0 rounded-t-sm ${DOT[win.state]} ${listening ? "opacity-40" : ""} ${
+                w.is_final ? "ring-2 ring-[var(--text-primary)]" : ""
+              }`}
+            />
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+/** The current window's own score: the live gauge docs/LIVE_FEED.md asks for. */
+function RightNow({ verdict }: { verdict: LiveVerdict }) {
+  const win = windowView(verdict);
+  const listening = win.band === "insufficient";
+  const pct = listening ? 0 : Math.max(0, Math.min(100, win.score));
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="font-semibold text-[var(--text-secondary)]">Right now</span>
+        <span className="font-semibold">
+          <span className={`font-mono text-lg ${INK[win.state]}`}>{listening ? "—" : Math.round(win.score)}</span>
+          <span className="text-[var(--text-muted)]"> · {BAND_LABEL[win.band] ?? win.band}</span>
+        </span>
+      </div>
+      <div className="h-2.5 rounded-full bg-[var(--bg-secondary)] overflow-hidden" aria-hidden>
+        <div className={`h-full transition-all duration-500 ${DOT[win.state]}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-[var(--text-muted)]">
+        This moment of the call. It moves up and down; the trust score above is the call's
+        lowest so far and never goes back up.
+      </p>
     </div>
   );
 }
@@ -166,7 +206,7 @@ export default function LiveCallCard({ call }: { call: LiveCall }) {
             <div className={`text-5xl sm:text-6xl font-extrabold font-mono ${INK[state]}`}>
               {listening ? "—" : Math.round(v.trust_score)}
             </div>
-            <div className="text-xs text-[var(--text-muted)]">out of 100</div>
+            <div className="text-xs text-[var(--text-muted)]">out of 100 · lowest so far</div>
           </div>
         </div>
 
@@ -175,6 +215,8 @@ export default function LiveCallCard({ call }: { call: LiveCall }) {
             {v.vernacular_warning}
           </p>
         )}
+
+        {!ended && <RightNow verdict={v} />}
       </section>
 
       {/* ── The three signals ──────────────────────────────────── */}
@@ -221,7 +263,7 @@ export default function LiveCallCard({ call }: { call: LiveCall }) {
 
       {/* ── Timeline + transcript ──────────────────────────────── */}
       <section className="sec-card p-5 space-y-5">
-        <WindowStrip windows={call.windows} />
+        <WindowChart windows={call.windows} />
         <div>
           <div className="flex items-center justify-between text-xs font-semibold text-[var(--text-muted)] mb-2">
             <span>What was said</span>

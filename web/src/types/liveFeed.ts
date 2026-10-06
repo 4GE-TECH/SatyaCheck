@@ -78,4 +78,11 @@ export interface LiveVerdict {
   threat_label: LiveThreatLabel | null;
   recommended_actions: string[];
   vernacular_warning: string | null;
+  /**
+   * This window's own score and band, before the session floor and latch. They move up
+   * and down; `trust_score` and `band` only ever fall. Use them for a live gauge.
+   * Absent from backends older than 74d6dcf.
+   */
+  window_trust_score?: number;
+  window_band?: TrustBand;
 }
