@@ -8,7 +8,9 @@ Every number below is measured, not estimated.
 
 ```bash
 # 1. Backend (leave running)
-python -m uvicorn server.main:app --host 0.0.0.0 --port 8000
+# RETAIN_SESSION_AUDIO=true: keeps call chunks so scripts/enrol_from_call.py can enrol
+# over the same acoustic path. Off by default — no call audio is kept otherwise.
+RETAIN_SESSION_AUDIO=true python -m uvicorn server.main:app --host 0.0.0.0 --port 8000
 curl -s localhost:8000/api/health
 
 # 2. Phone over USB

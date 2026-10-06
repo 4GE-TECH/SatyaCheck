@@ -36,15 +36,22 @@ def sessions_dir() -> Path:
     return config.DATA_DIR / "sessions"
 
 
+def _retention_hint() -> None:
+    # Without this, retention being off looks exactly like no call ever arriving. The flag
+    # read here is this shell's, not the server's (the runbook sets it on the uvicorn line
+    # only), so it is shown only when nothing is retained and worded as a possibility.
+    if not config.RETAIN_SESSION_AUDIO:
+        print("RETAIN_SESSION_AUDIO is off by default, and this shell does not set it.")
+        print("If the server was started without RETAIN_SESSION_AUDIO=true, it keeps no")
+        print("call audio: restart it with RETAIN_SESSION_AUDIO=true, screen a call, retry.")
+
+
 def list_sessions() -> None:
     root = sessions_dir()
-    if not config.RETAIN_SESSION_AUDIO:
-        # Without this, retention being off looks exactly like no call ever arriving.
-        print("RETAIN_SESSION_AUDIO is off, so new calls keep no audio to enrol from.")
-        print("Start the server with RETAIN_SESSION_AUDIO=true, screen a call, then retry.")
     if not root.is_dir():
         print(f"no retained sessions yet ({root})")
         print("Screen a call first — chunks are kept as they are scored.")
+        _retention_hint()
         return
     rows = []
     for d in sorted(root.iterdir()):
@@ -54,6 +61,7 @@ def list_sessions() -> None:
                 rows.append((d.name, len(wavs), max(w.stat().st_mtime for w in wavs)))
     if not rows:
         print("no session audio retained yet")
+        _retention_hint()
         return
     rows.sort(key=lambda r: r[2], reverse=True)
     print(f"{'session':34s} {'chunks':>7s}   newest first")

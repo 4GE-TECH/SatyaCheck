@@ -111,10 +111,10 @@ ESCALATION_PERSISTENCE_N: int = int(os.getenv("ESCALATION_PERSISTENCE_N", "1"))
 # CLEANUP_TEMP_AUDIO: delete the normalised temp WAV every ingest_audio writes, once the
 # branches have read it. Off, those accumulate in the OS temp directory indefinitely.
 #
-# Both default to the behaviour the demo was measured with (retain on, cleanup off).
-# After the demo the defaults flip, and the demo machine sets RETAIN_SESSION_AUDIO=true.
-RETAIN_SESSION_AUDIO: bool = os.getenv("RETAIN_SESSION_AUDIO", "true").lower() == "true"
-CLEANUP_TEMP_AUDIO: bool = os.getenv("CLEANUP_TEMP_AUDIO", "false").lower() == "true"
+# Defaults keep no audio (item 15b): retention off, cleanup on. The demo machine sets
+# RETAIN_SESSION_AUDIO=true (DEMO_RUNBOOK.md) so enrol_from_call has chunks to read.
+RETAIN_SESSION_AUDIO: bool = os.getenv("RETAIN_SESSION_AUDIO", "false").lower() == "true"
+CLEANUP_TEMP_AUDIO: bool = os.getenv("CLEANUP_TEMP_AUDIO", "true").lower() == "true"
 
 # Minimum enrollment quality.
 #
