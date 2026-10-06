@@ -249,3 +249,18 @@ def test_identity_reason_codes_quote_the_threshold_actually_applied():
                 f"{code.code} quotes the fusion-scale threshold "
                 f"{config.ASV_MATCH_THRESHOLD}, not the cosine cut actually applied"
             )
+
+
+def test_an_abstaining_spoof_branch_reports_no_effective_authenticity_risk():
+    """When anti-spoof abstains its weight is zero, so its effective risk is too.
+
+    The evidence panel renders `authenticity_risk_effective` as "combined probability
+    that the audio is synthetic". Reporting 0.82 for a branch that contributed
+    nothing contradicts both the weights and the out-of-domain reason code.
+    """
+    spoof = _spoof(0.97, available=False)
+    spoof.details["abstain_reason"] = "out_of_distribution"
+    fusion = _compute_fusion(_speaker(SpeakerVerdict.UNKNOWN, 0.5), spoof, _script(0.9))
+
+    assert fusion.weights_used.cm_weight == 0.0
+    assert fusion.authenticity_risk_effective == 0.0
