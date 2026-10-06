@@ -36,6 +36,7 @@ from contracts import (
     TrustBand,
     TrustScoreResult,
     ChallengeQuestion,
+    ThreatLabel,
 )
 from server.audio_ingest import AudioChunk, IngestedAudio
 
@@ -266,7 +267,30 @@ def _compute_fusion(
         recommended_actions=recommended_actions,
         challenge_question=challenge_question,
         vernacular_warning=_get_vernacular_warning(band, script),
+        threat_label=_threat_label(band, script),
     )
+
+
+_LABELLED_BANDS = (TrustBand.CAUTION, TrustBand.SUSPICIOUS, TrustBand.HIGH_RISK)
+
+
+def _threat_label(band: TrustBand, script: ScriptAnalysisResult) -> Optional[ThreatLabel]:
+    """The intent branch's sector/threat, shown only beside a warning (item 10).
+
+    B reports the cited family whatever the risk; fusion owns the band. A benign call
+    that loosely resembles a KYC script must not read "banking / KYC update fraud" under
+    a calm verdict, and a label with no cited playbook has nothing behind it.
+    """
+    if band not in _LABELLED_BANDS or not script.playbooks:
+        return None
+    raw = script.details.get("threat_label")
+    if not raw:
+        return None
+    try:
+        return ThreatLabel(**raw)
+    except Exception as e:
+        log.warning(f"[fusion] dropping malformed threat_label {raw!r}: {e}")
+        return None
 
 
 def _build_reason_codes(

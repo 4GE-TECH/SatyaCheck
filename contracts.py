@@ -304,6 +304,13 @@ class FusionWeights(BaseModel):
     text_weight: float = Field(..., description="Weight for script / intent risk")
 
 
+class ThreatLabel(BaseModel):
+    """Which kind of fraud the call resembles (C2, item 10). A pattern, never a verdict."""
+    sector: str = Field(..., description="e.g. 'banking', 'telecom', 'law_enforcement_impersonation'")
+    threat: str = Field(..., description="e.g. 'KYC update fraud'")
+    family: str = Field(..., description="Corpus scam_family the cited playbook belongs to")
+
+
 class TrustScoreResult(BaseModel):
     """Fused verdict representing overall caller trust and explainable evidence.
     
@@ -330,6 +337,8 @@ class TrustScoreResult(BaseModel):
     recommended_actions: List[str] = Field(default_factory=list, description="Actionable recommendations for the user/guardian")
     challenge_question: Optional[ChallengeQuestion] = Field(None, description="Challenge question if identity verification recommended")
     vernacular_warning: Optional[str] = Field(None, description="Pre-cached spoken warning text in regional language")
+    # C2 (item 10). Appended; set only for caution / suspicious / high_risk with a cited playbook.
+    threat_label: Optional[ThreatLabel] = Field(None, description="Sector and threat the call resembles")
 
     @classmethod
     def insufficient(cls, reason: str = "Audio sample insufficient or too noisy to evaluate") -> TrustScoreResult:

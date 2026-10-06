@@ -36,6 +36,7 @@ from nlp_rag.reason_codes import build_intent_reason_codes
 from nlp_rag.retrieve import Encoder, RetrievalResult, Retriever
 from nlp_rag.score import abstain, score_script
 from nlp_rag.streaming import StreamingTranscriber
+from nlp_rag.threat_labels import threat_label_for
 from nlp_rag.warnings import warnings_by_band
 
 __all__ = [
@@ -194,6 +195,8 @@ def analyze_script(transcript: TranscriptResult) -> ScriptAnalysisResult:
 
         result = score_script(text, retrieval, find_markers(text))
         result.details["retrieval_available"] = _retriever is not None
+        # The family's sector/threat. Fusion decides whether to show it (warning bands only).
+        result.details["threat_label"] = threat_label_for(result.details.get("scam_family"))
         result.details["vernacular_warnings"] = warnings_by_band(_language_of(transcript))
         return result
     except Exception as exc:  # noqa: BLE001 - rule 5
