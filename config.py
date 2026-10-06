@@ -277,6 +277,11 @@ ENABLE_GUARDIAN_ALERTS: bool = True
 # Negative voiceprint list (FR-15)
 ENABLE_FLAGGED_VOICE_LIST: bool = True
 
+# Verdict dispatch (item 6, server/pipeline/dispatcher.py). Each sink runs isolated,
+# under its own timeout, so one slow output never delays the overlay.
+DISPATCH_SINKS: list[str] = ["app_overlay", "guardian", "report"]  # + "bank_api" (stub)
+DISPATCH_SINK_TIMEOUT_S: float = 2.0
+
 # PDF report generation (FR-14)
 ENABLE_PDF_REPORTS: bool = True
 
