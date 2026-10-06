@@ -167,6 +167,27 @@ class GuardianSubscription(Base):
     person = relationship("Person", back_populates="guardian_subs")
 
 
+class EvidenceLeaf(Base):
+    """One guardian alert in the evidence log (server/evidence.py). No audio, no transcript."""
+    __tablename__ = "evidence_leaves"
+
+    leaf_index = Column(Integer, primary_key=True, autoincrement=False)
+    alert_id = Column(String, nullable=False, unique=True)
+    session_id = Column(String, nullable=False, index=True)
+    leaf_hash = Column(String, nullable=False)
+    canonical_json = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class EvidenceRoot(Base):
+    """Every root the evidence log has had, so a rewritten past alert is detectable."""
+    __tablename__ = "evidence_roots"
+
+    tree_size = Column(Integer, primary_key=True, autoincrement=False)
+    root_hash = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 # ── Lifecycle ─────────────────────────────────────────────────────────
 
 #: Columns added after a table first shipped. `create_all` never alters an existing

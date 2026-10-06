@@ -315,6 +315,16 @@ DISPATCH_SINK_TIMEOUT_S: float = 2.0
 # to SessionRunner — a verdict every STREAM_HOP_S of audio, speaker + anti-spoof scored
 # per window, ASR out of band, outputs through the dispatcher. Off: the per-chunk
 # screen_audio loop in server/ws_router.py, unchanged. Read per connection.
+USE_PIPELINE_RUNNER: bool = os.getenv("USE_PIPELINE_RUNNER", "false").lower() == "true"
+
+# Streaming windows shorter than one anti-spoof input (64,600 samples, fixed by AASIST —
+# audio_ml/spoof.py WINDOW_SAMPLES) are scored with the anti-spoof branch abstaining
+# (server/orchestrator.py screen_window). The buffer's first windows are 2 and 4 s, and
+# with no transcript yet nothing gates the CM score. Measured on friend_test.wav, a
+# genuine call: P(synthetic) 0.998 on the 2 s window, 0.874 on 4 s, 0.38-0.61 on full
+# windows — the 2 s window latched the call suspicious. 0 disables.
+STREAM_SPOOF_MIN_WINDOW_S: float = 64600 / TARGET_SAMPLE_RATE
+
 # --- Exotel Stream applet (item 1, acquisition/exotel) ---------------------------------
 # Documented: Exotel connects to us as a WebSocket client and sends JSON text frames
 # (developer.exotel.com/docs/agentstream/websocket-protocol); 8000 Hz is the default rate,
@@ -332,15 +342,8 @@ EXOTEL_BASIC_PASS: str = os.getenv("EXOTEL_BASIC_PASS", "")
 EXOTEL_ALLOWED_IPS: list[str] = [x.strip() for x in os.getenv("EXOTEL_ALLOWED_IPS", "").split(",") if x.strip()]
 EXOTEL_ALLOW_UNAUTHENTICATED: bool = os.getenv("EXOTEL_ALLOW_UNAUTHENTICATED", "false").lower() == "true"
 
-USE_PIPELINE_RUNNER: bool = os.getenv("USE_PIPELINE_RUNNER", "false").lower() == "true"
-
-# Streaming windows shorter than one anti-spoof input (64,600 samples, fixed by AASIST —
-# audio_ml/spoof.py WINDOW_SAMPLES) are scored with the anti-spoof branch abstaining
-# (server/orchestrator.py screen_window). The buffer's first windows are 2 and 4 s, and
-# with no transcript yet nothing gates the CM score. Measured on friend_test.wav, a
-# genuine call: P(synthetic) 0.998 on the 2 s window, 0.874 on 4 s, 0.38-0.61 on full
-# windows — the 2 s window latched the call suspicious. 0 disables.
-STREAM_SPOOF_MIN_WINDOW_S: float = 64600 / TARGET_SAMPLE_RATE
+# Tamper-evident evidence log of guardian alerts (item 17, server/evidence.py)
+ENABLE_EVIDENCE_LOG: bool = os.getenv("ENABLE_EVIDENCE_LOG", "false").lower() == "true"
 
 # PDF report generation (FR-14)
 ENABLE_PDF_REPORTS: bool = True
