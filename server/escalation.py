@@ -82,6 +82,11 @@ class EscalationGate:
         elif rank > 0:
             # This window's warning is not confirmed yet: hold what the session showed.
             shown_band, shown_trust = self._shown or _NOTHING_SHOWN
+            # Never hold green over a warning window: green means "we verified this
+            # person", and this window's own evidence says otherwise (it may even be
+            # authority_check, where green is never shown). Hold neutral grey instead.
+            if shown_band == TrustBand.VERIFIED:
+                shown_band = TrustBand.UNVERIFIED
         else:
             shown_band, shown_trust = band, self._floor
 
