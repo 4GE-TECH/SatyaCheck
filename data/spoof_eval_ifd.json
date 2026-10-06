@@ -1,0 +1,78 @@
+{
+  "manifest": "C:\\Dev\\personal\\SatyaCheck - Copy\\data\\ifd_16k_mono\\manifest.csv",
+  "score": "median P(synthetic) per file, audio_ml.spoof.detect_spoof",
+  "tdcf_asv_assumption": "ideal",
+  "limit_per_split": null,
+  "leakage": {
+    "speaker_overlap": [],
+    "hash_overlap": []
+  },
+  "splits": {
+    "test": {
+      "n_bonafide": 905,
+      "n_spoof": 1416,
+      "eer": 0.097,
+      "eer_threshold": 0.713,
+      "min_tdcf": 0.2357,
+      "n_unscored": 0,
+      "by_orig_sr": {
+        "16000": {
+          "n_bonafide": 367,
+          "n_spoof": 643,
+          "eer": 0.1474,
+          "eer_threshold": 0.605,
+          "min_tdcf": 0.3554
+        },
+        "24000": {
+          "n_bonafide": 0,
+          "n_spoof": 199,
+          "note": "one class absent; no EER"
+        },
+        "44100": {
+          "n_bonafide": 461,
+          "n_spoof": 574,
+          "eer": 0.0126,
+          "eer_threshold": 0.992,
+          "min_tdcf": 0.0262
+        },
+        "48000": {
+          "n_bonafide": 77,
+          "n_spoof": 0,
+          "note": "one class absent; no EER"
+        }
+      }
+    },
+    "test_c": {
+      "n_bonafide": 1000,
+      "n_spoof": 41,
+      "eer": 0.1679,
+      "eer_threshold": 0.0394,
+      "min_tdcf": 0.3965,
+      "n_unscored": 0,
+      "by_orig_sr": {
+        "16000": {
+          "n_bonafide": 1000,
+          "n_spoof": 7,
+          "eer": 0.2854,
+          "eer_threshold": 0.0085,
+          "min_tdcf": 0.4812
+        },
+        "22050": {
+          "n_bonafide": 0,
+          "n_spoof": 1,
+          "note": "one class absent; no EER"
+        },
+        "24000": {
+          "n_bonafide": 0,
+          "n_spoof": 17,
+          "note": "one class absent; no EER"
+        },
+        "44100": {
+          "n_bonafide": 0,
+          "n_spoof": 16,
+          "note": "one class absent; no EER"
+        }
+      }
+    }
+  }
+}
