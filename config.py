@@ -105,6 +105,12 @@ STREAM_CONTEXT_S: float = 9.0             # trailing window used to score each c
 # Raise this back toward 30 once longer recordings exist, and re-measure.
 ENROLL_MIN_SPEECH_S: float = 15.0        # minimum active speech to accept an enrollment
 
+# Enrollment consent (item 16). A voiceprint is biometric personal data under the DPDP Act
+# 2023. When required, /api/enroll refuses -- before touching the audio -- unless the form
+# carries consent=true. Off until the app and web send it; then flip.
+REQUIRE_ENROLL_CONSENT: bool = os.getenv("REQUIRE_ENROLL_CONSENT", "false").lower() == "true"
+CONSENT_TEXT_VERSION: str = "2026-10-v1"     # bump whenever the consent wording changes
+
 # =====================================================================
 # Quality Gate Thresholds
 # =====================================================================
