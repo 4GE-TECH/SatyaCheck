@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
   //   SATYACHECK_BACKEND=https://xyz.trycloudflare.com
   // The browser only ever talks to this dev server, so the backend's CORS list is not
   // involved. changeOrigin rewrites Host to the target's, which a Cloudflare tunnel
-  // needs to route the request at all.
+  // needs to route the request at all; ws forwards the WebSocket upgrades too
+  // (/api/ws/live, /api/ws/guardian — see docs/LIVE_FEED.md).
   const backend =
     loadEnv(mode, import.meta.dirname, '').SATYACHECK_BACKEND || 'http://localhost:8000'
 
@@ -22,7 +23,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        '/api': { target: backend, changeOrigin: true },
+        '/api': { target: backend, changeOrigin: true, ws: true },
       },
     },
   }
