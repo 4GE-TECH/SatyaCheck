@@ -65,6 +65,8 @@ class Person(Base):
     phone_number = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    consent_recorded_at = Column(String, nullable=True)   # ISO-8601 UTC, item 16
+    consent_version = Column(String, nullable=True)
 
     voiceprints = relationship("Voiceprint", back_populates="person", cascade="all, delete-orphan")
     shared_secrets = relationship("SharedSecret", back_populates="person", cascade="all, delete-orphan")
@@ -167,9 +169,34 @@ class GuardianSubscription(Base):
 
 # ── Lifecycle ─────────────────────────────────────────────────────────
 
+#: Columns added after a table first shipped. `create_all` never alters an existing
+#: table, so an older satyacheck.db would otherwise fail every query touching these.
+_ADDED_COLUMNS: dict[str, list[tuple[str, str]]] = {
+    "persons": [("consent_recorded_at", "VARCHAR"), ("consent_version", "VARCHAR")],
+}
+
+
+def migrate(target_engine=None) -> None:
+    """Add any `_ADDED_COLUMNS` an existing database is missing. Idempotent."""
+    from sqlalchemy import inspect, text
+
+    target_engine = target_engine or engine
+    inspector = inspect(target_engine)
+    with target_engine.begin() as conn:
+        for table, columns in _ADDED_COLUMNS.items():
+            if not inspector.has_table(table):
+                continue
+            present = {c["name"] for c in inspector.get_columns(table)}
+            for name, sql_type in columns:
+                if name not in present:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}"))
+                    log.info(f"DB migration: added {table}.{name}")
+
+
 def init_db() -> None:
-    """Create all tables if they don't already exist."""
+    """Create all tables if they don't already exist, then add any newer columns."""
     Base.metadata.create_all(bind=engine)
+    migrate()
     log.info(f"DB initialised at {config.DB_PATH}")
 
 
@@ -219,6 +246,8 @@ def get_person_by_id(person_id: str):
             voiceprints=voiceprints,
             shared_secrets=secrets,
             created_at=str(person.created_at),
+            consent_recorded_at=person.consent_recorded_at,
+            consent_version=person.consent_version,
         )
 
 

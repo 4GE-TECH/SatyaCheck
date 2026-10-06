@@ -49,6 +49,8 @@ def _db_person_to_contract(person: Person) -> EnrolledPerson:
         voiceprints=voiceprints,
         shared_secrets=secrets,
         created_at=str(person.created_at),
+        consent_recorded_at=person.consent_recorded_at,
+        consent_version=person.consent_version,
     )
 
 
@@ -102,4 +104,8 @@ async def delete_person(
         raise HTTPException(status_code=404, detail=f"Person '{person_id}' not found")
     db.delete(person)
     db.commit()
-    return {"deleted": person_id}
+    # The .npz is what verify_speaker reads. Deleting only the rows left a "deleted"
+    # person matching on every later call, and kept their biometric data on disk.
+    from audio_ml.api import delete_person as delete_voiceprint
+    voiceprint_deleted = delete_voiceprint(person_id)
+    return {"deleted": person_id, "voiceprint_deleted": voiceprint_deleted}

@@ -71,6 +71,23 @@ def load_voiceprint(person_id: str) -> Optional[dict]:
         return None
 
 
+def delete_person(person_id: str) -> bool:
+    """Delete a person's voiceprint file. True if one was removed. Never raises."""
+    try:
+        if not person_id or Path(person_id).name != person_id or person_id in {".", ".."}:
+            logger.warning(f"delete_person: refusing suspicious id {person_id!r}")
+            return False
+        npz_path = ENROLLMENTS_DIR / f"{person_id}.npz"
+        if not npz_path.is_file():
+            return False
+        npz_path.unlink()
+        logger.info(f"delete_person({person_id}): removed {npz_path}")
+        return True
+    except Exception as e:
+        logger.error(f"delete_person({person_id}): {type(e).__name__}: {e}")
+        return False
+
+
 def list_persons() -> list[dict]:
     """
     List all enrolled persons.

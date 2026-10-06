@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -34,8 +35,16 @@ async def enroll_person_endpoint(
     person_id: Optional[str] = Form(None, description="Reuse existing person_id to update voiceprints"),
     shared_secrets: Optional[str] = Form(None, description='JSON array of {"question": ..., "answer": ...}'),
     file: UploadFile = File(..., description="Enrollment audio (min 30s of clear speech)"),
+    consent: bool = Form(False, description="The person being enrolled consents to voiceprint storage"),
     db: Session = Depends(get_db),
 ) -> EnrolledPerson:
+    # -- Consent, before any audio is read (DPDP Act 2023, item 16) --
+    if config.REQUIRE_ENROLL_CONSENT and not consent:
+        raise HTTPException(
+            status_code=422,
+            detail="Consent is required: a voiceprint is biometric data. Send consent=true "
+                   "only after the person being enrolled has agreed.",
+        )
     # ── Validate upload size ──────────────────────────────────────────
     audio_bytes = await file.read()
     if len(audio_bytes) > config.MAX_UPLOAD_SIZE_BYTES:
@@ -69,6 +78,9 @@ async def enroll_person_endpoint(
             db_person.name = name
             db_person.relation = relation
             db_person.phone_number = phone_number
+            if consent:
+                db_person.consent_recorded_at = datetime.now(timezone.utc).isoformat()
+                db_person.consent_version = config.CONSENT_TEXT_VERSION
         else:
             person_id = f"person_{uuid.uuid4().hex[:10]}"
             db_person = Person(
@@ -76,6 +88,8 @@ async def enroll_person_endpoint(
                 name=name,
                 relation=relation,
                 phone_number=phone_number,
+                consent_recorded_at=datetime.now(timezone.utc).isoformat() if consent else None,
+                consent_version=config.CONSENT_TEXT_VERSION if consent else None,
             )
             db.add(db_person)
             db.flush()

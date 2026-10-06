@@ -401,6 +401,9 @@ class EnrolledPerson(BaseModel):
     voiceprints: List[VoiceprintRecord] = Field(default_factory=list, description="Condition-matched voiceprints")
     shared_secrets: List[SharedSecret] = Field(default_factory=list, description="Configured challenge questions")
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    # C4 (item 16). A voiceprint is biometric personal data under the DPDP Act 2023.
+    consent_recorded_at: Optional[str] = Field(None, description="When the enrolled person's consent was recorded")
+    consent_version: Optional[str] = Field(None, description="Version of the consent text they agreed to")
 
 
 class EnrollmentRequest(BaseModel):
@@ -411,6 +414,7 @@ class EnrollmentRequest(BaseModel):
     audio_base64: Optional[str] = Field(None, description="Base64 encoded enrollment audio (min 30s)")
     audio_file_path: Optional[str] = Field(None, description="Local path to enrollment audio file")
     shared_secrets: List[Dict[str, str]] = Field(default_factory=list, description="List of {question, answer} pairs")
+    consent: bool = Field(False, description="The enrolled person consented to voiceprint storage (C4)")
 
 
 class FlaggedVoiceRecord(BaseModel):
