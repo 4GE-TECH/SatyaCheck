@@ -41,8 +41,18 @@ def screen(monkeypatch):
 
 
 def test_the_demo_default_is_on():
-    """Flip deliberately in item 7b, together with DEMO_RUNBOOK.md."""
-    assert config.USE_REAL_SPOOF is True
+    """Flip deliberately in item 7b, together with DEMO_RUNBOOK.md.
+
+    Reads the default written in config.py, not this process's environment: the flag is
+    read at import, so a USE_REAL_SPOOF left exported in the shell would otherwise decide
+    the result. A fresh interpreter with the variable removed sees only the source default.
+    """
+    env = {k: v for k, v in os.environ.items() if k != "USE_REAL_SPOOF"}
+    out = subprocess.run(
+        [sys.executable, "-c", "import config; print(config.USE_REAL_SPOOF)"],
+        capture_output=True, text=True, cwd=str(config.REPO_ROOT), env=env, timeout=60,
+    )
+    assert out.stdout.strip() == "True", out.stderr
 
 
 @pytest.mark.parametrize("value, expected", [("false", False), ("FALSE", False), ("true", True)])
