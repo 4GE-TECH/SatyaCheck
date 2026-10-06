@@ -2,14 +2,17 @@ package com.satyacheck
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -33,11 +36,58 @@ class MainActivity : FlutterActivity(),
     CallAudioService.AudioChunkListener,
     VoiceRecorder.Listener {
 
+    companion object {
+        private const val TAG = "SatyaCheck/Main"
+
+        /** Bring the app forward on its live view. */
+        const val ACTION_OPEN_LIVE = "com.satyacheck.OPEN_LIVE"
+
+        /**
+         * Bring the app to the front on the live view, over the in-call screen. The call
+         * carries on; the user goes back to it from the call bar.
+         *
+         * Android blocks activity starts from the background, with an exception for apps
+         * holding SYSTEM_ALERT_WINDOW while their overlay is on screen — which it is by the
+         * time a call is answered (CallStateReceiver shows it on RINGING). If Android still
+         * refuses, it does so quietly and the call screen simply stays in front.
+         */
+        fun openLiveView(context: Context) {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                action = ACTION_OPEN_LIVE
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                )
+            }
+            try {
+                context.startActivity(intent)
+                Log.i(TAG, "asked to bring the live view forward")
+            } catch (e: Exception) {
+                Log.w(TAG, "could not bring the live view forward: $e")
+            }
+        }
+    }
+
     private val CHANNEL = "com.satyacheck/native"
     private val PERMISSION_REQUEST = 4200
 
     private var channel: MethodChannel? = null
     private val main = Handler(Looper.getMainLooper())
+
+    /** Set when the app was started cold by [openLiveView]; Dart asks for it once ready. */
+    private var openLivePending = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (intent?.action == ACTION_OPEN_LIVE) openLivePending = true
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Already running: Dart is listening, so tell it straight away.
+        if (intent.action == ACTION_OPEN_LIVE) send("openLiveView", null)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -92,6 +142,12 @@ class MainActivity : FlutterActivity(),
                 "setCallCapture" -> {
                     CallStateReceiver.setCallCapture(this, call.argument<Boolean>("enabled") ?: true)
                     result.success(true)
+                }
+
+                // Whether a cold start came from openLiveView; answered once.
+                "takePendingLiveView" -> {
+                    result.success(openLivePending)
+                    openLivePending = false
                 }
 
                 // On while the live feed is on: network access during calls (LiveFeedService).

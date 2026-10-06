@@ -58,6 +58,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _liveToken = TextEditingController();
 
   StreamSubscription<CallSessionState>? _states;
+  StreamSubscription<void>? _openLiveRequests;
+
+  /// The live view is on screen; a second request must not stack another copy.
+  bool _liveOpen = false;
 
   Permissions _permissions = Permissions.none;
   CallSessionState _state = const CallSessionState(phase: CallPhase.idle);
@@ -70,6 +74,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _session.start();
     _states = _session.states.listen((s) => setState(() => _state = s));
+    // Answering a call the live feed screens brings the app forward on the live view
+    // (CallStateReceiver -> MainActivity.openLiveView).
+    _openLiveRequests = _bridge.openLiveRequests.listen((_) => _openLive());
     _loadBackendUrl();
   }
 
@@ -77,6 +84,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _states?.cancel();
+    _openLiveRequests?.cancel();
     _session.dispose();
     _backendUrl.dispose();
     _liveToken.dispose();
@@ -102,6 +110,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _backendUrl.text = _api.baseUrl;
     _liveToken.text = token;
     await _session.setLiveFeedToken(token);
+    // Started from scratch by an answered call: open the live view it was started for.
+    try {
+      if (await _bridge.takePendingLiveView()) _openLive();
+    } catch (exc) {
+      print('SC/Home: could not check for a pending live view ($exc)');
+    }
     await _refresh();
   }
 
@@ -166,10 +180,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   /// The live view: every call on the backend's live feed, as the dashboard shows it.
-  void _openLive() {
-    Navigator.of(context).push(
+  /// Also opened automatically when a call the feed screens is answered.
+  Future<void> _openLive() async {
+    if (_liveOpen || !mounted) return;
+    _liveOpen = true;
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => LiveScreen(session: _session)),
     );
+    _liveOpen = false;
   }
 
   Future<void> _openEnroll() async {

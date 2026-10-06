@@ -18,6 +18,15 @@ class NativeBridge {
   final _callEvents = StreamController<CallEvent>.broadcast();
   final _audioChunks = StreamController<AudioChunk>.broadcast();
   final _levels = StreamController<RecordLevel>.broadcast();
+  final _openLive = StreamController<void>.broadcast();
+
+  /// The native side brought the app forward to show the live view: a call was answered
+  /// while the live feed screens calls.
+  Stream<void> get openLiveRequests => _openLive.stream;
+
+  /// True once if the app was started cold to show the live view.
+  Future<bool> takePendingLiveView() async =>
+      await _channel.invokeMethod<bool>('takePendingLiveView') ?? false;
 
   /// RINGING / ANSWERED / ENDED, as they happen.
   Stream<CallEvent> get callEvents => _callEvents.stream;
@@ -80,6 +89,9 @@ class NativeBridge {
         break;
       case 'onRecorderError':
         _levels.addError((call.arguments as Map?)?['reason'] ?? 'recording failed');
+        break;
+      case 'openLiveView':
+        _openLive.add(null);
         break;
       case 'onPermissionsChanged':
         _callEvents.add(const CallEvent(CallState.permissionsChanged));

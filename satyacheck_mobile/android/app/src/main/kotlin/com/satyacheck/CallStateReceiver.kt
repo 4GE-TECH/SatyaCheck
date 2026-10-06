@@ -121,6 +121,8 @@ class CallStateReceiver : BroadcastReceiver() {
                     CallAudioService.start(context)
                 } else {
                     Log.i(TAG, "call capture off: the backend's live feed screens this call")
+                    // ...and its verdicts are on the app's live view: show it.
+                    MainActivity.openLiveView(context)
                 }
             }
 
