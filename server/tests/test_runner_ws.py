@@ -49,6 +49,9 @@ def client(monkeypatch, tmp_path):
 
     monkeypatch.setattr(config, "USE_PIPELINE_RUNNER", True)
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    # Explicit, not the default: item 15b flipped RETAIN_SESSION_AUDIO off. These tests
+    # are about what the runner path retains when retention is on.
+    monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", True)
     monkeypatch.setattr(config, "USE_REAL_SPEAKER", True)
     monkeypatch.setattr(config, "USE_REAL_SPOOF", True)
     monkeypatch.setattr(orch, "_real_speaker_branch", lambda p: SpeakerVerificationResult.neutral())

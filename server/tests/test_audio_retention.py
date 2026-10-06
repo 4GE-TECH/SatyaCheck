@@ -253,7 +253,7 @@ def test_enrol_from_call_says_retention_is_off(monkeypatch, tmp_path, capsys):
 
 @pytest.mark.parametrize("url_id", ["..%5C..%5Cevil", "..%5Cevil", "a%5Cb", ".."])
 def test_retention_refuses_a_session_id_that_is_not_a_plain_folder_name(client, monkeypatch, tmp_path, url_id):
-    """%5C decodes to a backslash and survives routing as one path segment; on Windows
+    r"""%5C decodes to a backslash and survives routing as one path segment; on Windows
     `DATA_DIR / "sessions" / "..\..\evil"` is outside DATA_DIR."""
     data = tmp_path / "a" / "b" / "data"
     data.mkdir(parents=True)
