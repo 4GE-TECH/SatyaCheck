@@ -15,6 +15,8 @@ from typing import Optional
 
 from fastapi import WebSocket
 
+import config
+
 from contracts import (
     GuardianAlert,
     ScreeningResponse,
@@ -82,5 +84,11 @@ async def publish_alert_from_response(response: ScreeningResponse) -> None:
         key_reasons=key_reasons,
         audio_sha256=response.audio_sha256,
     )
+    if config.ENABLE_EVIDENCE_LOG:
+        try:
+            from server.evidence import get_log
+            get_log().append(alert)
+        except Exception as e:  # the alert still goes out; the gap is logged loudly
+            log.error(f"evidence log append failed for {alert.alert_id}: {e}")
     await publish_alert(alert)
     log.info(f"Guardian alert published: {alert.alert_id} (band={band})")

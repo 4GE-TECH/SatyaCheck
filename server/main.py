@@ -33,6 +33,7 @@ from server.screen_router  import router as screen_router
 from server.report_router  import router as report_router
 from server.demo_router    import router as demo_router
 from server.ws_router      import router as ws_router
+from server.evidence_router import router as evidence_router
 
 logging.basicConfig(level=config.LOG_LEVEL)
 log = logging.getLogger("satyacheck.server")
@@ -94,6 +95,7 @@ app.include_router(screen_router)
 app.include_router(report_router)
 app.include_router(demo_router)
 app.include_router(ws_router)
+app.include_router(evidence_router)
 
 
 # ── Health ────────────────────────────────────────────────────────────

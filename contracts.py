@@ -468,6 +468,20 @@ class GuardianAlert(BaseModel):
     audio_sha256: str = Field(..., description="Audio fingerprint")
 
 
+class EvidenceAnchor(BaseModel):
+    """Where an alert sits in the tamper-evident evidence log (C5, item 17).
+
+    RFC 6962-style Merkle tree. Recompute the root from `leaf_hash` and `audit_path`
+    (RFC 9162 section 2.1.3.2); a match proves the alert was logged and not altered.
+    """
+    alert_id: str = Field(..., description="GuardianAlert this anchors")
+    leaf_index: int = Field(..., ge=0, description="Position in the log")
+    leaf_hash: str = Field(..., description="SHA-256(0x00 || canonical alert JSON), hex")
+    tree_size: int = Field(..., ge=1, description="Log size the proof is against")
+    root_hash: str = Field(..., description="Merkle root at tree_size, hex")
+    audit_path: List[str] = Field(default_factory=list, description="Sibling hashes, leaf to root, hex")
+
+
 class IncidentReportPacket(BaseModel):
     """Pre-filled, structured evidence packet formatted for national cybercrime portals (1930 / Chakshu)."""
     report_id: str = Field(..., description="Unique incident report ID")
@@ -481,6 +495,8 @@ class IncidentReportPacket(BaseModel):
     matched_playbooks: List[RetrievedPlaybook] = Field(default_factory=list, description="Referenced official fraud advisories")
     recommended_complaint_category: str = Field("Financial Fraud / Impersonation", description="Portal category")
     pdf_report_path: Optional[str] = Field(None, description="Path to generated downloadable PDF")
+    # C5 (item 17). Appended. None when the session raised no logged alert.
+    evidence: Optional[EvidenceAnchor] = Field(None, description="Tamper-evident log anchor for this session's latest alert")
 
 
 # =====================================================================

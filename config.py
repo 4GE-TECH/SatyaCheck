@@ -277,6 +277,9 @@ ENABLE_GUARDIAN_ALERTS: bool = True
 # Negative voiceprint list (FR-15)
 ENABLE_FLAGGED_VOICE_LIST: bool = True
 
+# Tamper-evident evidence log of guardian alerts (item 17, server/evidence.py)
+ENABLE_EVIDENCE_LOG: bool = os.getenv("ENABLE_EVIDENCE_LOG", "false").lower() == "true"
+
 # PDF report generation (FR-14)
 ENABLE_PDF_REPORTS: bool = True
 
