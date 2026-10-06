@@ -389,7 +389,8 @@ class LiveFeed {
 
   Stream<LiveVerdict> get verdicts => _verdicts.stream;
 
-  /// True on connect, false on every drop or failed attempt.
+  /// True on connect; false once the feed has been down longer than a brief reconnect
+  /// (see [_dropGrace]), or on [stop].
   Stream<bool> get connection => _connection.stream;
 
   bool get connected => _connected;
@@ -471,7 +472,31 @@ class LiveFeed {
     _retry = Timer(Duration(seconds: seconds), () => unawaited(_connect()));
   }
 
+  /// How long a drop may last before [connection] reports it. During calls on the OnePlus
+  /// the socket broke about every 37 s and was back within 1.5 s; reporting each one
+  /// flashed "connecting" on screen for no lasting gap. A real outage still shows after
+  /// this. Every drop is logged either way (_onDropped).
+  static const _dropGrace = Duration(seconds: 4);
+  Timer? _dropTimer;
+
   void _setConnected(bool value) {
+    if (value) {
+      _dropTimer?.cancel();
+      _dropTimer = null;
+      _report(true);
+    } else if (_stopped) {
+      _dropTimer?.cancel();
+      _dropTimer = null;
+      _report(false);
+    } else if (_connected && _dropTimer == null) {
+      _dropTimer = Timer(_dropGrace, () {
+        _dropTimer = null;
+        _report(false);
+      });
+    }
+  }
+
+  void _report(bool value) {
     if (_connected == value) return;
     _connected = value;
     if (!_connection.isClosed) _connection.add(value);
