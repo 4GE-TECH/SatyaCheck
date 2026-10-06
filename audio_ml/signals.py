@@ -85,6 +85,14 @@ class SpoofSignal(BaseModel):
     timeline: List[SpoofSegment] = Field(default_factory=list)
     verdict: Literal["bonafide", "synthetic", "partial_synthetic", "uncertain"] = "uncertain"
     n_chunks: int = 0
+    # Item 8: the clip is unlike Model A's training data (audio_ml/ood.py). When True
+    # the scores above are reported but must not be weighed; the adapter abstains.
+    ood: bool = False
+    ood_score: Optional[float] = None  # fraction of windows beyond the OOD threshold
+    # Which rule made `ood` True: "narrowband_channel" (phone-band audio, ood.hf_power_ratio)
+    # or "embedding_distance" (k-NN gate). None when in domain or the check is off.
+    ood_reason: Optional[Literal["narrowband_channel", "embedding_distance"]] = None
+    hf_ratio: Optional[float] = None  # share of power above ~4 kHz; None when not measured
 
 
 class Person(BaseModel):

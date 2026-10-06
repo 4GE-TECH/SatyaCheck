@@ -184,3 +184,27 @@ def test_spoof_uncertain_is_not_reported_as_synthetic():
 
     result = to_spoof_result(SpoofSignal(score=0.5, verdict="uncertain"))
     assert result.is_synthetic is False
+
+
+def test_an_out_of_distribution_spoof_result_claims_no_synthesis():
+    """An OOD abstention (item 8) is scored but not trusted.
+
+    A genuine 8 kHz phone call that Model A misreads as 0.97 synthetic must not
+    reach the UI as `is_synthetic=True` or as red "artificially generated" timeline
+    segments while the reason code says the score was not used — that is the
+    false-accusation harm the abstention exists to prevent. The raw scores stay
+    reported (they are evidence of *why* we abstained), the verdict flags do not.
+    """
+    from audio_ml.signals import SpoofSegment, SpoofSignal
+    from server.audio_adapter import to_spoof_result
+
+    result = to_spoof_result(SpoofSignal(
+        score=0.97, peak=0.99, verdict="synthetic", n_chunks=3,
+        ood=True, ood_reason="narrowband_channel", hf_ratio=7e-8,
+        timeline=[SpoofSegment(start_s=0.0, end_s=4.0, score=0.97, label="synthetic")],
+    ))
+
+    assert result.details["available"] is False
+    assert result.is_synthetic is False
+    assert [segment.is_synthetic for segment in result.timeline] == [False]
+    assert result.median_score == pytest.approx(0.97)

@@ -261,7 +261,9 @@ def _compute_fusion(
         weights_used=FusionWeights(asv_weight=w_asv, cm_weight=w_cm, text_weight=w_text),
         identity_risk=r_asv,
         authenticity_risk=r_cm,
-        authenticity_risk_effective=round(r_cm_eff, 4),
+        # An abstaining branch contributed nothing; reporting its gated risk would put
+        # a "probability the audio is synthetic" on screen that fusion did not use.
+        authenticity_risk_effective=round(r_cm_eff, 4) if cm_available else 0.0,
         intent_risk=r_text,
         reason_codes=reason_codes,
         recommended_actions=recommended_actions,
@@ -351,7 +353,36 @@ def _build_reason_codes(
 
     # ── Authenticity ──────────────────────────────────────────────────
     cm_available = spoof.details.get("available", True) is not False
-    if not cm_available:
+    if (not cm_available and spoof.details.get("abstain_reason") == "out_of_distribution"
+            and spoof.details.get("ood_reason") == "narrowband_channel"):
+        hf_ratio = spoof.details.get("hf_ratio")
+        codes.append(ReasonCode(
+            code="RC_SPOOF_OUT_OF_DOMAIN",
+            signal=SignalType.AUTHENTICITY,
+            value=(f"Phone-band audio: {hf_ratio:.3%} of power above 4.5 kHz"
+                   if hf_ratio is not None else "Phone-band audio"),
+            threshold=f">= {config.SPOOF_NARROWBAND_HF_RATIO_THRESHOLD:.3%}",
+            explanation=(
+                "This audio came through a phone line (an 8 kHz channel such as a mobile or "
+                "landline call), which the synthetic-voice detector was not trained on, so "
+                "its score was not used. The call was scored on identity and intent only."
+            ),
+            severity=SeverityLevel.INFO,
+        ))
+    elif not cm_available and spoof.details.get("abstain_reason") == "out_of_distribution":
+        codes.append(ReasonCode(
+            code="RC_SPOOF_OUT_OF_DOMAIN",
+            signal=SignalType.AUTHENTICITY,
+            value=f"{spoof.details.get('ood_score') or 0:.0%} of windows out of domain",
+            threshold=f"< {config.SPOOF_OOD_MAX_WINDOW_FRACTION:.0%}",
+            explanation=(
+                "This audio is unlike anything the synthetic-voice detector was trained on "
+                "(often phone-network compression), so its score was not used. The call was "
+                "scored on identity and intent only."
+            ),
+            severity=SeverityLevel.INFO,
+        ))
+    elif not cm_available:
         # Say nothing was measured. The old fall-through emitted RC_AUDIO_BONAFIDE
         # here — "Audio appears to be organic human speech" — for a branch that
         # never ran, which on a cloned-voice clip is a false exoneration printed as

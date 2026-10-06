@@ -359,6 +359,32 @@ USE_REAL_SPEAKER: bool = os.getenv("USE_REAL_SPEAKER", "true").lower() == "true"
 # USE_REAL_SPOOF=false forces it off (e.g. for a two-signal demo).
 USE_REAL_SPOOF: bool = os.getenv("USE_REAL_SPOOF", "true").lower() == "true"
 
+# Out-of-distribution abstention for Model A (item 8, audio_ml/ood.py). Off by default;
+# needs the reference bank built by `python -m audio_ml.eval.build_ood_ref`.
+SPOOF_OOD_ENABLED: bool = os.getenv("SPOOF_OOD_ENABLED", "false").lower() == "true"
+SPOOF_OOD_REF_PATH: Path = MODELS_DIR / "antispoof" / "ood_ref.npz"
+SPOOF_OOD_K: int = 10                     # neighbours averaged per window
+SPOOF_OOD_PERCENTILE: float = 95.0        # threshold = this percentile of val-window distance
+SPOOF_OOD_MAX_WINDOW_FRACTION: float = 0.5  # abstain when at least this share of windows is OOD
+
+# Narrowband-channel rule (item 8, audio_ml/ood.hf_power_ratio). The k-NN gate above does
+# not see the phone channel, so this one looks at it directly: an 8 kHz codec leaves no
+# power above 4 kHz. Only effective when SPOOF_OOD_ENABLED is on.
+SPOOF_OOD_NARROWBAND_ENABLED: bool = os.getenv("SPOOF_OOD_NARROWBAND_ENABLED", "true").lower() == "true"
+# Abstain when the share of power at 4.5-7.6 kHz (energetic frames, whole clip) is below
+# this. Calibrated on IFD train/val only, n=400 clips balanced by label (seed 1), plus the
+# same 400 through G.711 mu-law and AMR-NB 12.2k (audio_ml.augment.apply_codec):
+#   clean   median 3.4e-3, p5 1.2e-4 -> 4.50% (18/400) below 1e-4
+#   g711    median 7.4e-8, p95 5.6e-7 -> 0.25% (1/400) at or above 1e-4
+#   amr_nb  median 6.0e-8, p95 7.0e-6 -> 0.50% (2/400) at or above 1e-4
+# 1e-4 is the error-minimising cut on that set (21/1200 errors). The band starts at
+# 4.5 kHz, not 4.0, because resampler roll-off leaks an 8 kHz channel's content up to
+# ~4.4 kHz: with a 4.2 kHz edge the same set gives 28/1200 errors. The clean clips below
+# the cut are mostly IFD files that are themselves band-limited (e.g. Speaker-22/-29/-49
+# deepfakes at orig_sr 16000), so abstaining on them is the rule working, not a false alarm.
+# Test-split numbers: data/spoof_ood_measurement.json.
+SPOOF_NARROWBAND_HF_RATIO_THRESHOLD: float = 1e-4
+
 # Anti-spoof window hop in seconds. Windows are fixed at 64,600 samples (4.04 s) by the
 # architecture; the hop sets timeline granularity. Measured on this laptop's CPU.
 SPOOF_HOP_S: float = 2.0
