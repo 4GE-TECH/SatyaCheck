@@ -14,8 +14,10 @@ import base64
 import io
 import shutil
 import logging
+import re
 import uuid
 import wave
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -37,6 +39,20 @@ from server.orchestrator import screen_audio
 
 log = logging.getLogger("satyacheck.ws")
 router = APIRouter(prefix="/api/ws", tags=["websocket"])
+
+# A session id names a folder under data/sessions. The route takes it from the URL
+# path, where %5C decodes to a backslash that survives as one segment, so anything
+# but a plain name could write retained audio outside DATA_DIR.
+_SAFE_SESSION_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
+
+
+def _session_audio_dir(session_id: str) -> Optional[Path]:
+    """data/sessions/<id>, or None (logged) when the id is not a plain folder name."""
+    if not _SAFE_SESSION_ID.fullmatch(session_id or ""):
+        log.warning(f"session id {session_id!r} is not a plain folder name; "
+                    f"not retaining its audio")
+        return None
+    return config.DATA_DIR / "sessions" / session_id
 
 
 # TrustBand -> the four colours the overlay renders, matching the app's own mapping
@@ -220,9 +236,9 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
             # ffmpeg already wrote a 16 kHz mono WAV per chunk and left it on disk, so this
             # is a copy, not a re-encode. `enroll_person` takes a list of WAV paths, which
             # is exactly the shape a session produces.
-            if config.RETAIN_SESSION_AUDIO and ingested.normalized_wav_path:
+            session_dir = _session_audio_dir(session_id) if config.RETAIN_SESSION_AUDIO else None
+            if session_dir is not None and ingested.normalized_wav_path:
                 try:
-                    session_dir = config.DATA_DIR / "sessions" / session_id
                     session_dir.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(
                         ingested.normalized_wav_path,

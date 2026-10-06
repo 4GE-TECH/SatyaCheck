@@ -251,6 +251,7 @@ def ingest_audio(
 
     tmp_input = None
     tmp_output = None
+    handed_off = False
 
     try:
         # ── Step 1: Prepare input file ────────────────────────────────
@@ -327,7 +328,7 @@ def ingest_audio(
                 reason="; ".join(reason_parts),
             )
 
-        return IngestedAudio(
+        result = IngestedAudio(
             audio_sha256=sha256,
             sample_rate=config.TARGET_SAMPLE_RATE,
             total_duration_s=round(duration_s, 3),
@@ -336,6 +337,8 @@ def ingest_audio(
             quality=quality,
             normalized_wav_path=tmp_output,
         )
+        handed_off = True  # the caller owns tmp_output now; discard() deletes it
+        return result
 
     except Exception as e:
         log.exception(f"Unexpected ingestion error: {e}")
@@ -356,6 +359,14 @@ def ingest_audio(
                 Path(tmp_input).unlink(missing_ok=True)
             except Exception:
                 pass
+        # A failed ingest returns no normalized_wav_path, so discard() never sees the
+        # temp WAV it may already have written. Delete it here, under the same flag.
+        if tmp_output and not handed_off and config.CLEANUP_TEMP_AUDIO:
+            try:
+                Path(tmp_output).unlink(missing_ok=True)
+                log.info(f"deleted temp audio of failed ingest: {tmp_output}")
+            except Exception as e:  # a locked temp file must not fail the request
+                log.warning(f"could not delete temp audio {tmp_output}: {e}")
 
 
 def discard(audio: IngestedAudio) -> None:
