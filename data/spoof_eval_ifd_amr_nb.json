@@ -1,0 +1,46 @@
+{
+  "manifest": "C:\\Users\\Nkroc\\AppData\\Local\\Temp\\claude\\c--Dev-personal-SatyaCheck-MRDU-SatyaCheck\\e73afecb-8a7c-48a0-80b3-6224d7d89119\\scratchpad\\ifd_aug\\manifest_amr_nb.csv",
+  "score": "median P(synthetic) per file, audio_ml.spoof.detect_spoof",
+  "tdcf_asv_assumption": "ideal",
+  "limit_per_split": null,
+  "leakage": {
+    "speaker_overlap": [],
+    "hash_overlap": []
+  },
+  "splits": {
+    "test": {
+      "n_bonafide": 905,
+      "n_spoof": 1416,
+      "eer": 0.2545,
+      "eer_threshold": 0.9849,
+      "min_tdcf": 0.4719,
+      "n_unscored": 0,
+      "by_orig_sr": {
+        "16000": {
+          "n_bonafide": 367,
+          "n_spoof": 643,
+          "eer": 0.2535,
+          "eer_threshold": 0.8734,
+          "min_tdcf": 0.6403
+        },
+        "24000": {
+          "n_bonafide": 0,
+          "n_spoof": 199,
+          "note": "one class absent; no EER"
+        },
+        "44100": {
+          "n_bonafide": 461,
+          "n_spoof": 574,
+          "eer": 0.1285,
+          "eer_threshold": 0.9975,
+          "min_tdcf": 0.2785
+        },
+        "48000": {
+          "n_bonafide": 77,
+          "n_spoof": 0,
+          "note": "one class absent; no EER"
+        }
+      }
+    }
+  }
+}
