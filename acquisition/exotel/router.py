@@ -17,6 +17,7 @@ Refusals close with 1008 (policy violation) and are logged; credentials never ar
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import hmac
@@ -112,7 +113,35 @@ def build_exotel_router(runner_factory: Callable[[], object]) -> APIRouter:
         await ws.accept()
         decoder = ExotelStreamDecoder(url_sample_rate=ws.query_params.get("sample-rate"))
         runner = runner_factory()
+        # Reading never waits for scoring. Seen live: when scoring ran slower than real
+        # time, the unread audio backed up in the socket and was discarded at hang-up, so
+        # the end of the call was never heard. The reader decodes everything into a queue;
+        # the consumer scores the newest window and buffers the backlog unscored.
+        queue: asyncio.Queue = asyncio.Queue()
+        DONE = object()
+
+        async def consume() -> None:
+            while True:
+                batch = [await queue.get()]
+                while not queue.empty():
+                    batch.append(queue.get_nowait())
+                last_frame = max((i for i, it in enumerate(batch) if isinstance(it, AudioFrame)), default=-1)
+                for i, item in enumerate(batch):
+                    try:
+                        if item is DONE:
+                            return
+                        if isinstance(item, SessionOpen):
+                            await runner.open(item)
+                        elif isinstance(item, AudioFrame):
+                            await runner.push(item, score=(i == last_frame))
+                        elif isinstance(item, SessionClose):
+                            await runner.close(item)
+                    except Exception as e:  # noqa: BLE001 — keep consuming; log why
+                        log.error(f"exotel: scoring step failed: {type(e).__name__}: {e}")
+
+        consumer = asyncio.create_task(consume())
         disconnect_reason = "socket disconnected"
+        stopped = False
         try:
             while True:
                 try:
@@ -128,22 +157,30 @@ def build_exotel_router(runner_factory: Callable[[], object]) -> APIRouter:
                     log.warning("exotel: binary frame ignored (the Stream applet sends JSON text)")
                     continue
                 for item in decoder.feed(text):
-                    if isinstance(item, SessionOpen):
-                        await runner.open(item)
-                    elif isinstance(item, AudioFrame):
-                        await runner.push(item)
-                    elif isinstance(item, SessionClose):
-                        await runner.close(item)
-                        await ws.close(code=1000)
-                        return
+                    queue.put_nowait(item)
+                    if isinstance(item, SessionClose):
+                        stopped = True
+                if stopped:
+                    break
         except Exception as e:  # noqa: BLE001 — log why, then close the session below
             log.error(f"exotel: stream handler failed: {type(e).__name__}: {e}")
             disconnect_reason = f"handler error: {type(e).__name__}"
-        close = decoder.end(disconnect_reason)
-        if close is not None:
+        if not stopped:
+            close = decoder.end(disconnect_reason)
+            if close is not None:
+                queue.put_nowait(close)
+        backlog = queue.qsize()
+        if backlog > 1:
+            log.info(f"exotel: call ended with {backlog} item(s) still to score; finishing them")
+        queue.put_nowait(DONE)
+        try:
+            await consumer
+        except Exception as e:  # noqa: BLE001
+            log.error(f"exotel: finishing the session failed: {e}")
+        if stopped:
             try:
-                await runner.close(close)
-            except Exception as e:  # noqa: BLE001
-                log.error(f"[{close.session_id}] exotel: closing the session failed: {e}")
+                await ws.close(code=1000)
+            except Exception:  # noqa: BLE001 — the peer may already be gone
+                pass
 
     return router

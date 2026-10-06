@@ -510,7 +510,7 @@ class _FakeRunner:
     async def open(self, msg):
         self.opened.append(msg)
 
-    async def push(self, frame):
+    async def push(self, frame, score=True):
         self.frames.append(frame)
         return []
 
@@ -585,9 +585,11 @@ def test_a_full_exotel_call_produces_verdicts_and_one_final(auth, branches, db_f
     assert reply["type"] == "websocket.close", reply
     (runner, rec), = made
     events = rec.events
-    # 7 s of audio: windows end at 2, 4, 6 s, then the 7 s tail.
-    assert len(events) == 4
-    assert [e.is_final for e in events] == [False, False, False, True]
+    # 7 s of audio sent as fast as the socket allows, i.e. faster than real time: the route
+    # scores the newest window and buffers the backlog (it would score windows at 2, 4 and
+    # 6 s if the audio arrived in real time), then the 7 s tail as the one final verdict.
+    assert 2 <= len(events) <= 4
+    assert [e.is_final for e in events][-1] is True and sum(e.is_final for e in events) == 1
     assert all(SAFE_ID.fullmatch(e.session_id) and "stream-abc123" in e.session_id
                for e in events)
     assert all(e.response.caller_context == CallerMetadata(claimed_number=FROM,
@@ -826,3 +828,81 @@ def test_caller_context_never_changes_the_fused_risk(branches, db_factory):
     assert fused[0] and all(f == fused[0] for f in fused[1:])
     assert any(e.response.fusion.band.value != "insufficient" for e in runs[0]), \
         "the invariance must be checked on scored windows, not only insufficient ones"
+
+
+# --- a call where every media message is dropped must say so, loudly ----------------------------
+# Seen live: three Exotel calls opened and stopped with zero scored audio, and the only
+# drop path that logs at DEBUG (track mismatch) made that invisible.
+
+def test_a_track_mismatch_warns_once_with_the_value_exotel_sent(monkeypatch, caplog):
+    monkeypatch.setattr(config, "EXOTEL_TRACK", "inbound")
+    with caplog.at_level(logging.WARNING, logger="satyacheck"):
+        _decode_all([_start()] + _media_stream(_tone(8000, 0.5).tobytes(), 8000, 100, track="both"))
+    warnings = [r.getMessage() for r in caplog.records if "track" in r.getMessage()]
+    assert len(warnings) == 1, warnings
+    assert "'both'" in warnings[0] and "EXOTEL_TRACK" in warnings[0]
+
+
+def test_the_end_of_a_call_logs_what_happened_to_its_media(monkeypatch, caplog):
+    monkeypatch.setattr(config, "EXOTEL_TRACK", "inbound")
+    msgs = ([_start()] + _media_stream(_tone(8000, 0.3).tobytes(), 8000, 100)
+            + _media_stream(_tone(8000, 0.2).tobytes(), 8000, 100, track="outbound", first_seq=10)
+            + [_stop(30)])
+    with caplog.at_level(logging.INFO, logger="satyacheck"):
+        _decode_all(msgs)
+    summary = [r.getMessage() for r in caplog.records if "media summary" in r.getMessage()]
+    assert len(summary) == 1
+    assert "received=5" in summary[0] and "decoded=3" in summary[0] and "track=2" in summary[0]
+
+
+def test_a_call_with_no_media_at_all_warns_at_the_end(caplog):
+    with caplog.at_level(logging.WARNING, logger="satyacheck"):
+        _decode_all([_connected(), _start(), _stop(2)])
+    assert any("no media" in r.getMessage().lower() for r in caplog.records if r.levelno >= logging.WARNING)
+
+
+def test_encoding_base64_is_base64_wrapped_linear_pcm():
+    """Seen live from Exotel's Stream applet: media_format.encoding == "base64". That names
+    the payload wrapping, not the codec; Exotel's base docs and sample server treat the
+    audio as raw s16le PCM, so it must decode as such rather than drop the call."""
+    pcm = _tone(SR, 0.5, freq=440.0).tobytes()
+    _, out = _decode_all([_start(encoding="base64", sample_rate=16000)] + _media_stream(pcm, SR, 100))
+    assert b"".join(f.pcm_s16le for f in _frames(out)) == pcm
+
+
+def test_the_first_media_message_shape_is_logged_once(caplog):
+    """So a live call shows whether Exotel tags media with a track (caller vs victim)."""
+    with caplog.at_level(logging.INFO, logger="satyacheck"):
+        _decode_all([_start()] + _media_stream(_tone(8000, 0.3).tobytes(), 8000, 100, track="inbound"))
+    shape = [r.getMessage() for r in caplog.records if "first media message" in r.getMessage()]
+    assert len(shape) == 1 and "track='inbound'" in shape[0]
+
+
+def test_a_slow_runner_never_loses_the_end_of_the_call(auth):
+    """Seen live: scoring slower than real time blocked the socket reader, the backlog was
+    discarded at hang-up, and the last ~20 s of the call were never heard. The route must
+    keep reading while scoring catches up, deliver every frame, and close only after them."""
+    import time as _time
+
+    class SlowRunner(_FakeRunner):
+        def __init__(self):
+            super().__init__()
+            self.scored = 0
+
+        async def push(self, frame, score=True):
+            self.frames.append(frame)
+            if score:
+                self.scored += 1
+                await asyncio.sleep(0.05)   # slower than the 20 ms of audio per frame
+            return []
+
+    slow = SlowRunner()
+    client = _client(lambda: slow)
+    media = _media_stream(_tone(8000, 6.0).tobytes(), 8000, 20)   # 300 frames
+    started = _time.monotonic()
+    _run_call(client, [_connected(), _start()] + media + [_stop(400)])
+    assert len(slow.frames) == 300, "every frame reaches the runner"
+    assert len(slow.closed) == 1
+    assert slow.scored < 300, "backlog frames are buffered, not each scored"
+    assert slow.frames[-1].seq == 299
+    assert _time.monotonic() - started < 300 * 0.05, "the route did not score every frame serially"

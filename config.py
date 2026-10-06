@@ -393,6 +393,19 @@ SPOOF_OOD_NARROWBAND_ENABLED: bool = os.getenv("SPOOF_OOD_NARROWBAND_ENABLED", "
 # Test-split numbers: data/spoof_ood_measurement.json.
 SPOOF_NARROWBAND_HF_RATIO_THRESHOLD: float = 1e-4
 
+# Phone-channel calibration for Model A (independent of SPOOF_OOD_ENABLED). On a narrowband
+# (8 kHz) channel the per-window score is rescaled s -> max(0, (s - T) / (1 - T)): measured on
+# IFD test, Model A's EER threshold is 0.71 clean but 0.973 through G.711 (0.985 AMR-NB), and a
+# genuine Exotel caller scored 0.79-0.93. Model A keeps scoring; only the channel's bias goes.
+SPOOF_PHONE_CALIBRATION_ENABLED: bool = os.getenv("SPOOF_PHONE_CALIBRATION_ENABLED", "true").lower() == "true"
+SPOOF_PHONE_THRESHOLD: float = float(os.getenv("SPOOF_PHONE_THRESHOLD", "0.973"))
+# On a phone line, "partly synthetic" needs a synthetic run longer than one 4.04 s window:
+# a single-window spike over the threshold was seen on a genuine Exotel caller.
+SPOOF_PHONE_MIN_SYNTH_RUN_S: float = float(os.getenv("SPOOF_PHONE_MIN_SYNTH_RUN_S", "6.0"))
+# On a phone line, an enrolled-voice similarity below this reads "unknown" (a stranger),
+# not "mismatch" (an impostor): a stranger scored 0.61-0.77 over Exotel.
+SPEAKER_PHONE_MISMATCH_FLOOR: float = float(os.getenv("SPEAKER_PHONE_MISMATCH_FLOOR", "0.80"))
+
 # Anti-spoof window hop in seconds. Windows are fixed at 64,600 samples (4.04 s) by the
 # architecture; the hop sets timeline granularity. Measured on this laptop's CPU.
 SPOOF_HOP_S: float = 2.0

@@ -118,6 +118,8 @@ def to_spoof_result(signal: SpoofSignal) -> contracts.AntiSpoofResult:
             # An out-of-distribution clip (item 8) is scored but not trusted: the same
             # abstention, with the reason kept so the evidence says *why*.
             "available": signal.n_chunks > 0 and not signal.ood,
+            **({"calibration": signal.calibration, "raw_median": signal.raw_median}
+               if getattr(signal, "calibration", None) else {}),
             # `ood_reason` names the rule that fired (narrowband_channel /
             # embedding_distance); absent unless the branch abstained, so output with the
             # OOD flag off is unchanged.

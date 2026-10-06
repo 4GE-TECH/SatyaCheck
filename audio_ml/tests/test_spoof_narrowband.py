@@ -138,6 +138,13 @@ def wb_wav(tmp_path):
     return str(_write_wav(tmp_path / "wb.wav", _white(5.0)))
 
 
+@pytest.fixture(autouse=True)
+def _no_phone_calibration(monkeypatch):
+    """These pin the OOD rules in isolation. Phone-channel calibration also rescales
+    narrowband scores; it has its own tests (test_spoof_phone_calibration.py)."""
+    monkeypatch.setattr(config, "SPOOF_PHONE_CALIBRATION_ENABLED", False)
+
+
 def test_flag_off_leaves_a_narrowband_clip_untouched(monkeypatch, stub_model, nb_wav):
     monkeypatch.setattr(config, "SPOOF_OOD_ENABLED", False)
     s = spoof.detect_spoof(nb_wav)

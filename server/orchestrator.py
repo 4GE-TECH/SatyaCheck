@@ -668,6 +668,22 @@ def _guarded(branch, name: str, session_id: str, fallback):
     return run
 
 
+def _phone_channel_identity(speaker: SpeakerVerificationResult, spoof: AntiSpoofResult) -> SpeakerVerificationResult:
+    """On a phone line (measured from the audio by the anti-spoof branch, never from caller
+    metadata), a 'mismatch' below SPEAKER_PHONE_MISMATCH_FLOOR reads 'unknown': phone audio
+    inflates similarity, so that band is a stranger, not an impostor of an enrolled person."""
+    if (speaker.verdict == SpeakerVerdict.MISMATCH
+            and spoof.details.get("calibration") == "phone_channel"
+            and speaker.raw_score < config.SPEAKER_PHONE_MISMATCH_FLOOR):
+        log.info(f"[identity] phone line: mismatch at cosine {speaker.raw_score:.3f} "
+                 f"(< {config.SPEAKER_PHONE_MISMATCH_FLOOR}) read as unknown")
+        return speaker.model_copy(update={
+            "verdict": SpeakerVerdict.UNKNOWN, "risk": 0.5, "confidence": 0.0,
+            "matched_person_id": None, "matched_person_name": None,
+            "details": {**speaker.details, "phone_downgraded_from": "mismatch"}})
+    return speaker
+
+
 async def screen_window(
     audio: IngestedAudio,
     transcript: Optional[TranscriptResult],
@@ -766,6 +782,7 @@ async def screen_window(
                 processing_time_ms=round((time.perf_counter() - t_start) * 1000, 1),
             )
 
+        speaker_result = _phone_channel_identity(speaker_result, spoof_result)
         fusion = _compute_fusion(speaker_result, spoof_result, script)
     except Exception as e:  # noqa: BLE001
         log.error(f"[{session_id}] window scoring failed, returning insufficient: "

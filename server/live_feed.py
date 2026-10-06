@@ -97,4 +97,8 @@ def verdict_message(event) -> dict:
         "threat_label": threat.model_dump(mode="json") if threat is not None else None,
         "recommended_actions": list(fusion.recommended_actions),
         "vernacular_warning": fusion.vernacular_warning,
+        # The session values above only fall; these follow the current window.
+        "window_trust_score": event.window_trust_score if getattr(event, "window_trust_score", None) is not None
+        else fusion.trust_score,
+        "window_band": getattr(event, "window_band", None) or fusion.band.value,
     }

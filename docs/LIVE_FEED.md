@@ -112,7 +112,9 @@ recognise; check `schema_version` (currently `1`).
   "caller_context": {"claimed_number": "+919876543210", "claimed_name": null, "claimed_identity": null, "channel_type": "telephony"},
   "threat_label": null,
   "recommended_actions": ["DO NOT transfer money via UPI.", "Disconnect the call immediately."],
-  "vernacular_warning": "सावधान! यह कॉल एक क्लोन की हुई नकली आवाज़ हो सकती है। कोई भी पैसा ट्रांसफर न करें।"
+  "vernacular_warning": "सावधान! यह कॉल एक क्लोन की हुई नकली आवाज़ हो सकती है। कोई भी पैसा ट्रांसफर न करें।",
+  "window_trust_score": 64.7,
+  "window_band": "caution"
 }
 ```
 
@@ -126,7 +128,9 @@ recognise; check `schema_version` (currently `1`).
 | `escalated` | bool | `true` when this verdict raised the call's warning level (good moment for an alert sound). |
 | `band` | string | `verified` · `caution` · `suspicious` · `high_risk` · `unverified` · `insufficient` |
 | `overlay_state` | string | The colour to show: `green` · `amber` · `red` · `grey`. Use this rather than mapping `band` yourself. |
-| `trust_score` | number | 0–100, higher = more trusted. Never goes up during a call. |
+| `trust_score` | number | 0–100, higher = more trusted. The **session** score: never goes up during a call (a scam cannot climb back). |
+| `window_trust_score` | number | 0–100, **this window's own** score before the session floor. It moves up and down — use it for a live gauge. |
+| `window_band` | string | This window's own band, before the session latch. Same values as `band`. |
 | `risk_score` | number | 0–1, the fused risk. |
 | `mode` | string | `identity_check` (a known contact) or `authority_check` (a stranger). |
 | `signals.identity` | string | `match` · `mismatch` · `unknown` (unknown is normal for a stranger, not suspicious). |

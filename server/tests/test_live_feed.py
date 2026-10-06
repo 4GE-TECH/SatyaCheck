@@ -38,7 +38,7 @@ VERDICT_KEYS = {
     "type", "schema_version", "session_id", "window_index", "is_final", "escalated", "timestamp",
     "band", "overlay_state", "trust_score", "risk_score", "mode", "signals", "reason_codes",
     "transcript", "language", "caller_context", "threat_label", "recommended_actions",
-    "vernacular_warning",
+    "vernacular_warning", "window_trust_score", "window_band",
 }
 
 
@@ -238,3 +238,23 @@ def test_extra_cors_origins_come_from_the_environment():
     )
     assert "https://dash.example.com" in out.stdout and "http://192.168.1.20:5173" in out.stdout
     assert "http://localhost:5173" in out.stdout, out.stderr
+
+
+
+def test_window_values_move_while_the_session_floor_holds():
+    """The session trust only falls (a scam cannot climb back mid-call); a live gauge needs
+    the current window's own score, which the runner records before the floor applies."""
+    from server.live_feed import verdict_message
+
+    event = _event()
+    event = type(event)(**{**event.__dict__, "window_trust_score": 91.0, "window_band": "unverified"})
+    msg = verdict_message(event)
+    assert msg["window_trust_score"] == 91.0 and msg["window_band"] == "unverified"
+    assert msg["trust_score"] == event.response.fusion.trust_score
+
+
+def test_window_values_fall_back_to_the_session_values():
+    from server.live_feed import verdict_message
+
+    msg = verdict_message(_event())
+    assert msg["window_trust_score"] == msg["trust_score"] and msg["window_band"] == msg["band"]

@@ -66,6 +66,10 @@ class _Session:
     last_shown: Optional[tuple] = None  # (band, trust) of the last dispatched event
     finished: bool = False
     silence_warned: bool = False
+    # Backlog handling (push(score=False)): the newest window not yet scored, and how many
+    # older ones were passed over to keep the verdict current.
+    deferred: Optional[Window] = None
+    deferred_count: int = 0
 
 
 class SessionRunner:
@@ -140,9 +144,12 @@ class SessionRunner:
         except Exception as e:  # noqa: BLE001
             log.error(f"[{sid}] open failed: {type(e).__name__}: {e}")
 
-    async def push(self, frame: AudioFrame) -> list[VerdictEvent]:
+    async def push(self, frame: AudioFrame, score: bool = True) -> list[VerdictEvent]:
         """Add a frame; score and dispatch every window it completed. Returns the events.
 
+        `score=False` buffers the audio and feeds ASR without scoring: a transport that is
+        behind real time pushes its backlog that way, then the newest frame with
+        `score=True`, which scores the newest window and logs how many it passed over.
         A frame with `is_final=True` ends the session (as `close` would). Never raises.
         """
         sid = frame.session_id
@@ -162,6 +169,19 @@ class SessionRunner:
                 events = []
                 regular = [w for w in windows if not w.is_final]
                 tail = [w for w in windows if w.is_final]
+                if not score and not frame.is_final:
+                    if regular:
+                        s.deferred = regular[-1]
+                        s.deferred_count += len(regular)
+                    return []
+                if s.deferred is not None:
+                    if not regular:
+                        regular = [s.deferred]
+                        s.deferred_count -= 1
+                    if s.deferred_count:
+                        log.info(f"[{sid}] scoring behind real time: scored the newest window, "
+                                 f"skipped {s.deferred_count} older one(s)")
+                    s.deferred, s.deferred_count = None, 0
                 for window in regular:
                     events.append(await self._score(s, window, final=False))
                 if frame.is_final:
@@ -302,6 +322,7 @@ class SessionRunner:
             response = response.model_copy(update={"session_id": sid,
                                                    "caller_context": context})
             before = _rank(s.gate.latched_band)
+            window_view = (response.fusion.trust_score, response.fusion.band.value)
             if rescore and s.gate_before_last is not None and s.last_shown is not None:
                 # Same audio as the window just applied: it supersedes that window's
                 # verdict in the persistence run rather than counting as one more, so
@@ -324,7 +345,8 @@ class SessionRunner:
             if final:
                 s.finished = True
             event = VerdictEvent(session_id=sid, response=response, window_index=index,
-                                 escalated=escalated, is_final=final)
+                                 escalated=escalated, is_final=final,
+                                 window_trust_score=window_view[0], window_band=window_view[1])
             outcome = await self.dispatcher.dispatch(event)
             failed = [name for name, ok in outcome.items() if not ok]
             if failed:

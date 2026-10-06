@@ -222,6 +222,19 @@ def _ood_update(audio, sr: int, hidden: np.ndarray, wav_path: str) -> dict:
     return update
 
 
+def calibrate_phone_scores(scores, threshold: float) -> list:
+    """Rescale P(synthetic) for a narrowband channel: s -> max(0, (s - T) / (1 - T))."""
+    span = max(1e-9, 1.0 - threshold)
+    return [max(0.0, (float(s) - threshold) / span) for s in scores]
+
+
+def _phone_verdict(verdict: str, max_synth_run_s: float, median: float) -> str:
+    """On a phone line, 'partial_synthetic' needs more than a single-window spike."""
+    if verdict == "partial_synthetic" and max_synth_run_s < getattr(_config, "SPOOF_PHONE_MIN_SYNTH_RUN_S", 6.0):
+        return "bonafide"
+    return verdict
+
+
 def detect_spoof(wav_path: str) -> SpoofSignal:
     """P(synthetic) per window, aggregated to median / peak / max run / timeline.
 
@@ -243,6 +256,19 @@ def detect_spoof(wav_path: str) -> SpoofSignal:
 
         p_synthetic, hidden = _infer(model, chunks)
         result = aggregate(p_synthetic, spans)
+
+        if getattr(_config, "SPOOF_PHONE_CALIBRATION_ENABLED", True):
+            ratio = _narrowband_ratio(audio, sr, wav_path)
+            if ratio is not None and ratio < getattr(_config, "SPOOF_NARROWBAND_HF_RATIO_THRESHOLD", 1e-4):
+                threshold = getattr(_config, "SPOOF_PHONE_THRESHOLD", 0.973)
+                raw_median = result.score
+                result = aggregate(calibrate_phone_scores(p_synthetic, threshold), spans)
+                result = result.model_copy(update={
+                    "calibration": "phone_channel", "raw_median": round(raw_median, 4),
+                    "hf_ratio": round(ratio, 8),
+                    "verdict": _phone_verdict(result.verdict, result.max_synth_run_s, result.score)})
+                logger.info("detect_spoof(%s): phone channel; median %.3f -> %.3f (T=%.3f)",
+                            wav_path, raw_median, result.score, threshold)
 
         if getattr(_config, "SPOOF_OOD_ENABLED", False):
             result = result.model_copy(update=_ood_update(audio, sr, hidden, wav_path))

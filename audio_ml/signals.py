@@ -88,6 +88,10 @@ class SpoofSignal(BaseModel):
     # Item 8: the clip is unlike Model A's training data (audio_ml/ood.py). When True
     # the scores above are reported but must not be weighed; the adapter abstains.
     ood: bool = False
+    # Phone-channel calibration (audio_ml/spoof.py): 'phone_channel' when the scores above
+    # were rescaled for a narrowband line; raw_median is Model A's uncalibrated median.
+    calibration: Optional[str] = None
+    raw_median: Optional[float] = None
     ood_score: Optional[float] = None  # fraction of windows beyond the OOD threshold
     # Which rule made `ood` True: "narrowband_channel" (phone-band audio, ood.hf_power_ratio)
     # or "embedding_distance" (k-NN gate). None when in domain or the check is off.

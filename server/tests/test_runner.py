@@ -619,3 +619,124 @@ def test_the_final_rescore_never_unlatches_a_confirmed_warning(branches, db_fact
     final = rec.events[-1]
     assert final.is_final and final.response.fusion.band == TrustBand.HIGH_RISK
     assert not final.escalated
+
+
+
+def test_events_carry_the_window_score_before_the_session_floor(monkeypatch, tmp_path):
+    """Seen live: trust read 43.2 for a whole call. The floor is right for the band; the
+    gauge needs each window's own number."""
+    import server.orchestrator as orch
+    from contracts import AntiSpoofResult, AudioFrame, AudioSource, ScriptAnalysisResult, SessionClose, SessionOpen, SpeakerVerificationResult, TranscriptResult
+    from server.database import Base
+    from server.pipeline.dispatcher import Dispatcher
+    from server.pipeline.runner import SessionRunner
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    risks = iter([0.9, 0.9, 0.05, 0.05, 0.05, 0.05, 0.05])
+    monkeypatch.setattr(config, "USE_REAL_SPEAKER", True)
+    monkeypatch.setattr(config, "USE_REAL_SPOOF", True)
+    monkeypatch.setattr(config, "STREAM_SPOOF_MIN_WINDOW_S", 0.0)
+    monkeypatch.setattr(orch, "_real_speaker_branch", lambda p: SpeakerVerificationResult.neutral())
+    monkeypatch.setattr(orch, "_real_spoof_branch",
+                        lambda p: AntiSpoofResult(risk=next(risks, 0.05), details={"available": True}))
+
+    class Quiet:
+        def push(self, chunk, sample_rate=16000):
+            return TranscriptResult.empty()
+
+        def flush(self):
+            return TranscriptResult.empty()
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'w.db'}")
+    Base.metadata.create_all(engine)
+    runner = SessionRunner(dispatcher=Dispatcher([]), session_factory=sessionmaker(bind=engine),
+                           transcriber_factory=Quiet, analyze=lambda t: ScriptAnalysisResult.neutral())
+    t = np.arange(16000 * 9) / 16000
+    pcm = (0.3 * np.sin(2 * np.pi * 220 * t) * ((t % 0.5) < 0.4) * 32767).astype("<i2").tobytes()
+
+    async def go():
+        await runner.open(SessionOpen(session_id="win", source=AudioSource.EXOTEL))
+        out = await runner.push(AudioFrame(session_id="win", seq=0, t_start_s=0.0, pcm_s16le=pcm))
+        return out + await runner.close(SessionClose(session_id="win", reason="t"))
+
+    events = [e for e in asyncio.run(go()) if e.response.fusion.band.value != "insufficient"]
+    floors = [e.response.fusion.trust_score for e in events]
+    windows = [e.window_trust_score for e in events]
+    assert floors == sorted(floors, reverse=True), "the session floor never rises"
+    assert max(windows) > min(floors), "the window score recovers when the risk drops"
+    assert all(e.window_band is not None for e in events)
+
+
+def test_deferred_pushes_score_only_the_latest_window(monkeypatch, tmp_path, caplog):
+    """Behind real time, the Exotel route pushes its backlog with score=False and only the
+    newest frame with score=True: every sample is buffered and transcribed, one verdict
+    covers the newest window, and the skip is logged — the overlay stays current."""
+    import logging
+
+    import server.orchestrator as orch
+    from contracts import AntiSpoofResult, AudioFrame, AudioSource, ScriptAnalysisResult, SessionOpen, SpeakerVerificationResult, TranscriptResult
+    from server.database import Base
+    from server.pipeline.dispatcher import Dispatcher
+    from server.pipeline.runner import SessionRunner
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    monkeypatch.setattr(config, "USE_REAL_SPEAKER", True)
+    monkeypatch.setattr(config, "USE_REAL_SPOOF", True)
+    monkeypatch.setattr(orch, "_real_speaker_branch", lambda p: SpeakerVerificationResult.neutral())
+    monkeypatch.setattr(orch, "_real_spoof_branch", lambda p: AntiSpoofResult(risk=0.1, details={"available": True}))
+    fed = []
+
+    class Recording:
+        def push(self, chunk, sample_rate=16000):
+            fed.append(len(chunk))
+            return TranscriptResult.empty()
+
+        def flush(self):
+            return TranscriptResult.empty()
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'd.db'}")
+    Base.metadata.create_all(engine)
+    runner = SessionRunner(dispatcher=Dispatcher([]), session_factory=sessionmaker(bind=engine),
+                           transcriber_factory=Recording, analyze=lambda t: ScriptAnalysisResult.neutral())
+    t = np.arange(16000 * 7) / 16000
+    pcm = (0.3 * np.sin(2 * np.pi * 220 * t) * ((t % 0.5) < 0.4) * 32767).astype("<i2").tobytes()
+    step = 8000 * 2  # 0.5 s frames
+
+    async def go():
+        await runner.open(SessionOpen(session_id="lag", source=AudioSource.EXOTEL))
+        frames = [AudioFrame(session_id="lag", seq=k, t_start_s=k * 0.5, pcm_s16le=pcm[i:i + step])
+                  for k, i in enumerate(range(0, len(pcm), step))]
+        events = []
+        for f in frames[:-1]:
+            events += await runner.push(f, score=False)
+        events += await runner.push(frames[-1], score=True)
+        await asyncio.sleep(0.2)
+        return events
+
+    with caplog.at_level(logging.INFO, logger="satyacheck.pipeline.runner"):
+        events = asyncio.run(go())
+    assert len(events) == 1, [e.window_index for e in events]
+    assert events[0].window_index == 2, "the newest window (ending at 6 s), not the oldest"
+    assert any("skipped 2" in r.getMessage() for r in caplog.records)
+
+
+def test_a_phone_line_mismatch_below_the_floor_reads_unknown_not_impostor():
+    """Seen live: a stranger scored cosine 0.61-0.77 against an enrolled voiceprint over
+    the phone and read 'mismatch' (impostor), latching the call suspicious. Phone audio
+    inflates similarity, so on a phone channel that band is a stranger: unknown, 0.5."""
+    from contracts import AntiSpoofResult, SpeakerVerdict, SpeakerVerificationResult
+    from server.orchestrator import _phone_channel_identity
+
+    phone = AntiSpoofResult(details={"available": True, "calibration": "phone_channel"})
+    wide = AntiSpoofResult(details={"available": True})
+    mismatch = SpeakerVerificationResult(verdict=SpeakerVerdict.MISMATCH, raw_score=0.77, risk=0.85,
+                                         matched_person_name="Friend")
+    out = _phone_channel_identity(mismatch, phone)
+    assert out.verdict == SpeakerVerdict.UNKNOWN and out.risk == 0.5
+    assert out.details.get("phone_downgraded_from") == "mismatch"
+    assert _phone_channel_identity(mismatch, wide).verdict == SpeakerVerdict.MISMATCH
+    close = mismatch.model_copy(update={"raw_score": 0.82})
+    assert _phone_channel_identity(close, phone).verdict == SpeakerVerdict.MISMATCH
+    assert config.SPEAKER_PHONE_MISMATCH_FLOOR == pytest.approx(0.80)

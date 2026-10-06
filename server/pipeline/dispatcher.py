@@ -35,6 +35,10 @@ class VerdictEvent:
     window_index: int
     escalated: bool = False   # the confirmed band rose with this window
     is_final: bool = False
+    # This window's own verdict before the session floor and latch (server/escalation.py):
+    # what a live gauge should follow. None when the producer did not record it.
+    window_trust_score: Optional[float] = None
+    window_band: Optional[str] = None
 
 
 class Sink(Protocol):

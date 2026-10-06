@@ -51,6 +51,9 @@ log = logging.getLogger("satyacheck.acquisition.exotel")
 TARGET_RATE = config.TARGET_SAMPLE_RATE
 SUPPORTED_RATES = (8000, 16000, 24000)
 _LINEAR = {"raw", "audio/x-raw", "slin", "pcm", "linear16", "s16le", "pcm_s16le", "audio/l16"}
+# Seen live from the Stream applet: encoding "base64" — the payload wrapping, not a codec.
+# Exotel's base docs and sample server treat that audio as raw s16le PCM.
+_BASE64_WRAPPED_LINEAR = {"base64"}
 _MULAW = {"mulaw", "ulaw", "audio/x-mulaw", "audio/x-ulaw", "audio/mulaw", "pcmu", "g711_ulaw"}
 
 _SAFE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
@@ -113,6 +116,28 @@ class ExotelStreamDecoder:
         self._next_local = 0
         self._decoded = 0          # samples emitted at TARGET_RATE
         self._warned_before_start = False
+        # What happened to this call's media, logged when it ends: a call whose every
+        # message was dropped must not look like a call that sent nothing.
+        self._media_seen = 0
+        self._frames_out = 0
+        self._dropped: dict[str, int] = {}
+
+    def _drop(self, reason: str, first_warning: str) -> list:
+        self._dropped[reason] = self._dropped.get(reason, 0) + 1
+        if self._dropped[reason] == 1:
+            log.warning(f"[{self.session_id}] exotel: {first_warning}")
+        return []
+
+    def _summary(self) -> None:
+        dropped = " ".join(f"{k}={v}" for k, v in sorted(self._dropped.items())) or "none"
+        log.info(f"[{self.session_id}] exotel: media summary: received={self._media_seen} "
+                 f"decoded={self._frames_out} dropped: {dropped}")
+        if self._media_seen == 0:
+            log.warning(f"[{self.session_id}] exotel: the call ended with no media at all — check that "
+                        f"the call flow keeps the call alive after the Stream applet (e.g. a Connect applet)")
+        elif self._frames_out == 0:
+            log.warning(f"[{self.session_id}] exotel: every media message was dropped ({dropped}); "
+                        f"nothing was scored")
 
     # --- public -------------------------------------------------------------------------
 
@@ -143,6 +168,7 @@ class ExotelStreamDecoder:
         if self.session_id is None or self.closed:
             return None
         self.closed = True
+        self._summary()
         return SessionClose(session_id=self.session_id, reason=reason)
 
     # --- events -----------------------------------------------------------------------------
@@ -192,6 +218,7 @@ class ExotelStreamDecoder:
                             caller_context=context)]
 
     def _configure_audio(self, media_format: dict) -> None:
+        log.info(f"[{self.session_id}] exotel: media_format as sent: {media_format!r}")
         encoding = str(media_format.get("encoding") or "").strip().lower()
         base = encoding.split(";")[0].strip()
         if not base:
@@ -199,6 +226,10 @@ class ExotelStreamDecoder:
                      f"s16le PCM (Exotel base docs)")
             self._linear = True
         elif base in _LINEAR:
+            self._linear = True
+        elif base in _BASE64_WRAPPED_LINEAR:
+            log.info(f"[{self.session_id}] exotel: encoding {encoding!r} names the payload wrapping; "
+                     f"decoding as raw s16le PCM (Exotel base docs)")
             self._linear = True
         elif base in _MULAW:
             self._linear = False
@@ -231,14 +262,23 @@ class ExotelStreamDecoder:
                 log.warning("exotel: media before start; dropped")
                 self._warned_before_start = True
             return []
-        if self.closed or self._drop_media:
+        if self.closed:
+            return []
+        self._media_seen += 1
+        if self._media_seen == 1:
+            media_keys = sorted(msg["media"]) if isinstance(msg.get("media"), dict) else None
+            log.info(f"[{self.session_id}] exotel: first media message: keys={sorted(msg)} "
+                     f"media keys={media_keys} track={msg.get('track')!r}")
+        if self._drop_media:
+            self._dropped["format"] = self._dropped.get("format", 0) + 1
             return []
         track = msg.get("track")
         wanted = str(config.EXOTEL_TRACK).lower()
         if track is not None and wanted != "any" and str(track).lower() != wanted:
             log.debug(f"[{self.session_id}] exotel: dropping media for track {track!r} "
                       f"(EXOTEL_TRACK={wanted})")
-            return []
+            return self._drop("track", f"dropping media for track {track!r} (EXOTEL_TRACK={wanted}); "
+                                       f"set EXOTEL_TRACK=any to accept every track")
         media = msg.get("media")
         if not isinstance(media, dict):
             log.warning(f"[{self.session_id}] exotel: media event without a media object; dropped")
@@ -273,6 +313,7 @@ class ExotelStreamDecoder:
             else self._decoded / TARGET_RATE
         self._next_local = local + 1
         self._decoded += pcm.size
+        self._frames_out += 1
         return [AudioFrame(session_id=self.session_id, seq=local, t_start_s=t_start,
                            pcm_s16le=pcm.astype("<i2").tobytes())]
 
@@ -300,5 +341,6 @@ class ExotelStreamDecoder:
         reason = stop.get("reason") if isinstance(stop, dict) else None
         self.closed = True
         log.info(f"[{self.session_id}] exotel: stop ({reason or 'no reason given'})")
+        self._summary()
         return [SessionClose(session_id=self.session_id,
                              reason=f"exotel stop: {reason or 'unspecified'}")]
