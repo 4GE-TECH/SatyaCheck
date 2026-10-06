@@ -332,6 +332,8 @@ class _LiveCallView extends StatelessWidget {
                         ),
                         const Text('out of 100',
                             style: TextStyle(fontSize: 11, color: Colors.white60)),
+                        const Text('lowest so far',
+                            style: TextStyle(fontSize: 11, color: Colors.white60)),
                       ],
                     ),
                   ],
@@ -341,6 +343,10 @@ class _LiveCallView extends StatelessWidget {
                   Text(warning,
                       style: TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold, color: _ink(v.signal))),
+                ],
+                if (!ended) ...[
+                  const SizedBox(height: 14),
+                  _RightNow(verdict: v),
                 ],
               ],
             ),
@@ -385,29 +391,10 @@ class _LiveCallView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Every 2 seconds of the call, oldest first',
+                const Text('Trust in every 2 seconds of the call, oldest first',
                     style: TextStyle(fontSize: 12, color: Colors.white60)),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: [
-                    for (final w in call.windows)
-                      Tooltip(
-                        message: 'Window ${w.windowIndex} · ${_bandLabels[w.result.band]} · '
-                            'trust ${w.result.trustScore.round()}${w.isFinal ? ' · final' : ''}',
-                        child: Container(
-                          width: 10,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: signalColors[w.signal],
-                            borderRadius: BorderRadius.circular(2),
-                            border: w.isFinal ? Border.all(color: Colors.white, width: 2) : null,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                _WindowChart(windows: call.windows),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -475,6 +462,113 @@ class _LiveCallView extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// The current window's own score: the live gauge docs/LIVE_FEED.md asks for. It moves up
+/// and down; the trust score above it is the call's lowest so far.
+class _RightNow extends StatelessWidget {
+  const _RightNow({required this.verdict});
+
+  final LiveVerdict verdict;
+
+  @override
+  Widget build(BuildContext context) {
+    final band = verdict.liveBand;
+    final listening = band == TrustBand.insufficient;
+    final colour = signalColors[band.signal]!;
+    final score = verdict.liveScore.clamp(0.0, 100.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            const Expanded(
+              child: Text('Right now',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70)),
+            ),
+            Text(listening ? '—' : '${score.round()}',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'monospace',
+                    color: _ink(band.signal))),
+            Text('  ·  ${_bandLabels[band]}',
+                style: const TextStyle(fontSize: 13, color: Colors.white60)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(end: listening ? 0 : score / 100),
+            duration: const Duration(milliseconds: 500),
+            builder: (context, value, _) => LinearProgressIndicator(
+              value: value,
+              minHeight: 10,
+              backgroundColor: Colors.white12,
+              color: colour,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text('This moment of the call. It moves up and down; the trust score above never '
+            'goes back up.',
+            style: TextStyle(fontSize: 12, color: Colors.white60)),
+      ],
+    );
+  }
+}
+
+/// Each window's own trust score as a bar, coloured by its own band. Unlike the session
+/// verdict, this goes up as well as down: it shows where in the call the risk was.
+class _WindowChart extends StatelessWidget {
+  const _WindowChart({required this.windows});
+
+  final List<LiveVerdict> windows;
+
+  static const _height = 64.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: _height,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.white24)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        reverse: true, // keep the newest window in view as the call grows
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (final w in windows)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Tooltip(
+                  message: 'Window ${w.windowIndex} · ${_bandLabels[w.liveBand]} · '
+                      '${w.liveBand == TrustBand.insufficient ? 'listening' : 'trust ${w.liveScore.round()}'}'
+                      '${w.isFinal ? ' · final' : ''}',
+                  child: Container(
+                    width: 10,
+                    height: w.liveBand == TrustBand.insufficient
+                        ? _height * 0.12
+                        : _height * (w.liveScore.clamp(8.0, 100.0) / 100),
+                    decoration: BoxDecoration(
+                      color: signalColors[w.liveBand.signal]!
+                          .withValues(alpha: w.liveBand == TrustBand.insufficient ? 0.4 : 1),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                      border: w.isFinal ? Border.all(color: Colors.white, width: 2) : null,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

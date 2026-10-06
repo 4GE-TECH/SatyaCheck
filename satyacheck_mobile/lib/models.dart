@@ -221,6 +221,8 @@ class LiveVerdict {
     required this.signal,
     required this.result,
     this.windowIndex = 0,
+    this.windowTrustScore,
+    this.windowBand,
     this.escalated = false,
     this.authenticity = 'unavailable',
     this.callerNumber,
@@ -242,6 +244,16 @@ class LiveVerdict {
 
   /// 0, 1, 2… per call, one per ~2 s of audio. The final verdict may repeat the last one.
   final int windowIndex;
+
+  /// This window's own score and band, before the session floor and latch. They move up
+  /// and down, where the session's only ever fall: what a live gauge follows
+  /// (docs/LIVE_FEED.md). Null from backends that do not send them.
+  final double? windowTrustScore;
+  final TrustBand? windowBand;
+
+  /// The window's own view, falling back to the session's as the backend itself does.
+  double get liveScore => windowTrustScore ?? result.trustScore;
+  TrustBand get liveBand => windowBand ?? result.band;
 
   /// True when this verdict raised the call's warning level.
   final bool escalated;
@@ -275,6 +287,10 @@ class LiveVerdict {
       isFinal: json['is_final'] == true,
       signal: Signal.values.asNameMap()[json['overlay_state']] ?? Signal.grey,
       windowIndex: (json['window_index'] as num?)?.toInt() ?? 0,
+      windowTrustScore: (json['window_trust_score'] as num?)?.toDouble(),
+      windowBand: json['window_band'] is String
+          ? TrustBand.parse(json['window_band'] as String)
+          : null,
       escalated: json['escalated'] == true,
       authenticity: signals['authenticity'] as String? ?? 'unavailable',
       callerNumber: caller?['claimed_number'] as String?,

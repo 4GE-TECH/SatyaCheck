@@ -498,6 +498,8 @@ class CallSession {
             signal: stored.signal,
             result: stored,
             windowIndex: previous?.windowIndex ?? 0,
+            windowTrustScore: previous?.windowTrustScore,
+            windowBand: previous?.windowBand,
             authenticity: previous?.authenticity ?? 'unavailable',
             callerNumber: previous?.callerNumber,
             threat: previous?.threat,
