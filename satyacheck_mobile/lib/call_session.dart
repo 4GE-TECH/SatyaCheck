@@ -461,20 +461,28 @@ class CallSession {
     return threat != null && warning ? '$line\nResembles $threat' : line;
   }
 
-  /// The phone hung up. When the live feed is screening the call, wait briefly for the
-  /// backend's final verdict, which lands when Exotel's stream ends and can trail the
-  /// phone's own hang-up by a moment. It is the one to keep.
+  /// The phone hung up. When the live feed is screening the call, wait for the backend's
+  /// final verdict, which lands when Exotel's stream ends, seconds after the phone's own
+  /// hang-up. It is the one to keep.
   Future<void> _endCall() async {
     final session = _liveSessionId;
+    final call = _current;
     if (session != null && !(_liveApplied?.isFinal ?? false)) {
+      // The final verdict lands when Exotel's stream ends, which trails the phone's own
+      // hang-up: 5.1 s on the OnePlus test call, where a 4 s wait gave up 0.7 s too early.
       final waiter = Completer<void>();
       _finalVerdict = waiter;
-      await waiter.future.timeout(const Duration(seconds: 4), onTimeout: () {});
+      await waiter.future.timeout(const Duration(seconds: 12), onTimeout: () {});
       _finalVerdict = null;
       if (!(_liveApplied?.isFinal ?? false)) {
         // Missed on the feed, which nothing replays. The backend stores every call's
-        // final verdict, so ask for it rather than keep a mid-call one.
-        final stored = await _api.storedVerdict(session);
+        // final verdict, so ask for it rather than keep a mid-call one — a few times,
+        // since it is stored at the same moment it is published.
+        ScreeningResult? stored;
+        for (var attempt = 0; attempt < 3 && stored == null; attempt++) {
+          if (attempt > 0) await Future<void>.delayed(const Duration(seconds: 2));
+          stored = await _api.storedVerdict(session);
+        }
         if (stored != null) {
           print('SC/Live: $session final verdict fetched from the backend');
           _liveApplied = LiveVerdict(
@@ -489,6 +497,12 @@ class CallSession {
         } else {
           print('SC/Live: no final verdict for $session; keeping the last one');
         }
+      }
+      if (!identical(_current, call)) {
+        // Another call rang while this one's verdict was awaited; finishing now would
+        // close out the new call instead.
+        print('SC/Live: a new call started before $session was finished; leaving it open');
+        return;
       }
     }
     _inCall = false;

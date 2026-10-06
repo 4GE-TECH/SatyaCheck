@@ -169,9 +169,10 @@ token** set the app follows that feed during a call instead of trying the microp
   call the dialer is in front (`dumpsys netpolicy` on the OnePlus: `blocked=APP_BACKGROUND`;
   without it the socket broke seconds into every call and could not reconnect until the
   call ended);
-- after hang-up the app waits up to 4 s for the call's final verdict; if the feed missed
-  it, it fetches the stored one (`GET /api/screen/{session_id}`), then keeps it in Recent
-  calls and posts the notification.
+- after hang-up the app waits up to 12 s for the call's final verdict, which the backend
+  publishes when Exotel's stream ends (5.1 s after the phone hung up, on the test call);
+  if the feed missed it, it fetches the stored one (`GET /api/screen/{session_id}`), then
+  keeps it in Recent calls and posts the notification.
 
 Do not swipe the app away from recents during a demo: the feed runs in the app, and the
 keep-alive service stops with it.
