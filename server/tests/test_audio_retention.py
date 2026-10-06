@@ -7,9 +7,9 @@ Two places leave call audio on disk today:
   * `ws_router` copies each chunk to `data/sessions/<id>/chunk_NNNN.wav`, which is what
     `scripts/enrol_from_call.py` enrols from.
 
-`CLEANUP_TEMP_AUDIO` deletes the first, `RETAIN_SESSION_AUDIO` gates the second. Both
-default to today's behaviour (cleanup off, retention on) until after the demo, because
-the demo's channel-matched enrollment reads the retained chunks.
+`CLEANUP_TEMP_AUDIO` deletes the first, `RETAIN_SESSION_AUDIO` gates the second. Since
+item 15b the defaults are private (cleanup on, retention off); the demo machine opts
+back into retention, because its channel-matched enrollment reads the retained chunks.
 
 Branch models are stubbed: what is under test is which files exist afterwards, not
 the verdict. Ingestion is real (ffmpeg), because that is where the temp files come from.
@@ -95,12 +95,18 @@ def _stream_one_chunk(client) -> str:
 
 # --- defaults are today's behaviour -------------------------------------------
 
-def test_defaults_keep_the_demo_behaviour():
-    assert config.RETAIN_SESSION_AUDIO is True
-    assert config.CLEANUP_TEMP_AUDIO is False
+def test_defaults_keep_no_audio():
+    assert config.RETAIN_SESSION_AUDIO is False
+    assert config.CLEANUP_TEMP_AUDIO is True
 
 
-def test_retention_on_keeps_the_session_chunks(client):
+def test_the_runbook_opts_back_into_retention():
+    runbook = (config.REPO_ROOT / "DEMO_RUNBOOK.md").read_text(encoding="utf-8")
+    assert "RETAIN_SESSION_AUDIO=true" in runbook
+
+
+def test_retention_on_keeps_the_session_chunks(client, monkeypatch):
+    monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", True)
     session_id = _stream_one_chunk(client)
     assert (config.DATA_DIR / "sessions" / session_id / "chunk_0000.wav").is_file()
 
@@ -115,7 +121,8 @@ def test_retention_off_writes_no_session_audio(client, monkeypatch):
 
 # --- temp cleanup ---------------------------------------------------------------
 
-def test_cleanup_off_leaves_temp_wavs_as_today(client, temp_wavs):
+def test_cleanup_off_leaves_temp_wavs(client, temp_wavs, monkeypatch):
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", False)
     _screen(client)
     assert temp_wavs and all(p.exists() for p in temp_wavs)
     for p in temp_wavs:
@@ -138,6 +145,7 @@ def test_cleanup_on_removes_both_ws_temp_wavs(client, temp_wavs, monkeypatch):
 
 def test_cleanup_does_not_remove_the_retained_copy(client, temp_wavs, monkeypatch):
     monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", True)
+    monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", True)
     session_id = _stream_one_chunk(client)
     assert (config.DATA_DIR / "sessions" / session_id / "chunk_0000.wav").is_file()
 
@@ -202,3 +210,22 @@ def test_enrol_from_call_says_retention_is_off(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", False)
     enrol_from_call.list_sessions()
     assert "RETAIN_SESSION_AUDIO" in capsys.readouterr().out
+
+
+def test_enrol_from_call_does_not_claim_retention_is_off_when_sessions_exist(
+    monkeypatch, tmp_path, capsys
+):
+    # The flag here is this shell's, not the server's: the runbook sets it only on the
+    # uvicorn line. Retained chunks on disk prove the server is keeping audio, so a
+    # "retention is off, restart the server" warning above them would be false.
+    from scripts import enrol_from_call
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", False)
+    session = tmp_path / "sessions" / "call-1"
+    session.mkdir(parents=True)
+    (session / "chunk_0000.wav").write_bytes(b"RIFF")
+    enrol_from_call.list_sessions()
+    out = capsys.readouterr().out
+    assert "call-1" in out
+    assert "RETAIN_SESSION_AUDIO" not in out
