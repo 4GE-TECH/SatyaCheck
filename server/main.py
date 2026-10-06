@@ -120,6 +120,29 @@ app.include_router(demo_router)
 app.include_router(ws_router)
 
 
+def _exotel_runner():
+    """A SessionRunner for one Exotel call: no app socket to talk to, so the dispatcher
+    carries the guardian and report sinks only."""
+    from server.pipeline.dispatcher import build_dispatcher
+    from server.pipeline.runner import SessionRunner
+
+    return SessionRunner(dispatcher=build_dispatcher(ws=None))
+
+
+def mount_exotel(target: FastAPI, runner_factory=None) -> bool:
+    """Mount the Exotel Stream route when config.ENABLE_EXOTEL is on. Returns whether it did."""
+    if not config.ENABLE_EXOTEL:
+        return False
+    from acquisition.api import build_exotel_router
+
+    target.include_router(build_exotel_router(runner_factory or _exotel_runner))
+    log.info(f"  Exotel stream route mounted at {config.EXOTEL_WS_PATH}")
+    return True
+
+
+mount_exotel(app)
+
+
 # ── Health ────────────────────────────────────────────────────────────
 @app.get("/api/health", tags=["system"])
 async def health_check() -> JSONResponse:

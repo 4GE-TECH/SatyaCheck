@@ -86,6 +86,25 @@ def test_calm_bands_pass_through_untouched_when_nothing_is_latched():
     assert [f.band for f in shown] == [TrustBand.VERIFIED, U]
 
 
+def test_an_unconfirmed_warning_never_holds_green():
+    """Holding over a VERIFIED window must not show green on a high-risk window.
+
+    Green means "we verified this person". A window whose own evidence is high risk —
+    and possibly in authority_check, where green is never allowed — gets neutral grey
+    until its warning is confirmed, never the earlier verified band.
+    """
+    gate = EscalationGate(3)
+    first = _response(band=TrustBand.VERIFIED, mode=OperatingMode.IDENTITY_CHECK)
+    first = first.model_copy(update={"fusion": first.fusion.model_copy(update={"trust_score": 92.0})})
+    shown = [
+        gate.apply(first).fusion,
+        gate.apply(_scored(H, 12.0)).fusion,
+        gate.apply(_scored(H, 11.0)).fusion,
+        gate.apply(_scored(H, 10.0)).fusion,
+    ]
+    assert [f.band for f in shown] == [TrustBand.VERIFIED, U, U, H]
+
+
 def test_session_state_uses_the_configured_n(monkeypatch):
     monkeypatch.setattr(config, "ESCALATION_PERSISTENCE_N", 2)
     state = SessionState("s")

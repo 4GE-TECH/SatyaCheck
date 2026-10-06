@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 import config
-from contracts import IncidentReportPacket, ReasonCode, ScreeningResponse
+from contracts import CallerMetadata, IncidentReportPacket, ReasonCode, ScreeningResponse
 from server.database import ScreeningResult, get_db
 
 log = logging.getLogger("satyacheck.report")
@@ -32,7 +32,9 @@ def _build_report_packet(response: ScreeningResponse, report_id: str) -> Inciden
         audio_sha256=response.audio_sha256,
         trust_score=response.fusion.trust_score,
         band=response.fusion.band,
-        caller_metadata=response.script.details.get("caller_metadata") or {},  # type: ignore[arg-type]
+        # Used to read script.details["caller_metadata"], which nothing ever wrote, so
+        # every report shipped an empty caller block.
+        caller_metadata=response.caller_context or CallerMetadata(),
         transcript_full=response.transcript.text,
         evidence_reason_codes=response.fusion.reason_codes,
         matched_playbooks=playbooks,

@@ -16,7 +16,7 @@ Hackathon build: 15 hours, 4 people, hard feature freeze.
 ## Hard rules
 
 1. **We train nothing.** Every model is pretrained inference. If a task seems to need training, the design is wrong — re-read the PRD. One documented exception: the anti-spoof branch runs Model A, AASIST fine-tuned by the team (see `audio_ml/spoof.py`). Do not add others.
-2. **Folder ownership is absolute.** `audio_ml/` → A · `nlp_rag/` → B · `server/` + `contracts.py` + `config.py` → C · `web/` → D. Never edit another owner's folder. Propose the change instead.
+2. **Folder ownership is absolute.** `audio_ml/` → A · `nlp_rag/` → B · `server/` + `contracts.py` + `config.py` → C · `web/` → D · `acquisition/` → Track 1 owner (call-audio adapters, e.g. Exotel). Never edit another owner's folder. Propose the change instead.
 3. **`contracts.py` is frozen.** Three people code against it. Do not rename, reorder or "improve" fields. Contract changes are announced out-of-band before being made.
 4. **No runtime network calls.** Everything loads from `./models/`. The demo runs with wifi off.
 5. **Public functions never raise.** Catch internally, log, return the neutral default from the contract. A branch failing must degrade the verdict, not fail the request.
@@ -43,9 +43,13 @@ audio (mic / upload / voice note)
 ```python
 from audio_ml.api import enroll_person, verify_speaker, detect_spoof, fuse, add_flagged_voice
 from nlp_rag.api  import transcribe, analyze_script, build_reason_codes, challenge_question
+from acquisition.api import ...   # server/ mounts the adapters; acquisition/ imports only contracts + config
 ```
 
 Nothing else crosses a folder boundary. Ever.
+
+Audio from any source reaches the pipeline as `contracts.AudioFrame` (16 kHz mono s16le). The
+transport is named only on `SessionOpen.source`; no check may see it.
 
 ---
 

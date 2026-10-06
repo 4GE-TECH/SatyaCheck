@@ -78,9 +78,9 @@ def _screen(client):
     assert r.status_code == 200, r.text
 
 
-def _stream_one_chunk(client) -> str:
-    session_id = f"test-retention-{uuid.uuid4().hex[:8]}"
-    with client.websocket_connect(f"/api/ws/screen/{session_id}") as ws:
+def _stream_one_chunk(client, session_id=None, url_id=None) -> str:
+    session_id = session_id or f"test-retention-{uuid.uuid4().hex[:8]}"
+    with client.websocket_connect(f"/api/ws/screen/{url_id or session_id}") as ws:
         ws.send_text(json.dumps({
             "type": "audio_chunk",
             "session_id": session_id,
@@ -166,6 +166,43 @@ def test_discard_tolerates_missing_and_absent_paths(monkeypatch):
                               normalized_wav_path=path))
 
 
+def _failing_ingest(kind: str, monkeypatch):
+    """Run one ingestion that fails at `kind` (ffmpeg, waveform decode, or later)."""
+    import server.audio_ingest as ingest
+
+    if kind == "ffmpeg":
+        return ingest.ingest_audio(audio_bytes=b"not audio at all" * 10)
+    if kind == "decode":
+        monkeypatch.setattr(ingest, "_load_waveform", lambda p: ([], 0.0))
+    else:  # an unexpected error after ffmpeg wrote the WAV
+        def boom(waveform):
+            raise RuntimeError("boom")
+        monkeypatch.setattr(ingest, "_estimate_snr", boom)
+    return ingest.ingest_audio(audio_bytes=CLIP.read_bytes())
+
+
+@pytest.mark.parametrize("kind", ["ffmpeg", "decode", "exception"])
+def test_cleanup_on_removes_the_temp_wav_of_a_failed_ingest(kind, tmp_path, monkeypatch):
+    """A failed ingest hands no path to discard(), so ingest_audio must delete its own."""
+    import tempfile
+
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", True)
+    failed = _failing_ingest(kind, monkeypatch)
+    assert failed.error and not failed.normalized_wav_path
+    assert list(tmp_path.glob("*.wav")) == []
+
+
+@pytest.mark.parametrize("kind", ["ffmpeg", "decode", "exception"])
+def test_cleanup_off_keeps_the_failed_ingest_behaviour(kind, tmp_path, monkeypatch):
+    import tempfile
+
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    monkeypatch.setattr(config, "CLEANUP_TEMP_AUDIO", False)
+    _failing_ingest(kind, monkeypatch)
+    assert len(list(tmp_path.glob("*.wav"))) == 1
+
+
 # --- enrollment, real ECAPA ---------------------------------------------------------
 
 @pytest.mark.skipif(not (config.MODELS_DIR / "ecapa").is_dir(), reason="needs models/ecapa/")
@@ -202,3 +239,26 @@ def test_enrol_from_call_says_retention_is_off(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", False)
     enrol_from_call.list_sessions()
     assert "RETAIN_SESSION_AUDIO" in capsys.readouterr().out
+
+
+# --- the session id names a folder: it must not escape data/sessions ----------------
+
+@pytest.mark.parametrize("url_id", ["..%5C..%5Cevil", "..%5Cevil", "a%5Cb", ".."])
+def test_retention_refuses_a_session_id_that_is_not_a_plain_folder_name(client, monkeypatch, tmp_path, url_id):
+    """%5C decodes to a backslash and survives routing as one path segment; on Windows
+    `DATA_DIR / "sessions" / "..\..\evil"` is outside DATA_DIR."""
+    data = tmp_path / "a" / "b" / "data"
+    data.mkdir(parents=True)
+    monkeypatch.setattr(config, "DATA_DIR", data)
+    monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", True)
+    try:
+        _stream_one_chunk(client, session_id="ignored", url_id=url_id)
+    except Exception:
+        pass  # rejecting the connection outright is also acceptable
+    written = list(tmp_path.rglob("chunk_*.wav"))
+    assert written == [], f"retention for {url_id!r} wrote {written}"
+
+
+def test_a_plain_session_id_is_still_retained(client, monkeypatch):
+    monkeypatch.setattr(config, "RETAIN_SESSION_AUDIO", True)
+    assert (config.DATA_DIR / "sessions" / _stream_one_chunk(client, session_id=f"call-{uuid.uuid4().int % 10**13}") / "chunk_0000.wav").is_file()

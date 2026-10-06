@@ -515,6 +515,7 @@ async def screen_audio(
             script=ScriptAnalysisResult.neutral(),
             fusion=fusion,
             processing_time_ms=elapsed_ms,
+            caller_context=caller_metadata,
         )
 
     # ── Select branch implementations ─────────────────────────────────
@@ -577,12 +578,177 @@ async def screen_audio(
         script=script_result,
         fusion=fusion,
         processing_time_ms=elapsed_ms,
+        # Carried, never read: _compute_fusion takes no caller input (CLAUDE.md, FR-17).
+        caller_context=caller_metadata,
+    )
+
+
+def _text_abstains() -> ScriptAnalysisResult:
+    """No transcript yet: the text branch abstains so fusion renormalises and the CM
+    gate reads neutral intent (see `_compute_fusion`), instead of a benign 0.0."""
+    abstain = ScriptAnalysisResult.neutral()
+    abstain.details["available"] = False
+    return abstain
+
+
+def _spoof_abstains() -> AntiSpoofResult:
+    result = AntiSpoofResult.neutral()
+    result.details["available"] = False
+    return result
+
+
+def _guarded(branch, name: str, session_id: str, fallback):
+    """Run one branch; on any exception log why, with the session, and return `fallback`.
+
+    The real wrappers already catch, but a branch that raises past them must cost that
+    branch only — not neutralise the other one, as `screen_audio`'s single gather does.
+    """
+    def run(wav_path: Optional[str]):
+        try:
+            return branch(wav_path)
+        except Exception as e:  # noqa: BLE001 — rule 5: degrade the verdict, not the call
+            log.error(f"[{session_id}] {name} branch raised, using its neutral result: "
+                      f"{type(e).__name__}: {e}")
+            return fallback()
+    return run
+
+
+async def screen_window(
+    audio: IngestedAudio,
+    transcript: Optional[TranscriptResult],
+    script: Optional[ScriptAnalysisResult],
+    caller_metadata: Optional[CallerMetadata] = None,
+    session_id: Optional[str] = None,
+) -> ScreeningResponse:
+    """Score one streaming window: speaker and anti-spoof only, concurrently.
+
+    Text is not computed here. It comes from the session's transcript worker
+    (server/pipeline/transcript_worker.py), which runs beside the acoustic path, so a
+    verdict never waits for Whisper. With no transcript yet the text branch abstains
+    (`details['available'] = False`) and fusion renormalises over what was measured.
+
+    Same branch selection, quality gate and fusion (`_compute_fusion`) as `screen_audio`.
+    `caller_metadata` is explanation only (FR-17) and is never scored. Never raises.
+    """
+    t_start = time.perf_counter()
+    session_id = session_id or f"session_{uuid.uuid4().hex[:12]}"
+    if transcript is None:
+        transcript = TranscriptResult.empty()
+    if script is None:
+        script = _text_abstains()
+
+    try:
+        if not audio.quality.passed:
+            log.info(
+                f"[{session_id}] quality gate REJECTED window: {audio.quality.reason} "
+                f"(speech={audio.quality.speech_duration_s:.2f}s "
+                f"snr={audio.quality.snr_db:.2f}dB "
+                f"min_speech={audio.quality.min_speech_threshold_s}s "
+                f"min_snr={audio.quality.min_snr_threshold_db}dB)"
+            )
+            return ScreeningResponse(
+                session_id=session_id,
+                audio_sha256=audio.audio_sha256,
+                quality=audio.quality,
+                speaker=SpeakerVerificationResult.neutral(),
+                spoof=AntiSpoofResult.neutral(),
+                # The transcript is the session's (cumulative), not this window's: a
+                # quiet final window must not erase it from the final record.
+                transcript=transcript,
+                script=script,
+                fusion=TrustScoreResult.insufficient(
+                    reason=audio.quality.reason or "Quality gate failed"),
+                processing_time_ms=round((time.perf_counter() - t_start) * 1000, 1),
+            )
+
+        run_speaker = _guarded(
+            _real_speaker_branch if config.USE_REAL_SPEAKER else _mock_speaker_branch,
+            "speaker", session_id, SpeakerVerificationResult.neutral)
+        run_spoof = _guarded(
+            _real_spoof_branch if config.USE_REAL_SPOOF else _mock_spoof_branch,
+            "spoof", session_id, _spoof_abstains)
+
+        speaker_result, spoof_result = await asyncio.gather(
+            asyncio.to_thread(run_speaker, audio.normalized_wav_path),
+            asyncio.to_thread(run_spoof, audio.normalized_wav_path),
+        )
+
+        # A start-of-call window shorter than one anti-spoof input is tiled up to it, and
+        # on genuine speech that scored P(synthetic) 0.998 (config.STREAM_SPOOF_MIN_WINDOW_S).
+        # Its score is kept for the record; the branch abstains so fusion renormalises.
+        if (audio.total_duration_s < config.STREAM_SPOOF_MIN_WINDOW_S
+                and spoof_result.details.get("available", True) is not False):
+            log.info(
+                f"[{session_id}] anti-spoof abstains on a {audio.total_duration_s:.2f}s window "
+                f"(< {config.STREAM_SPOOF_MIN_WINDOW_S:.2f}s model input; tiled score "
+                f"{spoof_result.risk:.3f} not used)"
+            )
+            details = {**spoof_result.details, "available": False,
+                       "abstained": "window shorter than model input"}
+            spoof_result = spoof_result.model_copy(update={"details": details})
+
+        # Nothing measured: identity's `unknown` is a deliberate neutral 0.5, and with
+        # anti-spoof and text both abstaining that constant would be the whole verdict —
+        # which bands as suspicious. Refuse to score instead (CLAUDE.md: refusing to score
+        # is a feature). On the streaming path this is the normal state before the first
+        # transcript when the anti-spoof branch is off or short-windowed.
+        if (speaker_result.verdict == SpeakerVerdict.UNKNOWN
+                and spoof_result.details.get("available", True) is False
+                and script.details.get("available", True) is False):
+            log.info(f"[{session_id}] nothing measured on this window (speaker unknown, "
+                     f"anti-spoof and text abstaining); returning insufficient")
+            return ScreeningResponse(
+                session_id=session_id,
+                audio_sha256=audio.audio_sha256,
+                quality=audio.quality,
+                speaker=speaker_result,
+                spoof=spoof_result,
+                transcript=transcript,
+                script=script,
+                fusion=TrustScoreResult.insufficient(
+                    reason="Nothing measurable yet: caller not enrolled, no transcript, "
+                           "synthetic-voice check unavailable for this window"),
+                processing_time_ms=round((time.perf_counter() - t_start) * 1000, 1),
+            )
+
+        fusion = _compute_fusion(speaker_result, spoof_result, script)
+    except Exception as e:  # noqa: BLE001
+        log.error(f"[{session_id}] window scoring failed, returning insufficient: "
+                  f"{type(e).__name__}: {e}")
+        return ScreeningResponse(
+            session_id=session_id,
+            audio_sha256=audio.audio_sha256 or "",
+            quality=audio.quality,
+            speaker=SpeakerVerificationResult.neutral(),
+            spoof=_spoof_abstains(),
+            transcript=TranscriptResult.empty(),
+            script=_text_abstains(),
+            fusion=TrustScoreResult.insufficient(reason=f"Scoring failed: {type(e).__name__}"),
+            processing_time_ms=round((time.perf_counter() - t_start) * 1000, 1),
+        )
+
+    elapsed_ms = round((time.perf_counter() - t_start) * 1000, 1)
+    text_on = script.details.get("available", True) is not False
+    log.info(
+        f"[{session_id}] window Trust={fusion.trust_score} Band={fusion.band} "
+        f"Mode={fusion.mode} text={'live' if text_on else 'abstained'} ({elapsed_ms}ms)"
+    )
+    return ScreeningResponse(
+        session_id=session_id,
+        audio_sha256=audio.audio_sha256,
+        quality=audio.quality,
+        speaker=speaker_result,
+        spoof=spoof_result,
+        transcript=transcript,
+        script=script,
+        fusion=fusion,
+        processing_time_ms=elapsed_ms,
     )
 
 
 if __name__ == "__main__":
     import asyncio
-    from server.audio_ingest import ingest_audio
+    from server.audio_ingest import ingest_audio, ingest_pcm
     from contracts import CallerMetadata
 
     async def _smoke():
@@ -591,6 +757,8 @@ if __name__ == "__main__":
         result = await screen_audio(audio)
         print(f"[SMOKE] Band={result.fusion.band} Score={result.fusion.trust_score}")
         assert result.fusion.band == TrustBand.INSUFFICIENT, "Expected INSUFFICIENT for empty audio"
+        windowed = await screen_window(ingest_pcm([]), None, None, session_id="smoke")
+        assert windowed.fusion.band == TrustBand.INSUFFICIENT, "Expected INSUFFICIENT window"
         print("[OK] Orchestrator smoke test passed")
 
     asyncio.run(_smoke())

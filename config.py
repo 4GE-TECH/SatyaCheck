@@ -92,6 +92,8 @@ VAD_OVERLAP_S: float = 1.0               # overlap between consecutive chunks
 # against this same ASR. Every chunk is instead scored against the trailing window
 # of buffered audio, long enough to be Whisper-safe.
 STREAM_CONTEXT_S: float = 9.0             # trailing window used to score each chunk
+STREAM_HOP_S: float = 2.0                 # server/pipeline/buffer.py: a window every hop (FR-13 "~2s")
+STREAM_MAX_SESSION_S: float = 1800.0      # stop scoring after 30 min of audio, loudly
 
 # Escalation persistence (server/escalation.py, item 9). A warning band is shown only
 # after this many consecutive windows reach it; once shown it latches for the session.
@@ -297,6 +299,42 @@ ENABLE_GUARDIAN_ALERTS: bool = True
 
 # Negative voiceprint list (FR-15)
 ENABLE_FLAGGED_VOICE_LIST: bool = True
+
+# Verdict dispatch (item 6, server/pipeline/dispatcher.py). Each sink runs isolated,
+# under its own timeout, so one slow output never delays the overlay.
+DISPATCH_SINKS: list[str] = ["app_overlay", "guardian", "report"]  # + "bank_api" (stub)
+DISPATCH_SINK_TIMEOUT_S: float = 2.0
+
+# Streaming runner (item 5, server/pipeline/runner.py). On: the WebSocket feeds frames
+# to SessionRunner — a verdict every STREAM_HOP_S of audio, speaker + anti-spoof scored
+# per window, ASR out of band, outputs through the dispatcher. Off: the per-chunk
+# screen_audio loop in server/ws_router.py, unchanged. Read per connection.
+# --- Exotel Stream applet (item 1, acquisition/exotel) ---------------------------------
+# Documented: Exotel connects to us as a WebSocket client and sends JSON text frames
+# (developer.exotel.com/docs/agentstream/websocket-protocol); 8000 Hz is the default rate,
+# 16000/24000 selectable with '?sample-rate=' on the URL. NOT confirmed for the Stream
+# applet specifically: Basic auth in the URL (documented for Voicebot), the encoding (base
+# docs say raw s16le, the extension guide says mu-law — both are decoded), which call leg
+# is streamed, and behaviour when our socket drops. Off by default; the offline demo never
+# needs it (it requires a public wss:// endpoint).
+ENABLE_EXOTEL: bool = os.getenv("ENABLE_EXOTEL", "false").lower() == "true"
+EXOTEL_WS_PATH: str = os.getenv("EXOTEL_WS_PATH", "/api/exotel/stream")
+EXOTEL_DEFAULT_SAMPLE_RATE: int = int(os.getenv("EXOTEL_DEFAULT_SAMPLE_RATE", "8000"))
+EXOTEL_TRACK: str = os.getenv("EXOTEL_TRACK", "inbound")      # 'inbound' | 'outbound' | 'any'
+EXOTEL_BASIC_USER: str = os.getenv("EXOTEL_BASIC_USER", "")   # secrets: environment only
+EXOTEL_BASIC_PASS: str = os.getenv("EXOTEL_BASIC_PASS", "")
+EXOTEL_ALLOWED_IPS: list[str] = [x.strip() for x in os.getenv("EXOTEL_ALLOWED_IPS", "").split(",") if x.strip()]
+EXOTEL_ALLOW_UNAUTHENTICATED: bool = os.getenv("EXOTEL_ALLOW_UNAUTHENTICATED", "false").lower() == "true"
+
+USE_PIPELINE_RUNNER: bool = os.getenv("USE_PIPELINE_RUNNER", "false").lower() == "true"
+
+# Streaming windows shorter than one anti-spoof input (64,600 samples, fixed by AASIST —
+# audio_ml/spoof.py WINDOW_SAMPLES) are scored with the anti-spoof branch abstaining
+# (server/orchestrator.py screen_window). The buffer's first windows are 2 and 4 s, and
+# with no transcript yet nothing gates the CM score. Measured on friend_test.wav, a
+# genuine call: P(synthetic) 0.998 on the 2 s window, 0.874 on 4 s, 0.38-0.61 on full
+# windows — the 2 s window latched the call suspicious. 0 disables.
+STREAM_SPOOF_MIN_WINDOW_S: float = 64600 / TARGET_SAMPLE_RATE
 
 # PDF report generation (FR-14)
 ENABLE_PDF_REPORTS: bool = True

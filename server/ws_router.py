@@ -14,8 +14,10 @@ import base64
 import io
 import shutil
 import logging
+import re
 import uuid
 import wave
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -37,6 +39,20 @@ from server.orchestrator import screen_audio
 
 log = logging.getLogger("satyacheck.ws")
 router = APIRouter(prefix="/api/ws", tags=["websocket"])
+
+# A session id names a folder under data/sessions. The route takes it from the URL
+# path, where %5C decodes to a backslash that survives as one segment, so anything
+# but a plain name could write retained audio outside DATA_DIR.
+_SAFE_SESSION_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
+
+
+def _session_audio_dir(session_id: str) -> Optional[Path]:
+    """data/sessions/<id>, or None (logged) when the id is not a plain folder name."""
+    if not _SAFE_SESSION_ID.fullmatch(session_id or ""):
+        log.warning(f"session id {session_id!r} is not a plain folder name; "
+                    f"not retaining its audio")
+        return None
+    return config.DATA_DIR / "sessions" / session_id
 
 
 # TrustBand -> the four colours the overlay renders, matching the app's own mapping
@@ -162,6 +178,9 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
       Server → {"type": "screening_update", "session_id": "...", "chunk_index": N, "response": {...}}
       Client → {"type": "reset_session"} to restart
     """
+    if config.USE_PIPELINE_RUNNER:
+        await _ws_screen_runner(ws, session_id)
+        return
     await ws.accept()
     log.info(f"WS /screen connected: session={session_id}")
     state = SessionState(session_id)
@@ -222,7 +241,9 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
             # is exactly the shape a session produces.
             if config.RETAIN_SESSION_AUDIO and ingested.normalized_wav_path:
                 try:
-                    session_dir = config.DATA_DIR / "sessions" / session_id
+                    session_dir = _session_audio_dir(session_id)
+                    if session_dir is None:
+                        raise ValueError("unsafe session id")
                     session_dir.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(
                         ingested.normalized_wav_path,
@@ -305,6 +326,108 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
             pass
     finally:
         db.close()
+        try:
+            await ws.close()
+        except Exception:
+            pass
+
+
+# ── Pipeline runner path (config.USE_PIPELINE_RUNNER, item 5) ──────────────────
+
+def _retain_pcm(session_id: str, pcm_s16le: bytes, chunk_index: int) -> None:
+    """Runner path: write one decoded chunk (16 kHz mono s16le) to
+    data/sessions/<id>/chunk_NNNN.wav — the same file the per-chunk path copies from
+    ffmpeg's output, so enrolment-from-a-call reads either path's sessions alike."""
+    if not config.RETAIN_SESSION_AUDIO or not pcm_s16le:
+        return
+    try:
+        session_dir = _session_audio_dir(session_id)
+        if session_dir is None:
+            return
+        session_dir.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(session_dir / f"chunk_{chunk_index:04d}.wav"), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(config.TARGET_SAMPLE_RATE)
+            w.writeframes(pcm_s16le)
+    except Exception as e:  # never break a live call over a debug artefact
+        log.warning(f"[{session_id}] could not retain session audio: {e}")
+
+
+async def _ws_screen_runner(ws: WebSocket, session_id: str) -> None:
+    """The same protocol as `ws_screen`, through `SessionRunner`.
+
+    Each base64 WAV chunk is decoded to 16 kHz mono by `acquisition.api.AppWsDecoder`
+    (continuing seq / t_start_s) and pushed as an `AudioFrame`; the transport is named
+    only on `SessionOpen.source`. Verdicts arrive per
+    window (every `STREAM_HOP_S` of audio), not per chunk, and the dispatcher's
+    AppOverlaySink sends the two messages the app reads. The session closes on
+    `is_final` or disconnect; either way exactly one final verdict is dispatched.
+    """
+    from acquisition.api import AppWsDecoder
+    from contracts import AudioSource, SessionClose, SessionOpen
+    from server.pipeline.dispatcher import build_dispatcher
+    from server.pipeline.runner import SessionRunner
+
+    await ws.accept()
+    log.info(f"WS /screen connected (pipeline runner): session={session_id}")
+    runner = SessionRunner(dispatcher=build_dispatcher(ws=ws))
+    opened = SessionOpen(session_id=session_id, source=AudioSource.APP_WS)
+    await runner.open(opened)
+    decoder = AppWsDecoder(session_id)
+    reason = "client disconnected"
+    try:
+        while True:
+            try:
+                raw = await ws.receive_text()
+            except WebSocketDisconnect:
+                log.info(f"WS disconnected: session={session_id}")
+                break
+
+            try:
+                msg = StreamAudioChunkMessage.model_validate_json(raw)
+            except Exception as e:
+                await ws.send_json({"type": "error", "detail": f"Invalid message: {e}"})
+                continue
+
+            if msg.type == StreamClientMessageType.RESET_SESSION:
+                await runner.close(SessionClose(session_id=session_id, reason="reset_session"))
+                await runner.open(opened)
+                decoder = AppWsDecoder(session_id)
+                await ws.send_json({"type": "info", "detail": "Session reset"})
+                continue
+
+            if msg.type != StreamClientMessageType.AUDIO_CHUNK:
+                await ws.send_json({"type": "error", "detail": f"Unknown message type: {msg.type}"})
+                continue
+
+            try:
+                audio_bytes = base64.b64decode(msg.audio_base64)
+            except Exception:
+                await ws.send_json({"type": "error", "detail": "Invalid base64 audio"})
+                continue
+
+            frames = decoder.decode(audio_bytes, is_final=msg.is_final)
+            if not frames:
+                # acquisition logged why. An is_final chunk still ends the session below:
+                # close() scores the tail and emits the one final verdict.
+                log.warning(f"[{session_id}] chunk {msg.chunk_index} decoded to no audio")
+            for frame in frames:
+                _retain_pcm(session_id, frame.pcm_s16le, msg.chunk_index)
+                await runner.push(frame)
+            if msg.is_final:
+                reason = "final chunk"
+                log.info(f"WS session complete: {session_id} (frames={decoder.next_seq})")
+                break
+
+    except Exception as e:
+        log.exception(f"WS error for session {session_id}: {e}")
+        try:
+            await ws.send_json({"type": "error", "detail": str(e)})
+        except Exception:
+            pass
+    finally:
+        await runner.close(SessionClose(session_id=session_id, reason=reason))
         try:
             await ws.close()
         except Exception:
