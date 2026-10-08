@@ -180,6 +180,9 @@ def fast_ingest(monkeypatch):
     # per window only makes these tests slow.
     monkeypatch.setattr(audio_ingest, "_vad_chunk", lambda waveform, sample_rate: [])
     monkeypatch.setattr(config, "ESCALATION_PERSISTENCE_N", 1)
+    # Most tests here pin the latching session (persist, then latch); the non-latching
+    # default is tested on its own at the end of this file.
+    monkeypatch.setattr(config, "SESSION_LATCH_WARNINGS", True)
     # The fakes return whatever the plan says at any length; the short-window rule for
     # the real anti-spoof model is tested on its own below.
     monkeypatch.setattr(config, "STREAM_SPOOF_MIN_WINDOW_S", 0.0)
@@ -740,3 +743,103 @@ def test_a_phone_line_mismatch_below_the_floor_reads_unknown_not_impostor():
     close = mismatch.model_copy(update={"raw_score": 0.82})
     assert _phone_channel_identity(close, phone).verdict == SpeakerVerdict.MISMATCH
     assert config.SPEAKER_PHONE_MISMATCH_FLOOR == pytest.approx(0.80)
+
+
+# --- session-level authenticity: a sustained synthetic run latches -------------------------
+
+def _spoof_plan(monkeypatch, plan):
+    """Speaker unknown throughout; spoof synthetic (True) or bonafide (False) per window."""
+    calls = {"n": 0}
+
+    def spoof(wav_path):
+        i = calls["n"]
+        calls["n"] += 1
+        synth = plan[i] if i < len(plan) else plan[-1]
+        r = 0.99 if synth else 0.02
+        return AntiSpoofResult(risk=r, median_score=r, peak_score=r, max_synth_run_s=4.0 if synth else 0.0,
+                               is_synthetic=synth, details={"available": True})
+
+    monkeypatch.setattr(config, "USE_REAL_SPEAKER", True)
+    monkeypatch.setattr(config, "USE_REAL_SPOOF", True)
+    monkeypatch.setattr(orchestrator, "_real_speaker_branch", lambda p: SpeakerVerificationResult.neutral())
+    monkeypatch.setattr(orchestrator, "_real_spoof_branch", spoof)
+
+
+def _play(db_factory, seconds=25.0):
+    rec = Recorder()
+
+    async def scenario():
+        runner = _runner(db_factory, [rec])
+        await runner.open(_open())
+        for frame in _frames(_speechy(seconds), 1.0):
+            await runner.push(frame)
+        await runner.close(SessionClose(session_id=SID, reason="test"))
+
+    asyncio.run(scenario())
+    return rec.events
+
+
+def test_a_sustained_synthetic_run_keeps_the_call_synthetic_to_the_final_verdict(
+        monkeypatch, db_factory, caplog):
+    """Seen live: ~25 windows scored synthetic (0.9-1.0), then the call ended on a few
+    bonafide windows and the final verdict read 'not synthetic'. A cloned voice that
+    sustained N windows is the call's authenticity finding; a quiet tail cannot undo it."""
+    monkeypatch.setattr(config, "SESSION_SYNTH_LATCH_WINDOWS", 3)
+    _spoof_plan(monkeypatch, [True] * 4 + [False])
+    with caplog.at_level("INFO"):
+        events = _play(db_factory)
+    assert [e.response.spoof.is_synthetic for e in events[:4]] == [True] * 4
+    later = events[4:]
+    assert later and all(e.response.spoof.is_synthetic for e in later)
+    assert all(e.response.spoof.details.get("session_latched") for e in later)
+    assert events[-1].is_final and events[-1].response.spoof.is_synthetic
+    # Fusion is recomputed on the latched finding: no better than the synthetic windows.
+    assert events[-1].response.fusion.risk_score >= events[3].response.fusion.risk_score - 1e-9
+    assert any("synthetic voice sustained" in r.getMessage() for r in caplog.records)
+
+
+def test_a_short_synthetic_burst_does_not_latch(monkeypatch, db_factory):
+    monkeypatch.setattr(config, "SESSION_SYNTH_LATCH_WINDOWS", 3)
+    _spoof_plan(monkeypatch, [True, True, False, False])
+    events = _play(db_factory)
+    assert not events[-1].response.spoof.is_synthetic
+    assert not any(e.response.spoof.details.get("session_latched") for e in events)
+
+
+# --- no latch: the session follows its evidence; the final verdict is the whole call ------
+
+def test_without_the_latch_the_session_recovers_and_the_final_is_judged_on_the_whole_call(
+        branches, db_factory, monkeypatch):
+    """A warning that the evidence later contradicts must not stick: the user's rule after a
+    harmless synthetic-voice call stayed at suspicious 39.8 to the end."""
+    monkeypatch.setattr(config, "SESSION_LATCH_WARNINGS", False)
+    branches.plan = ["high_risk", "high_risk"] + ["verified"] * 20
+    rec = Recorder()
+
+    async def scenario():
+        runner = _runner(db_factory, [rec])
+        await runner.open(_open())
+        for frame in _frames(_speechy(20.0), 1.0):
+            await runner.push(frame)
+        await runner.close(SessionClose(session_id=SID, reason="test"))
+
+    asyncio.run(scenario())
+    bands = [e.response.fusion.band for e in rec.events]
+    assert bands[0] == TrustBand.HIGH_RISK
+    assert bands[-1] == TrustBand.VERIFIED and rec.events[-1].is_final
+    final = rec.events[-1]
+    # The final verdict is its own fusion, not a floor carried from earlier windows.
+    assert final.response.fusion.trust_score == final.window_trust_score
+    assert final.response.transcript.text.startswith("final")
+    assert [e.escalated for e in rec.events][0] is True
+
+
+def test_the_default_does_not_latch():
+    import os
+    import subprocess
+    import sys
+
+    env = {k: v for k, v in os.environ.items() if k != "SESSION_LATCH_WARNINGS"}
+    out = subprocess.run([sys.executable, "-c", "import config; print(config.SESSION_LATCH_WARNINGS)"],
+                         capture_output=True, text=True, cwd=str(config.REPO_ROOT), env=env, timeout=60)
+    assert out.stdout.strip() == "False", out.stderr

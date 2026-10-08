@@ -1,5 +1,7 @@
 # Handoff: demo-exotel branch
 
+> Superseded by `AGENTS.md`, which has the current state. Kept for history.
+
 For a coding agent picking this branch up in a fresh session (e.g. a cloud session) with no
 memory of earlier work. Read `CLAUDE.md` first; everything there still applies.
 

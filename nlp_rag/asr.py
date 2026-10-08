@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -201,6 +202,16 @@ def _reported_language(info, requested: str | None) -> str:
 
 
 
+def _speech_weighted(segment: Any) -> Any:
+    """A confidently decoded segment counts as speech unless no_speech is extreme."""
+    logprob = float(getattr(segment, "avg_logprob", -9.0) or -9.0)
+    no_speech = float(getattr(segment, "no_speech_prob", 0.0) or 0.0)
+    if logprob >= thresholds.ASR_CONFIDENT_LOGPROB and no_speech < thresholds.ASR_SILENCE_NO_SPEECH_PROB:
+        return SimpleNamespace(start=getattr(segment, "start", 0.0), end=getattr(segment, "end", 0.0),
+                               no_speech_prob=0.0)
+    return segment
+
+
 def _aggregate_no_speech(segments: Sequence[Any]) -> float:
     """Duration-weighted mean of Whisper's per-segment `no_speech_prob`.
 
@@ -280,16 +291,29 @@ def transcribe_file(
             vad_filter=True,
             condition_on_previous_text=False,
         )
-        segments = list(segments)
+        decoded = list(segments)
+        # Judge confidence per segment: on 8 kHz phone audio a few garbled stretches
+        # dragged the whole-call mean under the floor and discarded the clearly heard
+        # sentences with them (seen live: a 73 s OTP-scam call gated on every decode).
+        floor = thresholds.ASR_MIN_AVG_LOGPROB
+        segments = [s for s in decoded if float(getattr(s, "avg_logprob", 0.0) or 0.0) >= floor]
+        if len(segments) < len(decoded):
+            logger.info("kept %d/%d segment(s) at or above avg_logprob %.2f",
+                        len(segments), len(decoded), floor)
         text = " ".join(s.text.strip() for s in segments).strip()
 
-        no_speech = _aggregate_no_speech(segments)
+        no_speech = _aggregate_no_speech([_speech_weighted(s) for s in segments])
         logprobs = [getattr(s, "avg_logprob", 0.0) for s in segments]
         avg_logprob = sum(logprobs) / len(logprobs) if logprobs else 0.0
 
         verdict = evaluate_transcript(text, no_speech, avg_logprob)
         if not verdict.ok:
-            logger.info("transcript gated: %s", verdict.reason)
+            all_logprobs = [float(getattr(s, "avg_logprob", 0.0) or 0.0) for s in decoded]
+            reason = "low_confidence" if decoded and not segments else verdict.reason
+            # Numbers only: transcripts never go to the log.
+            logger.info("transcript gated: %s (%d/%d segment(s) confident, best avg_logprob %s, "
+                        "%d word(s) kept)", reason, len(segments), len(decoded),
+                        f"{max(all_logprobs):.2f}" if all_logprobs else "n/a", len(text.split()))
             return TranscriptResult.empty()
 
         return TranscriptResult(

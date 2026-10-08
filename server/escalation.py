@@ -20,6 +20,10 @@ A window that is not confirmed yet holds whatever the session showed last.
 
 N=1 reproduces the behaviour before this module existed — every window confirms itself.
 
+`latch=False` keeps rule 1 and drops rule 2 and the floor: the session shows the current
+persistence run, so it comes back up when the evidence does (the session runner's choice,
+config.SESSION_LATCH_WARNINGS; its final verdict is judged on the whole call).
+
 C owns this file.
 """
 
@@ -46,10 +50,11 @@ _NOTHING_SHOWN = (TrustBand.UNVERIFIED, 50.0)
 class EscalationGate:
     """Turns a stream of per-window responses into what one session displays."""
 
-    def __init__(self, n: int) -> None:
+    def __init__(self, n: int, latch: bool = True) -> None:
         if n < 1:
             raise ValueError(f"persistence N must be >= 1, got {n}")
         self.n = n
+        self.latch = latch
         self._recent: deque[tuple[int, float, bool]] = deque(maxlen=n)  # (rank, trust, scored)
         self._latched_rank = 0
         self._floor: Optional[float] = None
@@ -70,12 +75,15 @@ class EscalationGate:
         self._recent.append((rank, trust, scored))
 
         confirmed = min(r for r, _, _ in self._recent) if len(self._recent) == self.n else 0
-        self._latched_rank = max(self._latched_rank, confirmed)
+        self._latched_rank = max(self._latched_rank, confirmed) if self.latch else confirmed
         effective = self._latched_rank
 
         # Windows in the persistence run whose band the session now stands behind.
         counted = [t for r, t, ok in self._recent if ok and r <= effective]
-        if counted:
+        if not self.latch:
+            # No history: a confirmed run shows its own lowest score; a calm window, its own.
+            self._floor = min(counted) if counted and effective > 0 else None
+        elif counted:
             low = min(counted)
             self._floor = low if self._floor is None else min(self._floor, low)
 
