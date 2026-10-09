@@ -28,3 +28,20 @@ flutter:
     - assets/demo/genuine.wav
     - assets/demo/clone.wav
     - assets/demo/stranger.wav
+    - assets/brand/satyacheck-logo.jpg
+
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/Geist-Regular.ttf
+        - asset: assets/fonts/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Geist-Bold.ttf
+          weight: 700
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/GeistMono-Regular.ttf
+        - asset: assets/fonts/GeistMono-Medium.ttf
+          weight: 500
