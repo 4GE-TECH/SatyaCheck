@@ -2,6 +2,9 @@ package com.satyacheck
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.app.Activity
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -35,6 +38,8 @@ class MainActivity : FlutterActivity(),
 
     private val CHANNEL = "com.satyacheck/native"
     private val PERMISSION_REQUEST = 4200
+    private val AUDIO_PICK_REQUEST = 4201
+    private var audioPickResult: MethodChannel.Result? = null
 
     private var channel: MethodChannel? = null
     private val main = Handler(Looper.getMainLooper())
@@ -68,6 +73,39 @@ class MainActivity : FlutterActivity(),
                 "requestPermissions" -> {
                     requestRuntimePermissions()
                     result.success(true)
+                }
+
+                "requestMicrophonePermission" -> {
+                    if (!hasPermission(Manifest.permission.RECORD_AUDIO)) {
+                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), PERMISSION_REQUEST)
+                    }
+                    result.success(null)
+                }
+
+                "pickAudio" -> {
+                    if (audioPickResult != null) {
+                        result.error("BUSY", "An audio picker is already open.", null)
+                    } else {
+                        audioPickResult = result
+                        try {
+                            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                                type = "audio/*"
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                            }, AUDIO_PICK_REQUEST)
+                        } catch (error: Exception) {
+                            audioPickResult = null
+                            result.error("PICKER_UNAVAILABLE", "No audio picker is available.", null)
+                        }
+                    }
+                }
+
+                "openExternal" -> {
+                    val uri = call.argument<String>("url")?.let(Uri::parse)
+                    if (uri == null || uri.scheme !in listOf("https", "http", "tel")) {
+                        result.success(false)
+                    } else {
+                        result.success(runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }.isSuccess)
+                    }
                 }
 
                 // The overlay is NOT grantable by dialog — it needs a trip to Settings.
@@ -161,11 +199,47 @@ class MainActivity : FlutterActivity(),
         if (CallAudioService.listener === this) CallAudioService.listener = null
         if (VoiceRecorder.listener === this) VoiceRecorder.listener = null
         stopClip()
+        audioPickResult?.success(null)
+        audioPickResult = null
         channel = null
         super.onDestroy()
     }
 
     // --- call state (M1) ---------------------------------------------------------
+
+    @Deprecated("Legacy activity result bridge required by the existing Flutter activity")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != AUDIO_PICK_REQUEST) return
+        val pending = audioPickResult ?: return
+        audioPickResult = null
+        val uri = data?.data
+        if (resultCode != Activity.RESULT_OK || uri == null) { pending.success(null); return }
+        // Copy the selected document off the UI thread, bounded to the service limit.
+        Thread {
+            val file = java.io.File(cacheDir, "screening-${System.nanoTime()}.audio")
+            try {
+                val input = contentResolver.openInputStream(uri) ?: error("Could not open this recording")
+                input.use { source -> file.outputStream().use { output ->
+                    val buffer = ByteArray(8192)
+                    var total = 0L
+                    while (true) {
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > 50L * 1024 * 1024) error("Choose a recording smaller than 50 MB")
+                        output.write(buffer, 0, count)
+                    }
+                    if (total == 0L) error("The recording is empty")
+                } }
+                main.post { pending.success(file.absolutePath) }
+            } catch (error: Exception) {
+                file.delete()
+                android.util.Log.w("SatyaCheck/Picker", "Cannot read selected audio", error)
+                main.post { pending.error("AUDIO_READ", error.message ?: "Could not read the recording", null) }
+            }
+        }.start()
+    }
 
     override fun onCallRinging(incomingNumber: String?) =
         send("onCallRinging", mapOf("number" to incomingNumber))

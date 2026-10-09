@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'dart:async';
 import 'dart:io';
 
@@ -109,7 +110,8 @@ class CallSession {
     final startedAt = DateTime.now();
     var clipMs = 0;
     try {
-      final file = File('${(await Directory.systemTemp.createTemp()).path}/$label.wav');
+      final file =
+          File('${(await Directory.systemTemp.createTemp()).path}/$label.wav');
       await file.writeAsBytes(wav);
       clipMs = await _bridge.playClip(file.path);
     } catch (_) {
@@ -126,7 +128,8 @@ class CallSession {
     // the card flips to "likely scam" while the cloned voice is still mid-sentence — which
     // reads as though the app decided before it had heard anything. Waiting also matches
     // what actually happens on a call: the evidence accumulates, then the verdict lands.
-    final remaining = clipMs - DateTime.now().difference(startedAt).inMilliseconds;
+    final remaining =
+        clipMs - DateTime.now().difference(startedAt).inMilliseconds;
     if (remaining > 0) {
       await Future<void>.delayed(Duration(milliseconds: remaining));
     }
@@ -192,17 +195,18 @@ class CallSession {
 
   Future<void> _openSocket() async {
     final id = 'call-${DateTime.now().millisecondsSinceEpoch}';
-    print('SC/Session: opening socket $id -> ${_api.baseUrl}');
+    debugPrint('SC/Session: opening socket $id -> ${_api.baseUrl}');
     final socket = await _api.openStream(id);
     if (socket == null) {
-      print('SC/Session: socket $id FAILED to open');
+      debugPrint('SC/Session: socket $id FAILED to open');
       // No live socket. Capture continues regardless: the whole call is screened in one
       // POST when it ends, so the user still gets a verdict — just later.
-      _emit(CallPhase.screening, detail: 'offline — will score when the call ends');
+      _emit(CallPhase.screening,
+          detail: 'offline — will score when the call ends');
       return;
     }
     _socket = socket;
-    print('SC/Session: socket $id open');
+    debugPrint('SC/Session: socket $id open');
     socket.updates.listen(_onVerdict);
   }
 
@@ -212,12 +216,13 @@ class CallSession {
       // Dropping a window here used to be invisible, which made "the app captured audio
       // but the backend scored nothing" impossible to tell apart from "no audio was
       // captured". Say so.
-      print('SC/Session: chunk ${chunk.index} DROPPED: no socket');
+      debugPrint('SC/Session: chunk ${chunk.index} DROPPED: no socket');
       return;
     }
     socket.send(chunk.toWav());
     _chunksSent++;
-    print('SC/Session: chunk ${chunk.index} sent (${chunk.durationMs}ms, total $_chunksSent)');
+    debugPrint(
+        'SC/Session: chunk ${chunk.index} sent (${chunk.durationMs}ms, total $_chunksSent)');
     _emit(CallPhase.screening);
   }
 
@@ -225,7 +230,8 @@ class CallSession {
     _latest = result;
     _current?.result = result;
     _emit(CallPhase.screening);
-    _bridge.updateOverlay(_overlayText(result), signal: _signalName(result.signal));
+    _bridge.updateOverlay(_overlayText(result),
+        signal: _signalName(result.signal));
 
     // Notify mid-call only when it is red. That is the one verdict worth interrupting a
     // live conversation for, and it is the moment the warning can still change what the
@@ -260,7 +266,8 @@ class CallSession {
 
     final result = _latest;
     if (result != null) {
-      _bridge.updateOverlay(_overlayText(result), signal: _signalName(result.signal));
+      _bridge.updateOverlay(_overlayText(result),
+          signal: _signalName(result.signal));
       // Leave the verdict on screen briefly — the user has just hung up and this is the
       // moment they decide whether to call back.
       Future<void>.delayed(const Duration(seconds: 8), _bridge.hideOverlay);

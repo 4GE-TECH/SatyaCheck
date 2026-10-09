@@ -116,6 +116,7 @@ class ScreeningResult {
     this.recommendedActions = const [],
     this.vernacularWarning,
     this.processingMs = 0,
+    this.raw = const {},
   });
 
   final String sessionId;
@@ -139,6 +140,7 @@ class ScreeningResult {
   final String? vernacularWarning;
 
   final int processingMs;
+  final Map<String, dynamic> raw;
 
   Signal get signal => band.signal;
 
@@ -146,20 +148,29 @@ class ScreeningResult {
   List<ReasonCode> get evidence {
     const order = {'critical': 0, 'high': 1, 'medium': 2, 'info': 3, 'low': 4};
     final sorted = [...reasonCodes];
-    sorted.sort((a, b) =>
-        (order[a.severity] ?? 9).compareTo(order[b.severity] ?? 9));
+    sorted.sort(
+        (a, b) => (order[a.severity] ?? 9).compareTo(order[b.severity] ?? 9));
     return sorted;
   }
 
   factory ScreeningResult.fromJson(Map<String, dynamic> json) {
     final fusion = (json['fusion'] as Map?)?.cast<String, dynamic>() ?? {};
-    final transcript = (json['transcript'] as Map?)?.cast<String, dynamic>() ?? {};
+    final transcript =
+        (json['transcript'] as Map?)?.cast<String, dynamic>() ?? {};
     final speaker = (json['speaker'] as Map?)?.cast<String, dynamic>() ?? {};
     final script = (json['script'] as Map?)?.cast<String, dynamic>() ?? {};
+    final quality = (json['quality'] as Map?)?.cast<String, dynamic>() ?? {};
+    var safeBand = TrustBand.parse(fusion['band'] as String?);
+    if (quality['passed'] != true) {
+      safeBand = TrustBand.insufficient;
+    } else if (safeBand == TrustBand.verified &&
+        (fusion['mode'] != 'identity_check' || speaker['verdict'] != 'match')) {
+      safeBand = TrustBand.unverified;
+    }
 
     return ScreeningResult(
       sessionId: json['session_id'] as String? ?? '',
-      band: TrustBand.parse(fusion['band'] as String?),
+      band: safeBand,
       trustScore: (fusion['trust_score'] as num?)?.toDouble() ?? 50.0,
       mode: fusion['mode'] as String? ?? 'authority_check',
       transcript: transcript['text'] as String? ?? '',
@@ -176,6 +187,7 @@ class ScreeningResult {
           .toList(),
       vernacularWarning: fusion['vernacular_warning'] as String?,
       processingMs: (json['processing_time_ms'] as num?)?.toInt() ?? 0,
+      raw: json,
     );
   }
 }

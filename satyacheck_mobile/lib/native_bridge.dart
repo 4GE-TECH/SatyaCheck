@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -56,13 +57,13 @@ class NativeBridge {
           final chunk = AudioChunk.fromMap(
             Map<String, dynamic>.from(call.arguments as Map),
           );
-          print('SC/Bridge: chunk ${chunk.index} arrived '
+          debugPrint('SC/Bridge: chunk ${chunk.index} arrived '
               '(${chunk.pcm16.length} bytes, listeners=${_audioChunks.hasListener})');
           _audioChunks.add(chunk);
         } catch (e, st) {
           // A decode failure here used to vanish: the MethodChannel handler swallowed it
           // and the window simply never reached the session.
-          print('SC/Bridge: chunk decode FAILED: $e / $st');
+          debugPrint('SC/Bridge: chunk decode FAILED: $e / $st');
         }
         break;
       case 'onCaptureError':
@@ -79,7 +80,8 @@ class NativeBridge {
         ));
         break;
       case 'onRecorderError':
-        _levels.addError((call.arguments as Map?)?['reason'] ?? 'recording failed');
+        _levels.addError(
+            (call.arguments as Map?)?['reason'] ?? 'recording failed');
         break;
       case 'onPermissionsChanged':
         _callEvents.add(const CallEvent(CallState.permissionsChanged));
@@ -92,13 +94,22 @@ class NativeBridge {
       await _channel.invokeMethod<String>('getPlatformVersion') ?? 'unknown';
 
   Future<Permissions> permissions() async {
-    final map = await _channel.invokeMethod<Map<dynamic, dynamic>>('getPermissionStatus');
+    final map = await _channel
+        .invokeMethod<Map<dynamic, dynamic>>('getPermissionStatus');
     return Permissions.fromMap(Map<String, dynamic>.from(map ?? const {}));
   }
 
   /// Microphone, phone state and notifications, via the standard dialog.
   Future<void> requestPermissions() =>
       _channel.invokeMethod<void>('requestPermissions');
+
+  Future<void> requestMicrophonePermission() =>
+      _channel.invokeMethod<void>('requestMicrophonePermission');
+
+  Future<String?> pickAudio() => _channel.invokeMethod<String>('pickAudio');
+
+  Future<bool> openExternal(String url) async =>
+      await _channel.invokeMethod<bool>('openExternal', {'url': url}) ?? false;
 
   /// The overlay is granted on a Settings screen, not by a dialog. Returns true if the
   /// user was sent there, false if it was already granted.
@@ -123,8 +134,8 @@ class NativeBridge {
 
   Future<void> stopClip() => _channel.invokeMethod<void>('stopClip');
 
-  Future<void> updateOverlay(String text, {String signal = 'grey'}) =>
-      _channel.invokeMethod<void>('updateOverlay', {'text': text, 'signal': signal});
+  Future<void> updateOverlay(String text, {String signal = 'grey'}) => _channel
+      .invokeMethod<void>('updateOverlay', {'text': text, 'signal': signal});
 
   Future<void> hideOverlay() => _channel.invokeMethod<void>('hideOverlay');
 
@@ -215,8 +226,10 @@ class AudioChunk {
     final bytes = BytesBuilder();
 
     void ascii(String s) => bytes.add(utf8.encode(s));
-    void u32(int v) => bytes.add(Uint8List(4)..buffer.asByteData().setUint32(0, v, Endian.little));
-    void u16(int v) => bytes.add(Uint8List(2)..buffer.asByteData().setUint16(0, v, Endian.little));
+    void u32(int v) => bytes
+        .add(Uint8List(4)..buffer.asByteData().setUint32(0, v, Endian.little));
+    void u16(int v) => bytes
+        .add(Uint8List(2)..buffer.asByteData().setUint16(0, v, Endian.little));
 
     ascii('RIFF');
     u32(headerSize - 8 + dataSize); // everything after this field
@@ -257,5 +270,6 @@ class Permissions {
         overlay: map['overlay'] as bool? ?? false,
       );
 
-  static const none = Permissions(microphone: false, phoneState: false, overlay: false);
+  static const none =
+      Permissions(microphone: false, phoneState: false, overlay: false);
 }

@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'models.dart';
 
@@ -48,13 +49,16 @@ class ApiClient {
   final String _baseUrl;
 
   String get baseUrl => _baseUrl;
+  String? peopleError;
+  String? screeningError;
 
   /// Is the backend reachable? Short timeout: this is called before a call is answered.
   Future<bool> ping() async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
     try {
       final request = await client.getUrl(Uri.parse('$_baseUrl/api/health'));
-      final response = await request.close().timeout(const Duration(seconds: 3));
+      final response =
+          await request.close().timeout(const Duration(seconds: 3));
       await response.drain<void>();
       return response.statusCode == 200;
     } catch (_) {
@@ -74,37 +78,68 @@ class ApiClient {
     String? claimedNumber,
     Duration timeout = const Duration(seconds: 60),
   }) async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    screeningError = null;
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10);
     try {
       final boundary = '----satyacheck${DateTime.now().microsecondsSinceEpoch}';
       final request = await client.postUrl(Uri.parse('$_baseUrl/api/screen'));
-      request.headers.set(
-          HttpHeaders.contentTypeHeader, 'multipart/form-data; boundary=$boundary');
+      request.headers.set(HttpHeaders.contentTypeHeader,
+          'multipart/form-data; boundary=$boundary');
 
       final head = StringBuffer()
         ..write('--$boundary\r\n')
         ..write('Content-Disposition: form-data; name="channel_type"\r\n\r\n')
-        ..write('speakerphone\r\n');
+        ..write('upload\r\n');
       if (claimedNumber != null && claimedNumber.isNotEmpty) {
         head
           ..write('--$boundary\r\n')
-          ..write('Content-Disposition: form-data; name="claimed_number"\r\n\r\n')
+          ..write(
+              'Content-Disposition: form-data; name="claimed_number"\r\n\r\n')
           ..write('$claimedNumber\r\n');
       }
       head
         ..write('--$boundary\r\n')
-        ..write('Content-Disposition: form-data; name="file"; filename="$filename"\r\n')
-        ..write('Content-Type: audio/wav\r\n\r\n');
+        ..write(
+            'Content-Disposition: form-data; name="file"; filename="$filename"\r\n')
+        ..write('Content-Type: application/octet-stream\r\n\r\n');
 
       request.add(utf8.encode(head.toString()));
       request.add(wav);
       request.add(utf8.encode('\r\n--$boundary--\r\n'));
 
       final response = await request.close().timeout(timeout);
-      final body = await response.transform(utf8.decoder).join();
-      if (response.statusCode != 200) return null;
-      return ScreeningResult.fromJson(jsonDecode(body) as Map<String, dynamic>);
-    } catch (_) {
+      final body =
+          await response.transform(utf8.decoder).join().timeout(timeout);
+      if (response.statusCode != 200) {
+        final decoded = jsonDecode(body);
+        screeningError = decoded is Map && decoded['detail'] is String
+            ? decoded['detail'] as String
+            : 'The service could not check this recording. Please try again.';
+        debugPrint('SatyaCheck screening: HTTP ${response.statusCode}');
+        return null;
+      }
+      final payload = jsonDecode(body) as Map<String, dynamic>;
+      final fusion = payload['fusion'];
+      if (payload['session_id'] is! String ||
+          (payload['session_id'] as String).isEmpty ||
+          payload['quality'] is! Map ||
+          payload['speaker'] is! Map ||
+          fusion is! Map ||
+          fusion['trust_score'] is! num ||
+          !(fusion['trust_score'] as num).isFinite ||
+          fusion['reason_codes'] is! List ||
+          fusion['recommended_actions'] is! List) {
+        debugPrint('SatyaCheck screening: incomplete result payload');
+        screeningError =
+            'The service returned an incomplete result. No verdict is available. Please try again.';
+        return null;
+      }
+      return ScreeningResult.fromJson(payload);
+    } catch (error) {
+      debugPrint('SatyaCheck screening unavailable: $error');
+      screeningError =
+          'The screening service did not return a complete result. Check your connection and try again.';
       return null;
     } finally {
       client.close(force: true);
@@ -123,22 +158,24 @@ class ApiClient {
     required String relation,
   }) async {
     final file = File(wavPath);
-    if (!await file.exists()) {
-      return const EnrollOutcome.failure('The recording was not saved.');
-    }
-
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10);
     try {
+      if (!await file.exists()) {
+        debugPrint('SatyaCheck enrollment: recording no longer available');
+        return const EnrollOutcome.failure('The recording was not saved.');
+      }
       final bytes = await file.readAsBytes();
       final boundary = '----satyacheck${DateTime.now().microsecondsSinceEpoch}';
       final request = await client.postUrl(Uri.parse('$_baseUrl/api/enroll'));
-      request.headers.set(
-          HttpHeaders.contentTypeHeader, 'multipart/form-data; boundary=$boundary');
+      request.headers.set(HttpHeaders.contentTypeHeader,
+          'multipart/form-data; boundary=$boundary');
 
       String field(String key, String value) =>
           '--$boundary\r\nContent-Disposition: form-data; name="$key"\r\n\r\n$value\r\n';
 
-      request.add(utf8.encode(field('name', name) + field('relation', relation)));
+      request
+          .add(utf8.encode(field('name', name) + field('relation', relation)));
       request.add(utf8.encode(
         '--$boundary\r\n'
         'Content-Disposition: form-data; name="file"; filename="enrollment.wav"\r\n'
@@ -147,11 +184,23 @@ class ApiClient {
       request.add(bytes);
       request.add(utf8.encode('\r\n--$boundary--\r\n'));
 
-      final response = await request.close().timeout(const Duration(seconds: 120));
-      final body = await response.transform(utf8.decoder).join();
+      final response =
+          await request.close().timeout(const Duration(seconds: 120));
+      final body = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 201) {
         final json = jsonDecode(body) as Map<String, dynamic>;
+        if (json['person_id'] is! String ||
+            (json['person_id'] as String).isEmpty ||
+            json['voiceprints'] is! List ||
+            (json['voiceprints'] as List).isEmpty) {
+          debugPrint('SatyaCheck enrollment: 201 without a saved voiceprint');
+          return const EnrollOutcome.failure(
+              'The service did not confirm a saved voiceprint. Please record again and retry.');
+        }
         return EnrollOutcome.success(
           personId: json['person_id'] as String? ?? '',
           name: json['name'] as String? ?? name,
@@ -161,7 +210,8 @@ class ApiClient {
       // FastAPI puts the human-readable reason in `detail`.
       try {
         final detail = (jsonDecode(body) as Map<String, dynamic>)['detail'];
-        return EnrollOutcome.failure(detail is String ? detail : detail.toString());
+        return EnrollOutcome.failure(
+            detail is String ? detail : detail.toString());
       } catch (_) {
         return EnrollOutcome.failure('Server said ${response.statusCode}.');
       }
@@ -174,14 +224,21 @@ class ApiClient {
 
   /// Who is enrolled right now.
   Future<List<EnrolledPerson>> persons() async {
+    peopleError = null;
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
     try {
       final request = await client.getUrl(Uri.parse('$_baseUrl/api/persons'));
-      final response = await request.close().timeout(const Duration(seconds: 10));
+      final response =
+          await request.close().timeout(const Duration(seconds: 10));
       final body = await response.transform(utf8.decoder).join();
-      if (response.statusCode != 200) return const [];
+      if (response.statusCode != 200) {
+        peopleError = 'Known voices could not be loaded. Please try again.';
+        debugPrint('SatyaCheck persons: HTTP ${response.statusCode}');
+        return const [];
+      }
       final decoded = jsonDecode(body);
-      final list = decoded is List ? decoded : (decoded['persons'] as List? ?? const []);
+      final list =
+          decoded is List ? decoded : (decoded['persons'] as List? ?? const []);
       return list
           .whereType<Map>()
           .map((e) => EnrolledPerson(
@@ -190,7 +247,10 @@ class ApiClient {
                 relation: e['relation'] as String? ?? '',
               ))
           .toList();
-    } catch (_) {
+    } catch (error) {
+      debugPrint('SatyaCheck persons unavailable: $error');
+      peopleError =
+          'Known voices could not be loaded. Check the service connection.';
       return const [];
     } finally {
       client.close(force: true);
@@ -200,8 +260,10 @@ class ApiClient {
   /// Open a streaming screening session. Returns null if the socket cannot be opened.
   Future<ScreeningSocket?> openStream(String sessionId) async {
     try {
-      final url = '${_baseUrl.replaceFirst('http', 'ws')}/api/ws/screen/$sessionId';
-      final socket = await WebSocket.connect(url).timeout(const Duration(seconds: 8));
+      final url =
+          '${_baseUrl.replaceFirst('http', 'ws')}/api/ws/screen/$sessionId';
+      final socket =
+          await WebSocket.connect(url).timeout(const Duration(seconds: 8));
       return ScreeningSocket._(socket, sessionId);
     } catch (_) {
       return null;

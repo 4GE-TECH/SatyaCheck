@@ -11,8 +11,8 @@ import android.util.Log
  *
  * The system broadcasts ACTION_PHONE_STATE on every change. The transitions that matter:
  *
- *     RINGING  -> an incoming call is arriving. Show the overlay.
- *     OFFHOOK  -> the call was answered (or an outgoing call started). Start capturing.
+ *     RINGING  -> an incoming call is arriving. Notify Dart only.
+ *     OFFHOOK  -> the call was answered (or an outgoing call started). Notify Dart only; telephony owns the microphone.
  *     IDLE     -> the call ended. Stop everything.
  *
  * TWO THINGS THAT ARE EASY TO GET WRONG HERE
@@ -86,14 +86,14 @@ class CallStateReceiver : BroadcastReceiver() {
         when (state) {
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 listener?.onCallRinging(incomingNumber)
-                OverlayManager.show(context, "Checking…")
+
             }
 
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
-                // Answered, or an outgoing call began. Either way there is now live audio.
+                // Android silences third-party microphones during cellular calls.
                 listener?.onCallAnswered()
-                OverlayManager.show(context, "Checking…")
-                CallAudioService.start(context)
+
+                Log.i(TAG, "Same-device call audio is unavailable; no capture started")
             }
 
             TelephonyManager.EXTRA_STATE_IDLE -> {
@@ -110,3 +110,4 @@ class CallStateReceiver : BroadcastReceiver() {
         }
     }
 }
+

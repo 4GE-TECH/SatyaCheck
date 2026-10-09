@@ -38,7 +38,7 @@
 
     <application
         android:label="SatyaCheck"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/satyacheck_logo"
         android:usesCleartextTraffic="true">
 
         <activity
@@ -86,3 +86,4 @@
             android:value="2" />
     </application>
 </manifest>
+
