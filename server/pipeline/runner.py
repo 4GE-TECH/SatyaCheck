@@ -37,7 +37,7 @@ from typing import Awaitable, Callable, Optional
 import numpy as np
 
 import config
-from contracts import AudioFrame, ScreeningResponse, SessionClose, SessionOpen
+from contracts import AntiSpoofResult, AudioFrame, ScreeningResponse, SessionClose, SessionOpen, TrustBand
 from server import orchestrator
 from server.audio_ingest import discard, ingest_pcm
 from server.escalation import _WARNING_RANK, EscalationGate
@@ -70,6 +70,11 @@ class _Session:
     # older ones were passed over to keep the verdict current.
     deferred: Optional[Window] = None
     deferred_count: int = 0
+    # Session authenticity: consecutive synthetic windows, the strongest synthetic
+    # finding in that run, and whether it has been sustained long enough to latch.
+    synth_run: int = 0
+    synth_best: Optional[AntiSpoofResult] = None
+    synth_latched: bool = False
 
 
 class SessionRunner:
@@ -136,7 +141,8 @@ class SessionRunner:
                 open=msg,
                 buffer=SessionBuffer(sid),
                 worker=worker,
-                gate=EscalationGate(max(1, int(config.ESCALATION_PERSISTENCE_N))),
+                gate=EscalationGate(max(1, int(config.ESCALATION_PERSISTENCE_N)),
+                                    latch=bool(config.SESSION_LATCH_WARNINGS)),
                 lock=asyncio.Lock(),
             )
             await asyncio.to_thread(self._write_session_row, msg)
@@ -280,8 +286,43 @@ class SessionRunner:
             if ingested is not None:
                 discard(ingested)
 
+        response = self._session_authenticity(s, window, response)
         s.last_window = window
         return await self._emit(s, window.index, response, final, rescore=rescore)
+
+    @staticmethod
+    def _session_authenticity(s: _Session, window: Window, response: ScreeningResponse) -> ScreeningResponse:
+        """A synthetic voice sustained for SESSION_SYNTH_LATCH_WINDOWS windows in a row is
+        the call's authenticity finding from then on: later bonafide or abstaining windows
+        (a pause, the other party, the tail) carry the strongest synthetic result of that
+        run, and fusion is recomputed on it. Shorter bursts never latch. Never raises."""
+        sid = s.open.session_id
+        try:
+            spoof = response.spoof
+            measured = spoof.details.get("available", True) is not False
+            if measured and spoof.is_synthetic:
+                s.synth_run += 1
+                if s.synth_best is None or spoof.risk > s.synth_best.risk:
+                    s.synth_best = spoof
+                if not s.synth_latched and s.synth_run >= config.SESSION_SYNTH_LATCH_WINDOWS:
+                    s.synth_latched = True
+                    log.info(f"[{sid}] synthetic voice sustained for {s.synth_run} windows "
+                             f"(to window {window.index}); the call stays synthetic")
+                return response
+            if measured and not s.synth_latched:
+                s.synth_run, s.synth_best = 0, None
+            if not s.synth_latched or s.synth_best is None or response.fusion.band == TrustBand.INSUFFICIENT:
+                return response
+            latched = s.synth_best.model_copy(update={"details": {
+                **s.synth_best.details, "session_latched": True,
+                "window_verdict": "synthetic" if spoof.is_synthetic else
+                ("bonafide" if measured else "unavailable")}})
+            fusion = orchestrator._compute_fusion(response.speaker, latched, response.script)
+            return response.model_copy(update={"spoof": latched, "fusion": fusion})
+        except Exception as e:  # noqa: BLE001
+            log.error(f"[{sid}] session authenticity failed on window {window.index}: "
+                      f"{type(e).__name__}: {e}")
+            return response
 
     @staticmethod
     def _check_silence(s: _Session, window: Window) -> None:
@@ -323,7 +364,11 @@ class SessionRunner:
                                                    "caller_context": context})
             before = _rank(s.gate.latched_band)
             window_view = (response.fusion.trust_score, response.fusion.band.value)
-            if rescore and s.gate_before_last is not None and s.last_shown is not None:
+            if final and not s.gate.latch:
+                # The final verdict is the whole call judged once (full transcript, session
+                # authenticity), not the session's running view of it.
+                s.gate.apply(response)
+            elif rescore and s.gate_before_last is not None and s.last_shown is not None:
                 # Same audio as the window just applied: it supersedes that window's
                 # verdict in the persistence run rather than counting as one more, so
                 # one suspicious window cannot confirm itself (ESCALATION_PERSISTENCE_N).

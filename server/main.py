@@ -124,13 +124,65 @@ app.include_router(live_router)
 app.include_router(evidence_router)
 
 
+from server.pipeline.runner import SessionRunner  # noqa: E402
+
+
+class _RetainingRunner(SessionRunner):
+    """A SessionRunner that, when RETAIN_SESSION_AUDIO is on, also writes the whole call to
+    data/sessions/<id>/chunk_0000.wav — the file enrol_from_call globs, and the only way
+    to replay a live call that scored oddly. The app WebSocket path retains its own chunks
+    in ws_router; this is for transports with no such path (Exotel)."""
+
+    def _part(self, session_id: str):
+        from server.ws_router import _session_audio_dir
+
+        d = _session_audio_dir(session_id)
+        return None if d is None else d / "call.pcm.part"
+
+    async def push(self, frame, score: bool = True):
+        if config.RETAIN_SESSION_AUDIO and frame.pcm_s16le:
+            try:
+                part = self._part(frame.session_id)
+                if part is not None:
+                    part.parent.mkdir(parents=True, exist_ok=True)
+                    with open(part, "ab") as f:
+                        f.write(frame.pcm_s16le)
+            except Exception as e:  # noqa: BLE001 — never break a live call over a debug artefact
+                log.warning(f"[{frame.session_id}] could not retain call audio: {e}")
+        events = await super().push(frame, score)
+        if frame.is_final:
+            self._seal(frame.session_id)
+        return events
+
+    async def close(self, msg):
+        events = await super().close(msg)
+        self._seal(msg.session_id)
+        return events
+
+    def _seal(self, session_id: str) -> None:
+        import wave
+
+        try:
+            part = self._part(session_id)
+            if part is None or not part.is_file():
+                return
+            with wave.open(str(part.with_name("chunk_0000.wav")), "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(config.TARGET_SAMPLE_RATE)
+                w.writeframes(part.read_bytes())
+            part.unlink()
+            log.info(f"[{session_id}] call audio retained at {part.with_name('chunk_0000.wav')}")
+        except Exception as e:  # noqa: BLE001
+            log.warning(f"[{session_id}] could not write retained call audio: {e}")
+
+
 def _exotel_runner():
     """A SessionRunner for one Exotel call: no app socket to talk to, so the dispatcher
     carries the guardian and report sinks only."""
     from server.pipeline.dispatcher import build_dispatcher
-    from server.pipeline.runner import SessionRunner
 
-    return SessionRunner(dispatcher=build_dispatcher(ws=None))
+    return _RetainingRunner(dispatcher=build_dispatcher(ws=None))
 
 
 def mount_exotel(target: FastAPI, runner_factory=None) -> bool:

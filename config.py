@@ -104,6 +104,11 @@ STREAM_MAX_SESSION_S: float = 1800.0      # stop scoring after 30 min of audio, 
 # only after measuring false positives on genuine calls (item 14): each step delays the
 # first alert by one hop (~2 s at the app's chunk rate).
 ESCALATION_PERSISTENCE_N: int = int(os.getenv("ESCALATION_PERSISTENCE_N", "1"))
+# Session runner: whether a confirmed warning latches for the rest of the call (and the
+# trust score only falls). Off: the session follows the current persistence run, so it
+# recovers when later evidence contradicts an early warning, and the final verdict is
+# the whole call's own fusion (full transcript, session authenticity), not a floor.
+SESSION_LATCH_WARNINGS: bool = os.getenv("SESSION_LATCH_WARNINGS", "false").lower() == "true"
 
 # Audio at rest (item 15). Voice is biometric data under the DPDP Act 2023; the default
 # end state is that no call audio outlives the request that scored it.
@@ -404,6 +409,11 @@ SPOOF_PHONE_THRESHOLD: float = float(os.getenv("SPOOF_PHONE_THRESHOLD", "0.973")
 SPOOF_PHONE_MIN_SYNTH_RUN_S: float = float(os.getenv("SPOOF_PHONE_MIN_SYNTH_RUN_S", "6.0"))
 # On a phone line, an enrolled-voice similarity below this reads "unknown" (a stranger),
 # not "mismatch" (an impostor): a stranger scored 0.61-0.77 over Exotel.
+# A call whose anti-spoof verdict is synthetic for this many windows in a row (9 s windows,
+# 2 s hop: 3 = ~13 s of audio) stays synthetic for the rest of the session, final verdict
+# included. Seen live: a cloned voice scored synthetic for ~25 windows, then the call
+# ended on a few bonafide windows and the final verdict read "not synthetic".
+SESSION_SYNTH_LATCH_WINDOWS: int = int(os.getenv("SESSION_SYNTH_LATCH_WINDOWS", "3"))
 SPEAKER_PHONE_MISMATCH_FLOOR: float = float(os.getenv("SPEAKER_PHONE_MISMATCH_FLOOR", "0.80"))
 
 # Anti-spoof window hop in seconds. Windows are fixed at 64,600 samples (4.04 s) by the
