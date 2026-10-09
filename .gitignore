@@ -53,3 +53,24 @@ web/dist/
 web/.vite/
 .agents/
 .claude/
+
+# Local agent tooling and browser-automation scratch.
+.codex/
+.playwright-mcp/
+
+# Generated launch-video work (brag skill output). Large, reproducible.
+brag-output/
+
+# Backups of enrolled voiceprints are biometric data of real people. Never committed.
+data/backup_*/
+
+# Design-review screenshots and test-runner output. Regenerated on every run.
+**/.impeccable/review/
+**/.impeccable/test-results/
+web2/design/review/
+satyacheck_mobile/test/failures/
+test-results/
+.test-results/
+
+# EXCEPT: the browser tests' audio fixtures (a synthetic tone plus the app's consented demo clips).
+!web3/tests/fixtures/*.wav
