@@ -1,0 +1,1358 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-08T18:57:18.357889+00:00",
+  "title": "Design System: SatyaCheck web",
+  "extensions": {
+    "colorMeta": {
+      "page": {
+        "role": "neutral",
+        "displayName": "Page",
+        "tonalRamp": [
+          "oklch(15.00% 0.00828 271.33)",
+          "oklch(26.43% 0.00828 271.33)",
+          "oklch(37.86% 0.00828 271.33)",
+          "oklch(49.29% 0.00828 271.33)",
+          "oklch(60.71% 0.00828 271.33)",
+          "oklch(72.14% 0.00828 271.33)",
+          "oklch(83.57% 0.00828 271.33)",
+          "oklch(95.00% 0.00828 271.33)"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Sheet",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "sheet-2": {
+        "role": "neutral",
+        "displayName": "Sheet 2",
+        "tonalRamp": [
+          "oklch(15.00% 0.00673 277.16)",
+          "oklch(26.43% 0.00673 277.16)",
+          "oklch(37.86% 0.00673 277.16)",
+          "oklch(49.29% 0.00673 277.16)",
+          "oklch(60.71% 0.00673 277.16)",
+          "oklch(72.14% 0.00673 277.16)",
+          "oklch(83.57% 0.00673 277.16)",
+          "oklch(95.00% 0.00673 277.16)"
+        ]
+      },
+      "sheet-hover": {
+        "role": "neutral",
+        "displayName": "Sheet Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.01090 274.89)",
+          "oklch(26.43% 0.01090 274.89)",
+          "oklch(37.86% 0.01090 274.89)",
+          "oklch(49.29% 0.01090 274.89)",
+          "oklch(60.71% 0.01090 274.89)",
+          "oklch(72.14% 0.01090 274.89)",
+          "oklch(83.57% 0.01090 274.89)",
+          "oklch(95.00% 0.01090 274.89)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.06137 273.75)",
+          "oklch(26.43% 0.06137 273.75)",
+          "oklch(37.86% 0.06137 273.75)",
+          "oklch(49.29% 0.06137 273.75)",
+          "oklch(60.71% 0.06137 273.75)",
+          "oklch(72.14% 0.06137 273.75)",
+          "oklch(83.57% 0.06137 273.75)",
+          "oklch(95.00% 0.06137 273.75)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "tonalRamp": [
+          "oklch(15.00% 0.05765 275.28)",
+          "oklch(26.43% 0.05765 275.28)",
+          "oklch(37.86% 0.05765 275.28)",
+          "oklch(49.29% 0.05765 275.28)",
+          "oklch(60.71% 0.05765 275.28)",
+          "oklch(72.14% 0.05765 275.28)",
+          "oklch(83.57% 0.05765 275.28)",
+          "oklch(95.00% 0.05765 275.28)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.05226 273.48)",
+          "oklch(26.43% 0.05226 273.48)",
+          "oklch(37.86% 0.05226 273.48)",
+          "oklch(49.29% 0.05226 273.48)",
+          "oklch(60.71% 0.05226 273.48)",
+          "oklch(72.14% 0.05226 273.48)",
+          "oklch(83.57% 0.05226 273.48)",
+          "oklch(95.00% 0.05226 273.48)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.01552 269.98)",
+          "oklch(26.43% 0.01552 269.98)",
+          "oklch(37.86% 0.01552 269.98)",
+          "oklch(49.29% 0.01552 269.98)",
+          "oklch(60.71% 0.01552 269.98)",
+          "oklch(72.14% 0.01552 269.98)",
+          "oklch(83.57% 0.01552 269.98)",
+          "oklch(95.00% 0.01552 269.98)"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Line Strong",
+        "tonalRamp": [
+          "oklch(15.00% 0.02456 270.30)",
+          "oklch(26.43% 0.02456 270.30)",
+          "oklch(37.86% 0.02456 270.30)",
+          "oklch(49.29% 0.02456 270.30)",
+          "oklch(60.71% 0.02456 270.30)",
+          "oklch(72.14% 0.02456 270.30)",
+          "oklch(83.57% 0.02456 270.30)",
+          "oklch(95.00% 0.02456 270.30)"
+        ]
+      },
+      "letterhead": {
+        "role": "primary",
+        "displayName": "Letterhead",
+        "tonalRamp": [
+          "oklch(15.00% 0.14907 273.80)",
+          "oklch(26.43% 0.14907 273.80)",
+          "oklch(37.86% 0.14907 273.80)",
+          "oklch(49.29% 0.14907 273.80)",
+          "oklch(60.71% 0.14907 273.80)",
+          "oklch(72.14% 0.14907 273.80)",
+          "oklch(83.57% 0.14907 273.80)",
+          "oklch(95.00% 0.14907 273.80)"
+        ]
+      },
+      "letterhead-2": {
+        "role": "primary",
+        "displayName": "Letterhead 2",
+        "tonalRamp": [
+          "oklch(15.00% 0.18818 273.94)",
+          "oklch(26.43% 0.18818 273.94)",
+          "oklch(37.86% 0.18818 273.94)",
+          "oklch(49.29% 0.18818 273.94)",
+          "oklch(60.71% 0.18818 273.94)",
+          "oklch(72.14% 0.18818 273.94)",
+          "oklch(83.57% 0.18818 273.94)",
+          "oklch(95.00% 0.18818 273.94)"
+        ]
+      },
+      "letterhead-ink": {
+        "role": "primary",
+        "displayName": "Letterhead Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01597 286.10)",
+          "oklch(26.43% 0.01597 286.10)",
+          "oklch(37.86% 0.01597 286.10)",
+          "oklch(49.29% 0.01597 286.10)",
+          "oklch(60.71% 0.01597 286.10)",
+          "oklch(72.14% 0.01597 286.10)",
+          "oklch(83.57% 0.01597 286.10)",
+          "oklch(95.00% 0.01597 286.10)"
+        ]
+      },
+      "letterhead-muted": {
+        "role": "primary",
+        "displayName": "Letterhead Muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.06548 284.89)",
+          "oklch(26.43% 0.06548 284.89)",
+          "oklch(37.86% 0.06548 284.89)",
+          "oklch(49.29% 0.06548 284.89)",
+          "oklch(60.71% 0.06548 284.89)",
+          "oklch(72.14% 0.06548 284.89)",
+          "oklch(83.57% 0.06548 284.89)",
+          "oklch(95.00% 0.06548 284.89)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(15.00% 0.25257 273.32)",
+          "oklch(26.43% 0.25257 273.32)",
+          "oklch(37.86% 0.25257 273.32)",
+          "oklch(49.29% 0.25257 273.32)",
+          "oklch(60.71% 0.25257 273.32)",
+          "oklch(72.14% 0.25257 273.32)",
+          "oklch(83.57% 0.25257 273.32)",
+          "oklch(95.00% 0.25257 273.32)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Accent Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.23414 271.50)",
+          "oklch(26.43% 0.23414 271.50)",
+          "oklch(37.86% 0.23414 271.50)",
+          "oklch(49.29% 0.23414 271.50)",
+          "oklch(60.71% 0.23414 271.50)",
+          "oklch(72.14% 0.23414 271.50)",
+          "oklch(83.57% 0.23414 271.50)",
+          "oklch(95.00% 0.23414 271.50)"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Accent Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Accent Soft",
+        "tonalRamp": [
+          "oklch(15.00% 0.02682 288.17)",
+          "oklch(26.43% 0.02682 288.17)",
+          "oklch(37.86% 0.02682 288.17)",
+          "oklch(49.29% 0.02682 288.17)",
+          "oklch(60.71% 0.02682 288.17)",
+          "oklch(72.14% 0.02682 288.17)",
+          "oklch(83.57% 0.02682 288.17)",
+          "oklch(95.00% 0.02682 288.17)"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Focus",
+        "tonalRamp": [
+          "oklch(15.00% 0.25257 273.32)",
+          "oklch(26.43% 0.25257 273.32)",
+          "oklch(37.86% 0.25257 273.32)",
+          "oklch(49.29% 0.25257 273.32)",
+          "oklch(60.71% 0.25257 273.32)",
+          "oklch(72.14% 0.25257 273.32)",
+          "oklch(83.57% 0.25257 273.32)",
+          "oklch(95.00% 0.25257 273.32)"
+        ]
+      },
+      "danger-ink": {
+        "role": "neutral",
+        "displayName": "Danger Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.17580 29.46)",
+          "oklch(26.43% 0.17580 29.46)",
+          "oklch(37.86% 0.17580 29.46)",
+          "oklch(49.29% 0.17580 29.46)",
+          "oklch(60.71% 0.17580 29.46)",
+          "oklch(72.14% 0.17580 29.46)",
+          "oklch(83.57% 0.17580 29.46)",
+          "oklch(95.00% 0.17580 29.46)"
+        ]
+      },
+      "danger-bg": {
+        "role": "neutral",
+        "displayName": "Danger Bg",
+        "tonalRamp": [
+          "oklch(15.00% 0.01543 27.28)",
+          "oklch(26.43% 0.01543 27.28)",
+          "oklch(37.86% 0.01543 27.28)",
+          "oklch(49.29% 0.01543 27.28)",
+          "oklch(60.71% 0.01543 27.28)",
+          "oklch(72.14% 0.01543 27.28)",
+          "oklch(83.57% 0.01543 27.28)",
+          "oklch(95.00% 0.01543 27.28)"
+        ]
+      },
+      "danger-line": {
+        "role": "neutral",
+        "displayName": "Danger Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.05234 27.05)",
+          "oklch(26.43% 0.05234 27.05)",
+          "oklch(37.86% 0.05234 27.05)",
+          "oklch(49.29% 0.05234 27.05)",
+          "oklch(60.71% 0.05234 27.05)",
+          "oklch(72.14% 0.05234 27.05)",
+          "oklch(83.57% 0.05234 27.05)",
+          "oklch(95.00% 0.05234 27.05)"
+        ]
+      },
+      "danger-fill": {
+        "role": "neutral",
+        "displayName": "Danger Fill",
+        "tonalRamp": [
+          "oklch(15.00% 0.19067 28.73)",
+          "oklch(26.43% 0.19067 28.73)",
+          "oklch(37.86% 0.19067 28.73)",
+          "oklch(49.29% 0.19067 28.73)",
+          "oklch(60.71% 0.19067 28.73)",
+          "oklch(72.14% 0.19067 28.73)",
+          "oklch(83.57% 0.19067 28.73)",
+          "oklch(95.00% 0.19067 28.73)"
+        ]
+      },
+      "warning-ink": {
+        "role": "neutral",
+        "displayName": "Warning Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.11316 64.16)",
+          "oklch(26.43% 0.11316 64.16)",
+          "oklch(37.86% 0.11316 64.16)",
+          "oklch(49.29% 0.11316 64.16)",
+          "oklch(60.71% 0.11316 64.16)",
+          "oklch(72.14% 0.11316 64.16)",
+          "oklch(83.57% 0.11316 64.16)",
+          "oklch(95.00% 0.11316 64.16)"
+        ]
+      },
+      "warning-bg": {
+        "role": "neutral",
+        "displayName": "Warning Bg",
+        "tonalRamp": [
+          "oklch(15.00% 0.02439 83.42)",
+          "oklch(26.43% 0.02439 83.42)",
+          "oklch(37.86% 0.02439 83.42)",
+          "oklch(49.29% 0.02439 83.42)",
+          "oklch(60.71% 0.02439 83.42)",
+          "oklch(72.14% 0.02439 83.42)",
+          "oklch(83.57% 0.02439 83.42)",
+          "oklch(95.00% 0.02439 83.42)"
+        ]
+      },
+      "warning-line": {
+        "role": "neutral",
+        "displayName": "Warning Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.06624 82.61)",
+          "oklch(26.43% 0.06624 82.61)",
+          "oklch(37.86% 0.06624 82.61)",
+          "oklch(49.29% 0.06624 82.61)",
+          "oklch(60.71% 0.06624 82.61)",
+          "oklch(72.14% 0.06624 82.61)",
+          "oklch(83.57% 0.06624 82.61)",
+          "oklch(95.00% 0.06624 82.61)"
+        ]
+      },
+      "warning-fill": {
+        "role": "neutral",
+        "displayName": "Warning Fill",
+        "tonalRamp": [
+          "oklch(15.00% 0.14798 72.74)",
+          "oklch(26.43% 0.14798 72.74)",
+          "oklch(37.86% 0.14798 72.74)",
+          "oklch(49.29% 0.14798 72.74)",
+          "oklch(60.71% 0.14798 72.74)",
+          "oklch(72.14% 0.14798 72.74)",
+          "oklch(83.57% 0.14798 72.74)",
+          "oklch(95.00% 0.14798 72.74)"
+        ]
+      },
+      "success-ink": {
+        "role": "neutral",
+        "displayName": "Success Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.10843 157.18)",
+          "oklch(26.43% 0.10843 157.18)",
+          "oklch(37.86% 0.10843 157.18)",
+          "oklch(49.29% 0.10843 157.18)",
+          "oklch(60.71% 0.10843 157.18)",
+          "oklch(72.14% 0.10843 157.18)",
+          "oklch(83.57% 0.10843 157.18)",
+          "oklch(95.00% 0.10843 157.18)"
+        ]
+      },
+      "success-bg": {
+        "role": "neutral",
+        "displayName": "Success Bg",
+        "tonalRamp": [
+          "oklch(15.00% 0.01816 161.12)",
+          "oklch(26.43% 0.01816 161.12)",
+          "oklch(37.86% 0.01816 161.12)",
+          "oklch(49.29% 0.01816 161.12)",
+          "oklch(60.71% 0.01816 161.12)",
+          "oklch(72.14% 0.01816 161.12)",
+          "oklch(83.57% 0.01816 161.12)",
+          "oklch(95.00% 0.01816 161.12)"
+        ]
+      },
+      "success-line": {
+        "role": "neutral",
+        "displayName": "Success Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.05099 160.41)",
+          "oklch(26.43% 0.05099 160.41)",
+          "oklch(37.86% 0.05099 160.41)",
+          "oklch(49.29% 0.05099 160.41)",
+          "oklch(60.71% 0.05099 160.41)",
+          "oklch(72.14% 0.05099 160.41)",
+          "oklch(83.57% 0.05099 160.41)",
+          "oklch(95.00% 0.05099 160.41)"
+        ]
+      },
+      "success-fill": {
+        "role": "neutral",
+        "displayName": "Success Fill",
+        "tonalRamp": [
+          "oklch(15.00% 0.13629 158.51)",
+          "oklch(26.43% 0.13629 158.51)",
+          "oklch(37.86% 0.13629 158.51)",
+          "oklch(49.29% 0.13629 158.51)",
+          "oklch(60.71% 0.13629 158.51)",
+          "oklch(72.14% 0.13629 158.51)",
+          "oklch(83.57% 0.13629 158.51)",
+          "oklch(95.00% 0.13629 158.51)"
+        ]
+      },
+      "neutral-ink": {
+        "role": "neutral",
+        "displayName": "Neutral Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.05370 273.23)",
+          "oklch(26.43% 0.05370 273.23)",
+          "oklch(37.86% 0.05370 273.23)",
+          "oklch(49.29% 0.05370 273.23)",
+          "oklch(60.71% 0.05370 273.23)",
+          "oklch(72.14% 0.05370 273.23)",
+          "oklch(83.57% 0.05370 273.23)",
+          "oklch(95.00% 0.05370 273.23)"
+        ]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Neutral Bg",
+        "tonalRamp": [
+          "oklch(15.00% 0.00831 271.33)",
+          "oklch(26.43% 0.00831 271.33)",
+          "oklch(37.86% 0.00831 271.33)",
+          "oklch(49.29% 0.00831 271.33)",
+          "oklch(60.71% 0.00831 271.33)",
+          "oklch(72.14% 0.00831 271.33)",
+          "oklch(83.57% 0.00831 271.33)",
+          "oklch(95.00% 0.00831 271.33)"
+        ]
+      },
+      "neutral-line": {
+        "role": "neutral",
+        "displayName": "Neutral Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.01833 272.29)",
+          "oklch(26.43% 0.01833 272.29)",
+          "oklch(37.86% 0.01833 272.29)",
+          "oklch(49.29% 0.01833 272.29)",
+          "oklch(60.71% 0.01833 272.29)",
+          "oklch(72.14% 0.01833 272.29)",
+          "oklch(83.57% 0.01833 272.29)",
+          "oklch(95.00% 0.01833 272.29)"
+        ]
+      },
+      "neutral-fill": {
+        "role": "neutral",
+        "displayName": "Neutral Fill",
+        "tonalRamp": [
+          "oklch(15.00% 0.03382 273.96)",
+          "oklch(26.43% 0.03382 273.96)",
+          "oklch(37.86% 0.03382 273.96)",
+          "oklch(49.29% 0.03382 273.96)",
+          "oklch(60.71% 0.03382 273.96)",
+          "oklch(72.14% 0.03382 273.96)",
+          "oklch(83.57% 0.03382 273.96)",
+          "oklch(95.00% 0.03382 273.96)"
+        ]
+      },
+      "concern-mark": {
+        "role": "neutral",
+        "displayName": "Concern Mark",
+        "tonalRamp": [
+          "oklch(15.00% 0.03979 27.50)",
+          "oklch(26.43% 0.03979 27.50)",
+          "oklch(37.86% 0.03979 27.50)",
+          "oklch(49.29% 0.03979 27.50)",
+          "oklch(60.71% 0.03979 27.50)",
+          "oklch(72.14% 0.03979 27.50)",
+          "oklch(83.57% 0.03979 27.50)",
+          "oklch(95.00% 0.03979 27.50)"
+        ]
+      },
+      "reassure-mark": {
+        "role": "neutral",
+        "displayName": "Reassure Mark",
+        "tonalRamp": [
+          "oklch(15.00% 0.04141 163.15)",
+          "oklch(26.43% 0.04141 163.15)",
+          "oklch(37.86% 0.04141 163.15)",
+          "oklch(49.29% 0.04141 163.15)",
+          "oklch(60.71% 0.04141 163.15)",
+          "oklch(72.14% 0.04141 163.15)",
+          "oklch(83.57% 0.04141 163.15)",
+          "oklch(95.00% 0.04141 163.15)"
+        ]
+      },
+      "dark-page": {
+        "role": "neutral",
+        "displayName": "Dark Page",
+        "tonalRamp": [
+          "oklch(15.00% 0.03576 276.60)",
+          "oklch(26.43% 0.03576 276.60)",
+          "oklch(37.86% 0.03576 276.60)",
+          "oklch(49.29% 0.03576 276.60)",
+          "oklch(60.71% 0.03576 276.60)",
+          "oklch(72.14% 0.03576 276.60)",
+          "oklch(83.57% 0.03576 276.60)",
+          "oklch(95.00% 0.03576 276.60)"
+        ]
+      },
+      "dark-sheet": {
+        "role": "neutral",
+        "displayName": "Dark Sheet",
+        "tonalRamp": [
+          "oklch(15.00% 0.05302 276.05)",
+          "oklch(26.43% 0.05302 276.05)",
+          "oklch(37.86% 0.05302 276.05)",
+          "oklch(49.29% 0.05302 276.05)",
+          "oklch(60.71% 0.05302 276.05)",
+          "oklch(72.14% 0.05302 276.05)",
+          "oklch(83.57% 0.05302 276.05)",
+          "oklch(95.00% 0.05302 276.05)"
+        ]
+      },
+      "dark-sheet-2": {
+        "role": "neutral",
+        "displayName": "Dark Sheet 2",
+        "tonalRamp": [
+          "oklch(15.00% 0.05901 275.52)",
+          "oklch(26.43% 0.05901 275.52)",
+          "oklch(37.86% 0.05901 275.52)",
+          "oklch(49.29% 0.05901 275.52)",
+          "oklch(60.71% 0.05901 275.52)",
+          "oklch(72.14% 0.05901 275.52)",
+          "oklch(83.57% 0.05901 275.52)",
+          "oklch(95.00% 0.05901 275.52)"
+        ]
+      },
+      "dark-sheet-hover": {
+        "role": "neutral",
+        "displayName": "Dark Sheet Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.06657 275.13)",
+          "oklch(26.43% 0.06657 275.13)",
+          "oklch(37.86% 0.06657 275.13)",
+          "oklch(49.29% 0.06657 275.13)",
+          "oklch(60.71% 0.06657 275.13)",
+          "oklch(72.14% 0.06657 275.13)",
+          "oklch(83.57% 0.06657 275.13)",
+          "oklch(95.00% 0.06657 275.13)"
+        ]
+      },
+      "dark-ink": {
+        "role": "neutral",
+        "displayName": "Dark Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01756 279.06)",
+          "oklch(26.43% 0.01756 279.06)",
+          "oklch(37.86% 0.01756 279.06)",
+          "oklch(49.29% 0.01756 279.06)",
+          "oklch(60.71% 0.01756 279.06)",
+          "oklch(72.14% 0.01756 279.06)",
+          "oklch(83.57% 0.01756 279.06)",
+          "oklch(95.00% 0.01756 279.06)"
+        ]
+      },
+      "dark-ink-2": {
+        "role": "neutral",
+        "displayName": "Dark Ink 2",
+        "tonalRamp": [
+          "oklch(15.00% 0.03914 279.09)",
+          "oklch(26.43% 0.03914 279.09)",
+          "oklch(37.86% 0.03914 279.09)",
+          "oklch(49.29% 0.03914 279.09)",
+          "oklch(60.71% 0.03914 279.09)",
+          "oklch(72.14% 0.03914 279.09)",
+          "oklch(83.57% 0.03914 279.09)",
+          "oklch(95.00% 0.03914 279.09)"
+        ]
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "Dark Muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.05285 277.56)",
+          "oklch(26.43% 0.05285 277.56)",
+          "oklch(37.86% 0.05285 277.56)",
+          "oklch(49.29% 0.05285 277.56)",
+          "oklch(60.71% 0.05285 277.56)",
+          "oklch(72.14% 0.05285 277.56)",
+          "oklch(83.57% 0.05285 277.56)",
+          "oklch(95.00% 0.05285 277.56)"
+        ]
+      },
+      "dark-line": {
+        "role": "neutral",
+        "displayName": "Dark Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.06504 275.85)",
+          "oklch(26.43% 0.06504 275.85)",
+          "oklch(37.86% 0.06504 275.85)",
+          "oklch(49.29% 0.06504 275.85)",
+          "oklch(60.71% 0.06504 275.85)",
+          "oklch(72.14% 0.06504 275.85)",
+          "oklch(83.57% 0.06504 275.85)",
+          "oklch(95.00% 0.06504 275.85)"
+        ]
+      },
+      "dark-line-strong": {
+        "role": "neutral",
+        "displayName": "Dark Line Strong",
+        "tonalRamp": [
+          "oklch(15.00% 0.07985 275.68)",
+          "oklch(26.43% 0.07985 275.68)",
+          "oklch(37.86% 0.07985 275.68)",
+          "oklch(49.29% 0.07985 275.68)",
+          "oklch(60.71% 0.07985 275.68)",
+          "oklch(72.14% 0.07985 275.68)",
+          "oklch(83.57% 0.07985 275.68)",
+          "oklch(95.00% 0.07985 275.68)"
+        ]
+      },
+      "dark-letterhead": {
+        "role": "primary",
+        "displayName": "Dark Letterhead",
+        "tonalRamp": [
+          "oklch(15.00% 0.08195 278.08)",
+          "oklch(26.43% 0.08195 278.08)",
+          "oklch(37.86% 0.08195 278.08)",
+          "oklch(49.29% 0.08195 278.08)",
+          "oklch(60.71% 0.08195 278.08)",
+          "oklch(72.14% 0.08195 278.08)",
+          "oklch(83.57% 0.08195 278.08)",
+          "oklch(95.00% 0.08195 278.08)"
+        ]
+      },
+      "dark-letterhead-2": {
+        "role": "primary",
+        "displayName": "Dark Letterhead 2",
+        "tonalRamp": [
+          "oklch(15.00% 0.11358 277.65)",
+          "oklch(26.43% 0.11358 277.65)",
+          "oklch(37.86% 0.11358 277.65)",
+          "oklch(49.29% 0.11358 277.65)",
+          "oklch(60.71% 0.11358 277.65)",
+          "oklch(72.14% 0.11358 277.65)",
+          "oklch(83.57% 0.11358 277.65)",
+          "oklch(95.00% 0.11358 277.65)"
+        ]
+      },
+      "dark-letterhead-ink": {
+        "role": "primary",
+        "displayName": "Dark Letterhead Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.02274 285.96)",
+          "oklch(26.43% 0.02274 285.96)",
+          "oklch(37.86% 0.02274 285.96)",
+          "oklch(49.29% 0.02274 285.96)",
+          "oklch(60.71% 0.02274 285.96)",
+          "oklch(72.14% 0.02274 285.96)",
+          "oklch(83.57% 0.02274 285.96)",
+          "oklch(95.00% 0.02274 285.96)"
+        ]
+      },
+      "dark-letterhead-muted": {
+        "role": "primary",
+        "displayName": "Dark Letterhead Muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.07720 285.23)",
+          "oklch(26.43% 0.07720 285.23)",
+          "oklch(37.86% 0.07720 285.23)",
+          "oklch(49.29% 0.07720 285.23)",
+          "oklch(60.71% 0.07720 285.23)",
+          "oklch(72.14% 0.07720 285.23)",
+          "oklch(83.57% 0.07720 285.23)",
+          "oklch(95.00% 0.07720 285.23)"
+        ]
+      },
+      "dark-accent": {
+        "role": "primary",
+        "displayName": "Dark Accent",
+        "tonalRamp": [
+          "oklch(15.00% 0.16341 284.12)",
+          "oklch(26.43% 0.16341 284.12)",
+          "oklch(37.86% 0.16341 284.12)",
+          "oklch(49.29% 0.16341 284.12)",
+          "oklch(60.71% 0.16341 284.12)",
+          "oklch(72.14% 0.16341 284.12)",
+          "oklch(83.57% 0.16341 284.12)",
+          "oklch(95.00% 0.16341 284.12)"
+        ]
+      },
+      "dark-accent-hover": {
+        "role": "primary",
+        "displayName": "Dark Accent Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.11869 286.01)",
+          "oklch(26.43% 0.11869 286.01)",
+          "oklch(37.86% 0.11869 286.01)",
+          "oklch(49.29% 0.11869 286.01)",
+          "oklch(60.71% 0.11869 286.01)",
+          "oklch(72.14% 0.11869 286.01)",
+          "oklch(83.57% 0.11869 286.01)",
+          "oklch(95.00% 0.11869 286.01)"
+        ]
+      },
+      "dark-accent-ink": {
+        "role": "primary",
+        "displayName": "Dark Accent Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.08082 276.97)",
+          "oklch(26.43% 0.08082 276.97)",
+          "oklch(37.86% 0.08082 276.97)",
+          "oklch(49.29% 0.08082 276.97)",
+          "oklch(60.71% 0.08082 276.97)",
+          "oklch(72.14% 0.08082 276.97)",
+          "oklch(83.57% 0.08082 276.97)",
+          "oklch(95.00% 0.08082 276.97)"
+        ]
+      },
+      "dark-accent-soft": {
+        "role": "primary",
+        "displayName": "Dark Accent Soft",
+        "tonalRamp": [
+          "oklch(15.00% 0.09914 280.54)",
+          "oklch(26.43% 0.09914 280.54)",
+          "oklch(37.86% 0.09914 280.54)",
+          "oklch(49.29% 0.09914 280.54)",
+          "oklch(60.71% 0.09914 280.54)",
+          "oklch(72.14% 0.09914 280.54)",
+          "oklch(83.57% 0.09914 280.54)",
+          "oklch(95.00% 0.09914 280.54)"
+        ]
+      },
+      "dark-focus": {
+        "role": "neutral",
+        "displayName": "Dark Focus",
+        "tonalRamp": [
+          "oklch(15.00% 0.13357 285.62)",
+          "oklch(26.43% 0.13357 285.62)",
+          "oklch(37.86% 0.13357 285.62)",
+          "oklch(49.29% 0.13357 285.62)",
+          "oklch(60.71% 0.13357 285.62)",
+          "oklch(72.14% 0.13357 285.62)",
+          "oklch(83.57% 0.13357 285.62)",
+          "oklch(95.00% 0.13357 285.62)"
+        ]
+      },
+      "dark-danger-ink": {
+        "role": "neutral",
+        "displayName": "Dark Danger Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.09288 26.55)",
+          "oklch(26.43% 0.09288 26.55)",
+          "oklch(37.86% 0.09288 26.55)",
+          "oklch(49.29% 0.09288 26.55)",
+          "oklch(60.71% 0.09288 26.55)",
+          "oklch(72.14% 0.09288 26.55)",
+          "oklch(83.57% 0.09288 26.55)",
+          "oklch(95.00% 0.09288 26.55)"
+        ]
+      },
+      "dark-danger-bg": {
+        "role": "neutral",
+        "displayName": "Dark Danger Bg",
+        "tonalRamp": [
+          "oklch(15.00% 0.05052 17.20)",
+          "oklch(26.43% 0.05052 17.20)",
+          "oklch(37.86% 0.05052 17.20)",
+          "oklch(49.29% 0.05052 17.20)",
+          "oklch(60.71% 0.05052 17.20)",
+          "oklch(72.14% 0.05052 17.20)",
+          "oklch(83.57% 0.05052 17.20)",
+          "oklch(95.00% 0.05052 17.20)"
+        ]
+      },
+      "dark-danger-line": {
+        "role": "neutral",
+        "displayName": "Dark Danger Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.08455 24.58)",
+          "oklch(26.43% 0.08455 24.58)",
+          "oklch(37.86% 0.08455 24.58)",
+          "oklch(49.29% 0.08455 24.58)",
+          "oklch(60.71% 0.08455 24.58)",
+          "oklch(72.14% 0.08455 24.58)",
+          "oklch(83.57% 0.08455 24.58)",
+          "oklch(95.00% 0.08455 24.58)"
+        ]
+      },
+      "dark-danger-fill": {
+        "role": "neutral",
+        "displayName": "Dark Danger Fill",
+        "tonalRamp": [
+          "oklch(15.00% 0.17170 27.90)",
+          "oklch(26.43% 0.17170 27.90)",
+          "oklch(37.86% 0.17170 27.90)",
+          "oklch(49.29% 0.17170 27.90)",
+          "oklch(60.71% 0.17170 27.90)",
+          "oklch(72.14% 0.17170 27.90)",
+          "oklch(83.57% 0.17170 27.90)",
+          "oklch(95.00% 0.17170 27.90)"
+        ]
+      },
+      "dark-warning-ink": {
+        "role": "neutral",
+        "displayName": "Dark Warning Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.09892 80.82)",
+          "oklch(26.43% 0.09892 80.82)",
+          "oklch(37.86% 0.09892 80.82)",
+          "oklch(49.29% 0.09892 80.82)",
+          "oklch(60.71% 0.09892 80.82)",
+          "oklch(72.14% 0.09892 80.82)",
+          "oklch(83.57% 0.09892 80.82)",
+          "oklch(95.00% 0.09892 80.82)"
+        ]
+      },
+      "dark-warning-bg": {
+        "role": "neutral",
+        "displayName": "Dark Warning Bg",
+        "tonalRamp": [
+          "oklch(15.00% 0.04181 78.15)",
+          "oklch(26.43% 0.04181 78.15)",
+          "oklch(37.86% 0.04181 78.15)",
+          "oklch(49.29% 0.04181 78.15)",
+          "oklch(60.71% 0.04181 78.15)",
+          "oklch(72.14% 0.04181 78.15)",
+          "oklch(83.57% 0.04181 78.15)",
+          "oklch(95.00% 0.04181 78.15)"
+        ]
+      },
+      "dark-warning-line": {
+        "role": "neutral",
+        "displayName": "Dark Warning Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.07067 78.96)",
+          "oklch(26.43% 0.07067 78.96)",
+          "oklch(37.86% 0.07067 78.96)",
+          "oklch(49.29% 0.07067 78.96)",
+          "oklch(60.71% 0.07067 78.96)",
+          "oklch(72.14% 0.07067 78.96)",
+          "oklch(83.57% 0.07067 78.96)",
+          "oklch(95.00% 0.07067 78.96)"
+        ]
+      },
+      "dark-warning-fill": {
+        "role": "neutral",
+        "displayName": "Dark Warning Fill",
+        "tonalRamp": [
+          "oklch(15.00% 0.13970 76.12)",
+          "oklch(26.43% 0.13970 76.12)",
+          "oklch(37.86% 0.13970 76.12)",
+          "oklch(49.29% 0.13970 76.12)",
+          "oklch(60.71% 0.13970 76.12)",
+          "oklch(72.14% 0.13970 76.12)",
+          "oklch(83.57% 0.13970 76.12)",
+          "oklch(95.00% 0.13970 76.12)"
+        ]
+      },
+      "dark-success-ink": {
+        "role": "neutral",
+        "displayName": "Dark Success Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.09076 160.89)",
+          "oklch(26.43% 0.09076 160.89)",
+          "oklch(37.86% 0.09076 160.89)",
+          "oklch(49.29% 0.09076 160.89)",
+          "oklch(60.71% 0.09076 160.89)",
+          "oklch(72.14% 0.09076 160.89)",
+          "oklch(83.57% 0.09076 160.89)",
+          "oklch(95.00% 0.09076 160.89)"
+        ]
+      },
+      "dark-success-bg": {
+        "role": "neutral",
+        "displayName": "Dark Success Bg",
+        "tonalRamp": [
+          "oklch(15.00% 0.04883 157.07)",
+          "oklch(26.43% 0.04883 157.07)",
+          "oklch(37.86% 0.04883 157.07)",
+          "oklch(49.29% 0.04883 157.07)",
+          "oklch(60.71% 0.04883 157.07)",
+          "oklch(72.14% 0.04883 157.07)",
+          "oklch(83.57% 0.04883 157.07)",
+          "oklch(95.00% 0.04883 157.07)"
+        ]
+      },
+      "dark-success-line": {
+        "role": "neutral",
+        "displayName": "Dark Success Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.07207 158.87)",
+          "oklch(26.43% 0.07207 158.87)",
+          "oklch(37.86% 0.07207 158.87)",
+          "oklch(49.29% 0.07207 158.87)",
+          "oklch(60.71% 0.07207 158.87)",
+          "oklch(72.14% 0.07207 158.87)",
+          "oklch(83.57% 0.07207 158.87)",
+          "oklch(95.00% 0.07207 158.87)"
+        ]
+      },
+      "dark-success-fill": {
+        "role": "neutral",
+        "displayName": "Dark Success Fill",
+        "tonalRamp": [
+          "oklch(15.00% 0.14419 158.55)",
+          "oklch(26.43% 0.14419 158.55)",
+          "oklch(37.86% 0.14419 158.55)",
+          "oklch(49.29% 0.14419 158.55)",
+          "oklch(60.71% 0.14419 158.55)",
+          "oklch(72.14% 0.14419 158.55)",
+          "oklch(83.57% 0.14419 158.55)",
+          "oklch(95.00% 0.14419 158.55)"
+        ]
+      },
+      "dark-neutral-ink": {
+        "role": "neutral",
+        "displayName": "Dark Neutral Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.03664 276.95)",
+          "oklch(26.43% 0.03664 276.95)",
+          "oklch(37.86% 0.03664 276.95)",
+          "oklch(49.29% 0.03664 276.95)",
+          "oklch(60.71% 0.03664 276.95)",
+          "oklch(72.14% 0.03664 276.95)",
+          "oklch(83.57% 0.03664 276.95)",
+          "oklch(95.00% 0.03664 276.95)"
+        ]
+      },
+      "dark-neutral-bg": {
+        "role": "neutral",
+        "displayName": "Dark Neutral Bg",
+        "tonalRamp": [
+          "oklch(15.00% 0.05774 274.99)",
+          "oklch(26.43% 0.05774 274.99)",
+          "oklch(37.86% 0.05774 274.99)",
+          "oklch(49.29% 0.05774 274.99)",
+          "oklch(60.71% 0.05774 274.99)",
+          "oklch(72.14% 0.05774 274.99)",
+          "oklch(83.57% 0.05774 274.99)",
+          "oklch(95.00% 0.05774 274.99)"
+        ]
+      },
+      "dark-neutral-line": {
+        "role": "neutral",
+        "displayName": "Dark Neutral Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.07018 275.29)",
+          "oklch(26.43% 0.07018 275.29)",
+          "oklch(37.86% 0.07018 275.29)",
+          "oklch(49.29% 0.07018 275.29)",
+          "oklch(60.71% 0.07018 275.29)",
+          "oklch(72.14% 0.07018 275.29)",
+          "oklch(83.57% 0.07018 275.29)",
+          "oklch(95.00% 0.07018 275.29)"
+        ]
+      },
+      "dark-neutral-fill": {
+        "role": "neutral",
+        "displayName": "Dark Neutral Fill",
+        "tonalRamp": [
+          "oklch(15.00% 0.05783 276.09)",
+          "oklch(26.43% 0.05783 276.09)",
+          "oklch(37.86% 0.05783 276.09)",
+          "oklch(49.29% 0.05783 276.09)",
+          "oklch(60.71% 0.05783 276.09)",
+          "oklch(72.14% 0.05783 276.09)",
+          "oklch(83.57% 0.05783 276.09)",
+          "oklch(95.00% 0.05783 276.09)"
+        ]
+      },
+      "dark-concern-mark": {
+        "role": "neutral",
+        "displayName": "Dark Concern Mark",
+        "tonalRamp": [
+          "oklch(15.00% 0.07845 22.12)",
+          "oklch(26.43% 0.07845 22.12)",
+          "oklch(37.86% 0.07845 22.12)",
+          "oklch(49.29% 0.07845 22.12)",
+          "oklch(60.71% 0.07845 22.12)",
+          "oklch(72.14% 0.07845 22.12)",
+          "oklch(83.57% 0.07845 22.12)",
+          "oklch(95.00% 0.07845 22.12)"
+        ]
+      },
+      "dark-reassure-mark": {
+        "role": "neutral",
+        "displayName": "Dark Reassure Mark",
+        "tonalRamp": [
+          "oklch(15.00% 0.06469 158.99)",
+          "oklch(26.43% 0.06469 158.99)",
+          "oklch(37.86% 0.06469 158.99)",
+          "oklch(49.29% 0.06469 158.99)",
+          "oklch(60.71% 0.06469 158.99)",
+          "oklch(72.14% 0.06469 158.99)",
+          "oklch(83.57% 0.06469 158.99)",
+          "oklch(95.00% 0.06469 158.99)"
+        ]
+      },
+      "hero-ground": {
+        "role": "primary",
+        "displayName": "Hero Ground",
+        "tonalRamp": [
+          "oklch(15.00% 0.07657 278.99)",
+          "oklch(26.43% 0.07657 278.99)",
+          "oklch(37.86% 0.07657 278.99)",
+          "oklch(49.29% 0.07657 278.99)",
+          "oklch(60.71% 0.07657 278.99)",
+          "oklch(72.14% 0.07657 278.99)",
+          "oklch(83.57% 0.07657 278.99)",
+          "oklch(95.00% 0.07657 278.99)"
+        ]
+      },
+      "hero-ink": {
+        "role": "primary",
+        "displayName": "Hero Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.00927 286.23)",
+          "oklch(26.43% 0.00927 286.23)",
+          "oklch(37.86% 0.00927 286.23)",
+          "oklch(49.29% 0.00927 286.23)",
+          "oklch(60.71% 0.00927 286.23)",
+          "oklch(72.14% 0.00927 286.23)",
+          "oklch(83.57% 0.00927 286.23)",
+          "oklch(95.00% 0.00927 286.23)"
+        ]
+      },
+      "hero-muted": {
+        "role": "primary",
+        "displayName": "Hero Muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.04467 282.55)",
+          "oklch(26.43% 0.04467 282.55)",
+          "oklch(37.86% 0.04467 282.55)",
+          "oklch(49.29% 0.04467 282.55)",
+          "oklch(60.71% 0.04467 282.55)",
+          "oklch(72.14% 0.04467 282.55)",
+          "oklch(83.57% 0.04467 282.55)",
+          "oklch(95.00% 0.04467 282.55)"
+        ]
+      },
+      "hero-action": {
+        "role": "primary",
+        "displayName": "Hero Action",
+        "tonalRamp": [
+          "oklch(15.00% 0.04485 291.05)",
+          "oklch(26.43% 0.04485 291.05)",
+          "oklch(37.86% 0.04485 291.05)",
+          "oklch(49.29% 0.04485 291.05)",
+          "oklch(60.71% 0.04485 291.05)",
+          "oklch(72.14% 0.04485 291.05)",
+          "oklch(83.57% 0.04485 291.05)",
+          "oklch(95.00% 0.04485 291.05)"
+        ]
+      },
+      "hero-action-ink": {
+        "role": "primary",
+        "displayName": "Hero Action Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.12383 279.77)",
+          "oklch(26.43% 0.12383 279.77)",
+          "oklch(37.86% 0.12383 279.77)",
+          "oklch(49.29% 0.12383 279.77)",
+          "oklch(60.71% 0.12383 279.77)",
+          "oklch(72.14% 0.12383 279.77)",
+          "oklch(83.57% 0.12383 279.77)",
+          "oklch(95.00% 0.12383 279.77)"
+        ]
+      },
+      "hero-rule": {
+        "role": "primary",
+        "displayName": "Hero Rule",
+        "tonalRamp": [
+          "oklch(15.00% 0.06874 282.30)",
+          "oklch(26.43% 0.06874 282.30)",
+          "oklch(37.86% 0.06874 282.30)",
+          "oklch(49.29% 0.06874 282.30)",
+          "oklch(60.71% 0.06874 282.30)",
+          "oklch(72.14% 0.06874 282.30)",
+          "oklch(83.57% 0.06874 282.30)",
+          "oklch(95.00% 0.06874 282.30)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page heading."
+      },
+      "interpretation": {
+        "displayName": "Interpretation",
+        "purpose": "Report conclusion heading."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Shipped title text role."
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "Shipped section text role."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Shipped body text role."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Shipped label text role."
+      },
+      "support": {
+        "displayName": "Support",
+        "purpose": "Shipped support text role."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "Compact trust value."
+      },
+      "brand-display": {
+        "displayName": "Brand display",
+        "purpose": "Startup introduction heading; responsive 32–48px desktop and 30–40px phone."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sheet",
+        "value": "0 1px 2px rgb(27 23 115 / 0.05), 0 8px 24px -12px rgb(27 23 115 / 0.12)",
+        "purpose": "Light report and panel paper depth."
+      },
+      {
+        "name": "sheet-dark",
+        "value": "0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6)",
+        "purpose": "Dark report and panel paper depth."
+      },
+      {
+        "name": "selected-tab",
+        "value": "0 1px 2px rgb(13 17 48 / 0.1), 0 0 0 1px var(--line)",
+        "purpose": "Selected source tabs and segmented controls."
+      },
+      {
+        "name": "brand-action",
+        "value": "0 4px 12px rgb(0 0 0 / .15)",
+        "purpose": "Brand call-to-action depth."
+      },
+      {
+        "name": "brand-action-hover",
+        "value": "0 7px 18px rgb(0 0 0 / .23)",
+        "purpose": "Precise-pointer brand action hover."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Shared state and update easing."
+      },
+      {
+        "name": "control-transition",
+        "value": "160ms",
+        "purpose": "Button, tab, input and navigation color changes."
+      },
+      {
+        "name": "range-tick",
+        "value": "250ms transform",
+        "purpose": "Full-width range-position wrapper translates to the updated percentage inside an overflow:clip range bar with a 4px clip margin; evidence numbers and flags remain static."
+      },
+      {
+        "name": "live-entry",
+        "value": "320ms",
+        "purpose": "Live report entrance."
+      },
+      {
+        "name": "brand-copy-entry",
+        "value": "250ms",
+        "purpose": "Short opacity and six-pixel entry translation using starting-style."
+      },
+      {
+        "name": "signal-breathe",
+        "value": "2.4s ease-in-out infinite",
+        "purpose": "Decorative signal points only while the brand renderer is running; offsets .8s and 1.6s."
+      },
+      {
+        "name": "upload-hover",
+        "value": "200ms",
+        "purpose": "Fine-pointer upload icon lift of three pixels."
+      },
+      {
+        "name": "brand-draw-cap",
+        "value": "32ms minimum draw interval; DPR ≤ 1.5",
+        "purpose": "Bound local WebGL work; pause while hidden, offscreen, user-paused or under reduced motion."
+      },
+      {
+        "name": "strip-height",
+        "value": "250ms transform",
+        "purpose": "Bottom-origin scaleY of measured authenticity segments."
+      },
+      {
+        "name": "strip-playhead",
+        "value": "100ms linear transform",
+        "purpose": "Translate a full-width wrapper to follow audio playback position."
+      },
+      {
+        "name": "compact-control-press",
+        "value": "120ms transform",
+        "purpose": "Enabled compact controls acknowledge press at scale(.98); hover styles require hover and fine pointer."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stacked",
+        "value": "1080px"
+      },
+      {
+        "name": "stacked-results",
+        "value": "980px"
+      },
+      {
+        "name": "phone",
+        "value": "760px"
+      },
+      {
+        "name": "small-phone",
+        "value": "380px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Shipped primary action variant.",
+      "html": "<button class=\"ds-button ds-primary\">Check recording</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 18px; border:1px solid transparent; border-radius:var(--radius); font-family:var(--font); font-weight:700; font-size:0.9375rem; letter-spacing:-0.005em; cursor:pointer; transition:background 160ms var(--ease-out),border-color 160ms var(--ease-out),color 160ms var(--ease-out),transform 120ms var(--ease-out); } .ds-button:focus-visible { outline:3px solid var(--focus); outline-offset:3px; } .ds-button:active:not(:disabled) { transform:scale(.98); } .ds-button:disabled { opacity:.5; cursor:not-allowed; } @media(prefers-reduced-motion:reduce) { .ds-button { transition-duration:1ms; } } .ds-primary { background:var(--accent);color:var(--accent-ink); } @media (hover:hover) and (pointer:fine) { .ds-primary:hover:not(:disabled) { background:var(--accent-hover); } }"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Shipped secondary action variant.",
+      "html": "<button class=\"ds-button ds-secondary\">Check recording</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 18px; border:1px solid transparent; border-radius:var(--radius); font-family:var(--font); font-weight:700; font-size:0.9375rem; letter-spacing:-0.005em; cursor:pointer; transition:background 160ms var(--ease-out),border-color 160ms var(--ease-out),color 160ms var(--ease-out),transform 120ms var(--ease-out); } .ds-button:focus-visible { outline:3px solid var(--focus); outline-offset:3px; } .ds-button:active:not(:disabled) { transform:scale(.98); } .ds-button:disabled { opacity:.5; cursor:not-allowed; } @media(prefers-reduced-motion:reduce) { .ds-button { transition-duration:1ms; } } .ds-secondary { background:var(--sheet);color:var(--ink);border-color:var(--line-strong); } @media (hover:hover) and (pointer:fine) { .ds-secondary:hover:not(:disabled) { background:var(--sheet-hover);border-color:var(--muted); } }"
+    },
+    {
+      "name": "Quiet button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Shipped quiet action variant.",
+      "html": "<button class=\"ds-button ds-quiet\">Check recording</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 18px; border:1px solid transparent; border-radius:var(--radius); font-family:var(--font); font-weight:700; font-size:0.9375rem; letter-spacing:-0.005em; cursor:pointer; transition:background 160ms var(--ease-out),border-color 160ms var(--ease-out),color 160ms var(--ease-out),transform 120ms var(--ease-out); } .ds-button:focus-visible { outline:3px solid var(--focus); outline-offset:3px; } .ds-button:active:not(:disabled) { transform:scale(.98); } .ds-button:disabled { opacity:.5; cursor:not-allowed; } @media(prefers-reduced-motion:reduce) { .ds-button { transition-duration:1ms; } } .ds-quiet { background:transparent;color:var(--accent);padding:0 10px; } @media (hover:hover) and (pointer:fine) { .ds-quiet:hover:not(:disabled) { background:var(--accent-soft); } }"
+    },
+    {
+      "name": "Danger button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Shipped danger action variant.",
+      "html": "<button class=\"ds-button ds-danger\">Check recording</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 18px; border:1px solid transparent; border-radius:var(--radius); font-family:var(--font); font-weight:700; font-size:0.9375rem; letter-spacing:-0.005em; cursor:pointer; transition:background 160ms var(--ease-out),border-color 160ms var(--ease-out),color 160ms var(--ease-out),transform 120ms var(--ease-out); } .ds-button:focus-visible { outline:3px solid var(--focus); outline-offset:3px; } .ds-button:active:not(:disabled) { transform:scale(.98); } .ds-button:disabled { opacity:.5; cursor:not-allowed; } @media(prefers-reduced-motion:reduce) { .ds-button { transition-duration:1ms; } } .ds-danger { background:var(--danger-bg);color:var(--danger-ink);border-color:var(--danger-line); } @media (hover:hover) and (pointer:fine) { .ds-danger:hover:not(:disabled) { border-color:var(--danger-ink); } }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled recording metadata field.",
+      "html": "<label class=\"ds-field\">Recording name<input placeholder=\"Family voice note\" /></label>",
+      "css": ".ds-field {display:flex;flex-direction:column;gap:7px;font-family:var(--font);font-size:.875rem;font-weight:700;color:var(--ink);} .ds-field input {font:inherit;font-size:1rem;font-weight:400;min-height:46px;padding:0 14px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--sheet);color:var(--ink);transition:border-color 160ms var(--ease-out),box-shadow 160ms var(--ease-out);} @media (hover:hover) and (pointer:fine) { .ds-field input:hover {border-color:var(--muted);} } .ds-field input:focus {outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);} .ds-field input::placeholder {color:var(--muted);} @media(prefers-reduced-motion:reduce){.ds-field input{transition-duration:1ms;}}"
+    },
+    {
+      "name": "Letterhead navigation",
+      "kind": "nav",
+      "description": "Selected top navigation with a ruled active edge.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Workspace\"><a class=\"ds-nav-link ds-active\" href=\"#check\" aria-current=\"page\">Check</a><a class=\"ds-nav-link\" href=\"#voices\">Known voices</a></nav>",
+      "css": ".ds-nav{display:flex;min-height:64px;flex-wrap:wrap;background:var(--letterhead);font-family:var(--font);} .ds-nav-link{position:relative;display:inline-flex;align-items:center;padding:0 14px;color:var(--letterhead-muted);text-decoration:none;font-weight:600;font-size:.9375rem;min-height:44px;transition:color 160ms var(--ease-out);} .ds-active{color:var(--letterhead-ink);} @media (hover:hover) and (pointer:fine) { .ds-nav-link:hover{color:var(--letterhead-ink);} } .ds-active::after{content:\"\";position:absolute;left:14px;right:14px;bottom:0;height:3px;background:var(--letterhead-ink);border-radius:3px 3px 0 0;} .ds-nav-link:focus-visible{outline:3px solid var(--letterhead-ink);outline-offset:-6px;} @media(prefers-reduced-motion:reduce){.ds-nav-link{transition-duration:1ms;}}"
+    },
+    {
+      "name": "Supplied evidence interval",
+      "kind": "custom",
+      "description": "Illustrative preview of the shipped percentage-reference geometry; these preview values are not product evidence.",
+      "html": "<div class=\"ds-reference\"><strong>&gt; 60%</strong><span>Observed: 72%</span><div class=\"ds-interval\" role=\"img\" aria-label=\"Observed 72 percent; supplied reference greater than 60 percent\"><i class=\"ds-above\"></i><i class=\"ds-limit\"></i><i class=\"ds-value\"></i></div></div>",
+      "css": ".ds-reference{font-family:var(--font);color:var(--ink);font-size:.875rem;} .ds-reference strong{font-weight:700;} .ds-reference>span{display:block;color:var(--muted);font-size:.8125rem;margin-top:2px;} .ds-interval{position:relative;height:6px;margin:12px 3px 4px;background:var(--line);border-radius:2px;} .ds-above{position:absolute;left:60%;right:0;top:0;bottom:0;background:var(--line-strong);} .ds-limit{position:absolute;left:60%;top:-4px;height:14px;border-left:1px dashed var(--muted);} .ds-value{position:absolute;left:72%;top:-3px;height:12px;width:3px;transform:translateX(-50%);background:var(--ink);border-radius:1px;}"
+    },
+    {
+      "name": "Report panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Paper surface with ruled header and shared sheet depth.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-head\"><h2>What the report measures</h2></header><div class=\"ds-panel-body\">Identity, authenticity and intent.</div></section>",
+      "css": ".ds-panel{font-family:var(--font);color:var(--ink);background:var(--sheet);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-sheet);min-width:0;} .ds-panel-head{padding:18px 24px;border-bottom:1px solid var(--line);} .ds-panel-head h2{margin:0;font-size:1.1875rem;font-weight:700;line-height:1.3;letter-spacing:-.015em;} .ds-panel-body{padding:24px;line-height:1.55;} @media(max-width:760px){.ds-panel-head,.ds-panel-body{padding:16px;}}"
+    },
+    {
+      "name": "Neutral verdict badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Written unverified verdict with neutral semantic color.",
+      "html": "<span class=\"ds-badge\">Unverified</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;font-family:var(--font);font-size:.8125rem;font-weight:700;white-space:nowrap;border:1px solid var(--neutral-line);border-radius:6px;background:var(--neutral-bg);color:var(--neutral-ink);} .ds-badge::before{content:\"\";width:7px;height:7px;border-radius:50%;background:currentColor;}"
+    },
+    {
+      "name": "Startup brand stage",
+      "kind": "custom",
+      "refersTo": "brand-panel",
+      "description": "Static style preview of the introduction and geometric shield motif; the production renderer is WebGL, not reproduced by this preview.",
+      "html": "<section class=\"ds-brand\"><div class=\"ds-brand-copy\"><h1>Check a voice.<br><span>Know your next step.</span></h1><p>Identity, authenticity and intent — with the evidence behind every result.</p><button class=\"ds-brand-action\">Start a check</button></div><div class=\"ds-brand-model\"><svg viewBox=\"-140 -155 280 310\" role=\"img\" aria-label=\"Static decorative voice shield\"><ellipse cx=\"0\" cy=\"0\" rx=\"132\" ry=\"58\" transform=\"rotate(-28)\" fill=\"none\" stroke=\"#9e91ef\" stroke-width=\"2\"/><ellipse cx=\"0\" cy=\"0\" rx=\"132\" ry=\"58\" transform=\"rotate(46)\" fill=\"none\" stroke=\"#746ed4\" stroke-width=\"2\"/><path d=\"M0 -122 L-102 -85 L-94 28 L-58 88 L0 130 L58 88 L94 28 L102 -85 Z\" fill=\"#d1d6ff\"/><path d=\"M0 -98 L-82 -68 L-75 22 L-46 70 L0 104 L46 70 L75 22 L82 -68 Z\" fill=\"#4530db\"/><path d=\"M-46 -9V9 M-34 -19V19 M-23 -31V31 M-12 -45V45 M0 -56V56 M12 -39V39 M23 -26V26 M34 -15V15 M46 -8V8\" stroke=\"#d1d6ff\" stroke-width=\"7\"/></svg><span>Three signals. One clearer picture.</span></div></section>",
+      "css": ".ds-brand{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);min-height:350px;border:1px solid var(--hero-rule);border-radius:24px;background:var(--hero-ground);color:var(--hero-ink);font-family:var(--font);overflow:hidden;} .ds-brand-copy{padding:38px;display:flex;flex-direction:column;align-items:flex-start;gap:19px;} .ds-brand h1{margin:0;font-size:clamp(2rem,3.4vw,3rem);font-weight:650;line-height:1.1;letter-spacing:-.04em;color:var(--hero-ink);} .ds-brand h1 span{color:#b9b5fa;} .ds-brand p{margin:0;color:var(--hero-muted);font-size:1rem;line-height:1.65;max-width:48ch;} .ds-brand-action{font:inherit;font-size:.9375rem;font-weight:700;min-height:44px;padding:0 18px;border:1px solid transparent;border-radius:var(--radius);background:var(--hero-action);color:var(--hero-action-ink);box-shadow:0 4px 12px rgb(0 0 0 / .15);cursor:pointer;transition:background 160ms var(--ease-out),transform 120ms var(--ease-out);} .ds-brand-action:focus-visible{outline:3px solid var(--hero-action);outline-offset:3px;} .ds-brand-action:active{transform:scale(.98);} .ds-brand-model{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;min-width:0;} .ds-brand-model svg{width:100%;max-width:270px;height:260px;} .ds-brand-model span{font-size:.75rem;color:var(--hero-muted);} @media(hover:hover) and (pointer:fine){.ds-brand-action:hover{background:#f1efff;transform:translateY(-2px);box-shadow:0 7px 18px rgb(0 0 0 / .23);}} @media(max-width:760px){.ds-brand{grid-template-columns:minmax(0,1fr);border-radius:18px;}.ds-brand-copy{padding:26px 24px 8px;gap:16px;}.ds-brand h1{font-size:clamp(1.875rem,7.5vw,2.5rem);}} @media(prefers-reduced-motion:reduce){.ds-brand-action{transition-duration:1ms;}.ds-brand-action:hover,.ds-brand-action:active{transform:none;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The laboratory report",
+    "overview": "The laboratory report is the governing metaphor: cool paper, deep indigo letterhead, measured values, source references and written flags. The supplied logo remains bundled locally, including its original ivory image field; that asset does not determine the workspace palette.\n\nThis system is extracted from the shipped web source: src/index.css, components/ReportSheet.tsx, components/ResultView.tsx, components/VoiceHero.tsx, components/VoiceHero.css, lib/voice-scene.ts and lib/presentation.ts. The user-selected pathology direction supersedes the earlier family-correspondence world. The subsequently approved startup presence adds a dark indigo introduction and a restrained three-dimensional voice shield; that brand illustration stays separate from measured report evidence. Compact, ruled evidence is the signature; the trust value accompanies the interpretation without a separate raised metric card.",
+    "keyCharacteristics": [
+      "Cool report sheets and indigo letterhead navigation.",
+      "One locally bundled sans family with tabular numbers and mono IDs.",
+      "Observed values, supplied references and written evidence flags.",
+      "Explicit provisional, interrupted, sample and final report states.",
+      "A local 3D brand illustration with pause, static reduced-motion and graphics-failure fallback."
+    ],
+    "rules": [
+      {
+        "name": "The Evidence Color Rule",
+        "body": "Brand indigo identifies actions and navigation. Verdict colors accompany written bands and flags; unknown identity and authority trust ranges remain neutral.",
+        "section": "colors"
+      },
+      {
+        "name": "The Supplied Reference Rule",
+        "body": "Show source-provided observed values and thresholds together. Draw an evidence interval only when both supplied values parse as percentages within 0–100; otherwise preserve the text or say that a reference was not supplied.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do retain the supplied locally bundled logo and fonts.",
+      "Do keep brand motion pausable, static under reduced motion and separate from measured evidence.",
+      "Do pair verdict color with written labels and keep authority identity unverified.",
+      "Do distinguish provisional and interrupted live evidence from a final report.",
+      "Do keep source values, thresholds, citations and concerning/reassuring transcript markings inspectable.",
+      "Do wrap long report data and prose while preserving unbroken column headings and advisory Source links."
+    ],
+    "donts": [
+      "Don't present the decorative shield waveform or orbit pulses as captured audio or signal measurements.",
+      "Don't manufacture reference thresholds or treat trust as a probability or guarantee.",
+      "Don't display trust or signal scores when audio is insufficient.",
+      "Don't use a green trust range for authority checks or speakers without an enrolled match."
+    ]
+  }
+}

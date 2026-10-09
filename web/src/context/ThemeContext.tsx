@@ -1,60 +1,34 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ThemeContext, type Theme } from './theme-state';
 
-type Theme = "dark" | "light";
+const query = '(prefers-color-scheme: dark)';
 
-interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    // 1. Check localStorage
-    const saved = localStorage.getItem("satyacheck-theme") as Theme | null;
-    if (saved === "dark" || saved === "light") {
-      return saved;
-    }
-    // 2. Default to system preference
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: light)").matches) {
-      return "light";
-    }
-    return "dark";
-  });
+/** Follows the system theme until the person chooses one; the choice lasts for this page session only. */
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>(() => (window.matchMedia(query).matches ? 'dark' : 'light'));
+  const chosen = useRef(false);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-      root.classList.remove("light");
-    } else {
-      root.classList.add("light");
-      root.classList.remove("dark");
-    }
-    localStorage.setItem("satyacheck-theme", theme);
+    const media = window.matchMedia(query);
+    const follow = (event: MediaQueryListEvent) => { if (!chosen.current) setThemeState(event.matches ? 'dark' : 'light'); };
+    media.addEventListener('change', follow);
+    return () => media.removeEventListener('change', follow);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#121815' : '#202725');
   }, [theme]);
 
-  const toggleTheme = () => {
-    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
-  };
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
+  function setTheme(next: Theme) {
+    chosen.current = true;
+    setThemeState(next);
+  }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme: () => setTheme(theme === 'light' ? 'dark' : 'light') }}>
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
 }
