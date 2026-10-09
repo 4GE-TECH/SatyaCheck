@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="SatyaCheck listens to a call and reports who is speaking, whether the voice is synthetic, and what is being asked, with cited evidence." />
+    <meta name="theme-color" content="#07081a" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" type="image/jpeg" href="/brand/satyacheck-logo.jpg" />
+    <link rel="apple-touch-icon" href="/brand/satyacheck-logo.jpg" />
+    <title>SatyaCheck</title>
+    <script>
+      document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

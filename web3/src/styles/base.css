@@ -1,0 +1,148 @@
+/* ── Tokens ────────────────────────────────────────────────────────────
+   Dark is the listening room; light is the same room in daylight.
+   Voice colours (from the logo) belong to audio. Tone colours belong to verdicts.
+   ──────────────────────────────────────────────────────────────────── */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #050611;
+  --bg-raise: #0a0c21;
+  --panel: #0d102b;
+  --panel-2: #13173a;
+  --panel-3: #1a1f4a;
+  --glass: rgb(10 12 34 / 0.84);
+  --line: rgb(146 156 255 / 0.13);
+  --line-2: rgb(146 156 255 / 0.24);
+  --text: #eef0ff;
+  --text-2: #bcc1e8;
+  --muted: #8d93c2;
+  --accent: #5f6bff;
+  --accent-hover: #7681ff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgb(95 107 255 / 0.16);
+  --focus: #9aa2ff;
+  --accent-text: #a5adff;
+
+  --voice-1: #3c56ff;
+  --voice-2: #7a5cff;
+  --voice-3: #39c6ff;
+
+  --safe: #43e0a4;
+  --safe-soft: rgb(67 224 164 / 0.12);
+  --safe-line: rgb(67 224 164 / 0.34);
+  --caution: #ffc24f;
+  --caution-soft: rgb(255 194 79 / 0.12);
+  --caution-line: rgb(255 194 79 / 0.36);
+  --danger: #ff5f6f;
+  --danger-soft: rgb(255 95 111 / 0.13);
+  --danger-line: rgb(255 95 111 / 0.38);
+  --neutral: #a3aad6;
+  --neutral-soft: rgb(163 170 214 / 0.12);
+  --neutral-line: rgb(163 170 214 / 0.3);
+
+  --shadow-1: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -18px rgb(0 0 0 / 0.8);
+  --shadow-2: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 30px 80px -30px rgb(0 0 0 / 0.9);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f2f3f9;
+  --bg-raise: #e9ebf6;
+  --panel: #ffffff;
+  --panel-2: #f5f6fc;
+  --panel-3: #eceef9;
+  --glass: rgb(243 244 250 / 0.9);
+  --line: rgb(30 36 110 / 0.1);
+  --line-2: rgb(30 36 110 / 0.2);
+  --text: #0a0c2a;
+  --text-2: #353a68;
+  --muted: #5b6190;
+  --accent: #3a43f2;
+  --accent-hover: #2b33d6;
+  --accent-ink: #ffffff;
+  --accent-soft: rgb(58 67 242 / 0.09);
+  --focus: #3a43f2;
+  --accent-text: #3a43f2;
+
+  --voice-1: #2f45f5;
+  --voice-2: #6a45f2;
+  --voice-3: #0f9ee0;
+
+  --safe: #0b8458;
+  --safe-soft: rgb(11 132 88 / 0.09);
+  --safe-line: rgb(11 132 88 / 0.3);
+  --caution: #a05f00;
+  --caution-soft: rgb(220 140 0 / 0.11);
+  --caution-line: rgb(190 120 0 / 0.36);
+  --danger: #d0283a;
+  --danger-soft: rgb(208 40 58 / 0.08);
+  --danger-line: rgb(208 40 58 / 0.3);
+  --neutral: #535a87;
+  --neutral-soft: rgb(83 90 135 / 0.08);
+  --neutral-line: rgb(83 90 135 / 0.24);
+
+  --shadow-1: 0 1px 2px rgb(20 24 90 / 0.05), 0 10px 28px -16px rgb(20 24 90 / 0.18);
+  --shadow-2: 0 1px 2px rgb(20 24 90 / 0.06), 0 30px 70px -30px rgb(20 24 90 / 0.3);
+}
+
+:root {
+  --font: 'Geist Variable', 'Noto Sans Devanagari Variable', system-ui, sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --page: 1280px;
+  --gutter: 32px;
+  --bar: 64px;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
+  -webkit-tap-highlight-color: transparent;
+}
+body { margin: 0; min-width: 320px; background: var(--bg); overflow-x: hidden; }
+h1, h2, h3, h4, p, figure, blockquote, dl, dd { margin: 0; }
+h1, h2, h3, h4 { font-weight: 640; letter-spacing: -0.025em; line-height: 1.15; text-wrap: balance; }
+p { text-wrap: pretty; }
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+img, canvas, svg { display: block; }
+mark { color: inherit; background: none; }
+::selection { background: var(--accent); color: var(--accent-ink); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+input::placeholder { color: var(--muted); opacity: 1; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 99px; border: 3px solid var(--bg); }
+::-webkit-scrollbar-track { background: transparent; }
+
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.mono { font-family: var(--mono); font-size: 0.92em; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+.ellipsis { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
