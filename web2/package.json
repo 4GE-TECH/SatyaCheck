@@ -1,0 +1,6 @@
+{
+  "name": "satyacheck-observatory", "version": "1.0.0", "private": true, "type": "module",
+  "scripts": { "dev": "vite --host 127.0.0.1 --port 5174", "build": "tsc -b && vite build", "preview": "vite preview --host 127.0.0.1 --port 4174", "lint": "oxlint src tests", "test": "playwright test" },
+  "dependencies": { "react": "^18.3.1", "react-dom": "^18.3.1", "react-router-dom": "^7.18.2", "lucide-react": "^1.33.0", "motion": "^12.0.0" },
+  "devDependencies": { "@types/react": "^18.3.0", "@types/react-dom": "^18.3.0", "@types/node": "^24.0.0", "@vitejs/plugin-react": "^6.0.4", "vite": "^8.2.0", "typescript": "~6.0.2", "oxlint": "^1.75.0", "@playwright/test": "^1.64.0" }
+}
