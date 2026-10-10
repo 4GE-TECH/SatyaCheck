@@ -1,0 +1,11 @@
+# LiveKit server for SatyaCheck app-to-app calls (webrtc/README.md).
+# Keys are NOT here: docker-compose.livekit.yml passes LIVEKIT_KEYS from your environment.
+port: 7880                 # signalling (HTTP/WebSocket); what LIVEKIT_URL points at
+log_level: info
+rtc:
+  tcp_port: 7881           # ICE over TCP: fallback when UDP is blocked
+  udp_port: 7882           # all media on ONE UDP port, so a router needs one forwarding rule
+  use_external_ip: false   # the advertised address comes from --node-ip (LIVEKIT_NODE_IP)
+room:
+  empty_timeout: 300       # seconds an empty room lingers
+  max_participants: 3      # two phones + the screening agent

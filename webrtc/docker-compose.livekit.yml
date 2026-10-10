@@ -1,0 +1,24 @@
+# LiveKit media server for app-to-app calls. Runs beside the SatyaCheck backend on the GPU
+# machine, so the screening agent hears each voice over localhost (lowest latency).
+#
+#   export LIVEKIT_API_KEY=satyacheck LIVEKIT_API_SECRET=<32+ random characters>
+#   export LIVEKIT_NODE_IP=<this machine's address the phones can reach>   # LAN IP, or public IP
+#   docker compose -f webrtc/docker-compose.livekit.yml up
+#
+# Then run the backend with the same key and secret (webrtc/README.md).
+
+name: satyacheck-livekit
+
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.8
+    command: ["--config", "/etc/livekit.yaml", "--node-ip", "${LIVEKIT_NODE_IP:-127.0.0.1}"]
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?set LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET:?set LIVEKIT_API_SECRET (32+ characters)}"
+    ports:
+      - "7880:7880"          # signalling
+      - "7881:7881"          # ICE/TCP fallback
+      - "7882:7882/udp"      # media
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    restart: unless-stopped
