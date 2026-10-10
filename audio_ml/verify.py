@@ -218,13 +218,36 @@ def snorm(
 # verify_speaker(wav_path) — main verification
 # ===================================================================
 
-def verify_speaker(wav_path: str) -> SpeakerSignal:
+_CONDITION_KEYS = ("wb", "nb8k_real", "nb8k_sim")
+_EMBEDDING_DIM = 192
+
+
+def _usable_centroid(vector) -> Optional[np.ndarray]:
+    """A unit-length (192,) float32 copy of `vector`, or None if it cannot be compared."""
+    try:
+        if vector is None:
+            return None
+        v = np.asarray(vector, dtype=np.float32).reshape(-1)
+        if v.shape[0] != _EMBEDDING_DIM or not np.all(np.isfinite(v)):
+            return None
+        norm = float(np.linalg.norm(v))
+        return v / norm if norm > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def verify_speaker(
+    wav_path: str,
+    candidates: Optional[list[dict]] = None,
+    claimed_person_id: Optional[str] = None,
+    flagged: Optional[list] = None,
+) -> SpeakerSignal:
     """
     Verify speaker identity from audio file.
 
     Steps:
       1. Embed probe audio; detect condition (wb/nb8k)
-      2. Load all enrolled speakers
+      2. Take the enrolled speakers: `candidates` if given, else data/enrollments/*.npz
       3. For each enrolled person, compute cosine vs matching centroid
       4. Select best match; s-normalise the score
       5. Determine verdict from thresholds
@@ -233,6 +256,14 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
 
     Args:
         wav_path: Path to audio file
+        candidates: Enrolled speakers to compare against, each
+            {"person_id", "name", "relationship", "centroids": {"wb"|"nb8k_sim"|"nb8k_real": vector}}.
+            When given, no enrollment file is read; [] means nobody is enrolled.
+            None keeps the legacy disk store (CLI and evaluation scripts).
+        claimed_person_id: Compare against this person only (a 1:1 check). If they are
+            not among the candidates the verdict is `unknown`.
+        flagged: Reported scam voices (192-d vectors) to check the probe against. When
+            given, data/flagged/ is not read; None keeps that legacy folder.
 
     Returns:
         SpeakerSignal with verdict, scores, best_match_name, etc.
@@ -275,8 +306,33 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
             probe_emb = probe_emb / probe_norm  # L2-normalise
         logger.info(f"  Probe embedding: {len(embeddings)} chunks, condition={condition}")
 
-        # Step 2: Load all enrolled speakers
-        enrolled_persons = enroll.list_persons()
+        # Flagged voices first: a reported scammer must be caught even when nobody
+        # is enrolled (the checks below return early in that case).
+        if flagged is None:
+            flagged = []
+            flagged_dir = Path(config.FLAGGED_DIR)
+            if flagged_dir.exists():
+                for npy_path in flagged_dir.glob("*.npy"):
+                    try:
+                        flagged.append(np.load(npy_path))
+                    except Exception as e:
+                        logger.debug(f"verify_speaker: error loading flagged {npy_path.name}: {e}")
+        flagged_hits = 0
+        for vector in flagged:
+            flagged_emb = _usable_centroid(vector)
+            if flagged_emb is not None and float(np.dot(probe_emb, flagged_emb)) >= config.SPEAKER_MATCH_THRESHOLD:
+                flagged_hits += 1
+        result.flagged_voice_hits = flagged_hits
+        if flagged_hits > 0:
+            logger.info(f"  Flagged voice hits: {flagged_hits}")
+
+        # Step 2: The enrolled speakers
+        enrolled_persons = enroll.legacy_candidates() if candidates is None else list(candidates)
+        if claimed_person_id is not None:
+            enrolled_persons = [p for p in enrolled_persons if p.get("person_id") == claimed_person_id]
+            if not enrolled_persons:
+                logger.warning(f"verify_speaker: claimed person {claimed_person_id} has no voiceprint")
+                return result
         if not enrolled_persons:
             logger.warning(f"verify_speaker: no enrolled speakers")
             return result
@@ -285,14 +341,11 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
         best_raw = -2.0
         best_match_idx = -1
         best_condition = "wb"
+        best_enrolled = None
 
         for idx, person in enumerate(enrolled_persons):
-            person_id = person["person_id"]
-            voiceprint = enroll.load_voiceprint(person_id)
-
-            if not voiceprint:
-                logger.warning(f"  Could not load voiceprint for {person_id}")
-                continue
+            person_id = person.get("person_id")
+            centroids = person.get("centroids") or {}
 
             # Score against every stored condition and keep the best.
             #
@@ -323,30 +376,27 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
             # the clone stays at 0.8246 (mismatch) and impostors stay where they were.
             # Margins on call audio are real but tighter than on clean audio — genuine
             # 0.9155 vs clone 0.8246, with the threshold at 0.85 between them.
-            candidates = []
-            for key in ("wb", "nb8k_real", "nb8k_sim"):
-                centroid = voiceprint.get(key)
+            scored = []
+            for key in _CONDITION_KEYS:
+                centroid = _usable_centroid(centroids.get(key))
                 if centroid is None:
                     continue
-                centroid = np.asarray(centroid, dtype=np.float32)
-                if centroid.size == 0:
-                    continue
-                centroid_norm = np.linalg.norm(centroid)
-                if centroid_norm <= 0:
-                    continue
-                candidates.append((float(np.dot(probe_emb, centroid / centroid_norm)), key))
+                scored.append((float(np.dot(probe_emb, centroid)), key, centroid))
 
-            if not candidates:
+            if not scored:
                 logger.warning(f"  No usable centroid for {person_id}")
                 continue
 
-            raw_cosine, centroid_type = max(candidates)
-            logger.debug(f"  {person['name']}: raw_cosine={raw_cosine:.4f} ({centroid_type})")
+            raw_cosine, centroid_type, centroid = max(scored, key=lambda s: s[0])
+            logger.debug(f"  {person.get('name')}: raw_cosine={raw_cosine:.4f} ({centroid_type})")
 
+            if person_id:
+                result.scores[str(person_id)] = round(float(raw_cosine), 4)
             if raw_cosine > best_raw:
                 best_raw = raw_cosine
                 best_match_idx = idx
                 best_condition = centroid_type
+                best_enrolled = centroid
 
         if best_match_idx < 0:
             logger.warning(f"verify_speaker: no valid enrolled persons matched")
@@ -354,9 +404,9 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
 
         result.raw_cosine = best_raw
         best_match = enrolled_persons[best_match_idx]
-        result.best_match_id = best_match["person_id"]
-        result.best_match_name = best_match["name"]
-        result.relationship = best_match["relationship"]
+        result.best_match_id = best_match.get("person_id")
+        result.best_match_name = best_match.get("name")
+        result.relationship = best_match.get("relationship")
 
         logger.info(
             f"  Best match: {result.best_match_name} (raw_cosine={best_raw:.4f})"
@@ -368,11 +418,8 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
         # a genuine speaker and a clone is roughly 0.09 rather than 0.18.
         result.condition_used = best_condition
 
-        # Step 4: S-normalise the best raw score
-        best_voiceprint = enroll.load_voiceprint(result.best_match_id)
-        # S-normalise against the centroid that won, not always the wideband one, or the
-        # z-score describes a comparison that was never made.
-        best_enrolled = np.asarray(best_voiceprint[best_condition], dtype=np.float32)
+        # Step 4: S-normalise the best raw score, against the centroid that won, not
+        # always the wideband one, or the z-score describes a comparison never made.
 
         # Load cohort for s-norm
         cohort_path = Path(config.COHORT_DIR) / "cohort.npy"
@@ -428,30 +475,6 @@ def verify_speaker(wav_path: str) -> SpeakerSignal:
             f"(raw={best_raw:.4f} vs threshold {config.SPEAKER_MATCH_THRESHOLD}, "
             f"norm={norm_score:.4f} reported)"
         )
-
-        # Step 6: Check against flagged voices
-        flagged_dir = Path(config.FLAGGED_DIR)
-        if flagged_dir.exists():
-            flagged_hits = 0
-            for npy_path in flagged_dir.glob("*.npy"):
-                try:
-                    flagged_emb = np.load(npy_path)
-                    if flagged_emb.ndim == 1 and flagged_emb.shape[0] == 192:
-                        # L2-normalise if needed
-                        flagged_norm = np.linalg.norm(flagged_emb)
-                        if flagged_norm > 0:
-                            flagged_emb = flagged_emb / flagged_norm
-
-                        flagged_cosine = float(np.dot(probe_emb, flagged_emb))
-                        if flagged_cosine >= config.SPEAKER_MATCH_THRESHOLD:
-                            flagged_hits += 1
-                except Exception as e:
-                    logger.debug(f"verify_speaker: error loading flagged {npy_path.name}: {e}")
-                    continue
-
-            result.flagged_voice_hits = flagged_hits
-            if flagged_hits > 0:
-                logger.info(f"  Flagged voice hits: {flagged_hits}")
 
         return result
 

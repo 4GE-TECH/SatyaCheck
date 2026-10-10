@@ -37,17 +37,18 @@ Waiting is close to free: faster-whisper pads every input to a 30-second mel win
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable, Sequence
 from typing import Any
 
 import numpy as np
 
-from contracts import TranscriptResult
+from contracts import TranscriptResult, TranscriptSegment
 from nlp_rag import thresholds
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["StreamingTranscriber"]
+__all__ = ["CommittingTranscriber", "StreamingTranscriber"]
 
 #: What C's audio pipeline normalises to. Used only when a caller omits the rate.
 DEFAULT_SAMPLE_RATE = 16_000
@@ -211,6 +212,142 @@ class StreamingTranscriber:
 
         self._language = detected
         logger.info("streaming language pinned to %r (p=%.2f)", detected, confidence)
+
+
+def _norm(text: str) -> str:
+    """Segment text for agreement: case and punctuation do not count as disagreement."""
+    return " ".join(re.sub(r"[^\w]+", " ", text.casefold()).split())
+
+
+class CommittingTranscriber(StreamingTranscriber):
+    """Bounded live transcription with LocalAgreement-2 commits (upgrade plan, Phase 3).
+
+    StreamingTranscriber re-decodes the whole call every time, so its work grows with the
+    call. This one decodes only the uncommitted tail:
+
+      * the first decode waits `min_first_s` (STREAM_MIN_DECODE_S, the hallucination floor);
+      * afterwards the tail is re-decoded every `decode_every_s` of new audio;
+      * a segment is committed once two consecutive decodes agree on it (same words in the
+        same position) and it ends at least `guard_s` before the newest audio;
+      * past `max_tail_s` the oldest uncommitted segments are committed anyway, and
+        speechless audio is dropped, so a decode never sees more than ~max_tail_s.
+
+    `last` is the committed transcript (absolute call times; it only grows) — what intent
+    is scored on. `tentative_text` is the newest, still-changing words, for display.
+    Never raises; a failed decode keeps everything committed so far.
+    """
+
+    def __init__(
+        self,
+        transcribe: "Callable[..., TranscriptResult] | None" = None,
+        min_first_s: float | None = None,
+        decode_every_s: float | None = None,
+        max_tail_s: float | None = None,
+        guard_s: float | None = None,
+    ) -> None:
+        self._min_first_s = thresholds.STREAM_MIN_DECODE_S if min_first_s is None else min_first_s
+        self._decode_every_s = thresholds.STREAM_COMMIT_EVERY_S if decode_every_s is None else decode_every_s
+        self._max_tail_s = thresholds.STREAM_COMMIT_MAX_TAIL_S if max_tail_s is None else max_tail_s
+        self._guard_s = thresholds.STREAM_COMMIT_GUARD_S if guard_s is None else guard_s
+        super().__init__(transcribe=transcribe, min_decode_s=self._min_first_s)
+
+    def reset(self) -> None:
+        super().reset()
+        self._tail: list[np.ndarray] = []
+        self._tail_start_s = 0.0
+        self._received_s = 0.0
+        self._last_decode_at: float | None = None
+        self._previous: list[tuple] = []          # last decode's uncommitted segments
+        self._committed: list[TranscriptSegment] = []
+        self._tentative = ""
+
+    @property
+    def tentative_text(self) -> str:
+        return self._tentative
+
+    @property
+    def buffered_seconds(self) -> float:
+        return self._received_s
+
+    def push(
+        self, chunk: Sequence[float] | np.ndarray, sample_rate: int = DEFAULT_SAMPLE_RATE
+    ) -> TranscriptResult:
+        try:
+            samples = np.asarray(chunk, dtype=np.float32).reshape(-1)
+            if samples.size:
+                self._tail.append(samples)
+                self._sample_rate = int(sample_rate) or DEFAULT_SAMPLE_RATE
+                self._received_s += samples.size / self._sample_rate
+            first = self._last_decode_at is None and self._received_s >= self._min_first_s
+            again = (self._last_decode_at is not None
+                     and self._received_s - self._last_decode_at >= self._decode_every_s)
+            if first or again:
+                self._commit(final=False)
+        except Exception as exc:  # noqa: BLE001 - rule 5, this is on a live socket
+            logger.warning("committing push failed (%s); keeping the committed transcript", exc)
+        return self._last
+
+    def flush(self) -> TranscriptResult:
+        try:
+            if self._tail and sum(len(a) for a in self._tail):
+                self._commit(final=True)
+        except Exception as exc:  # noqa: BLE001 - rule 5
+            logger.warning("committing flush failed (%s)", exc)
+        self._tentative = ""
+        return self._last
+
+    def _commit(self, final: bool) -> None:
+        self._last_decode_at = self._received_s
+        audio = np.concatenate(self._tail) if self._tail else np.zeros(0, dtype=np.float32)
+        if not audio.size:
+            return
+        result = self._decode_once(audio)
+        if result is None:
+            return
+        self._pin_language(result)
+        sr = self._sample_rate
+        tail_end = self._tail_start_s + audio.size / sr
+        hyp = [(self._tail_start_s + float(s.start_s), self._tail_start_s + float(s.end_s), _norm(s.text),
+                s.text.strip(), s.language) for s in result.segments if s.text.strip()]
+
+        if final:
+            commit = list(hyp)
+        else:
+            commit = []
+            for i, seg in enumerate(hyp):
+                agreed = i < len(self._previous) and seg[2] == self._previous[i][2]
+                if not (agreed and seg[1] <= tail_end - self._guard_s):
+                    break
+                commit.append(seg)
+            remaining = hyp[len(commit):]
+            cut = commit[-1][1] if commit else self._tail_start_s
+            while remaining and tail_end - cut > self._max_tail_s:
+                forced = remaining.pop(0)            # bounded tail: commit the oldest anyway
+                commit.append(forced)
+                cut = forced[1]
+                logger.debug("committing transcriber: forced commit at %.1fs (tail cap)", cut)
+
+        self._committed += [TranscriptSegment(start_s=round(a, 3), end_s=round(b, 3), text=t, language=lang)
+                            for a, b, _, t, lang in commit]
+        remaining = hyp[len(commit):]
+        cut = commit[-1][1] if commit else self._tail_start_s
+        if not remaining and not final and tail_end - cut > self._max_tail_s:
+            cut = tail_end - self._max_tail_s       # no speech to hold on to: drop old audio
+        self._trim_to(cut, audio, sr)
+        self._previous = [] if final else remaining
+        self._tentative = "" if final else " ".join(seg[3] for seg in remaining)
+        self._last = TranscriptResult(
+            text=" ".join(s.text for s in self._committed),
+            segments=list(self._committed),
+            detected_language=self._language or result.detected_language,
+            confidence=result.confidence,
+        )
+
+    def _trim_to(self, cut_s: float, audio: np.ndarray, sr: int) -> None:
+        drop = int(round(max(0.0, cut_s - self._tail_start_s) * sr))
+        rest = audio[drop:]
+        self._tail = [rest] if rest.size else []
+        self._tail_start_s = max(self._tail_start_s, cut_s)
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI smoke test

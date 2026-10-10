@@ -15,12 +15,12 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from server.auth import current_owner
 from server.database import (
-    GuardianSubscription,
     Person,
     ScreeningResult,
     ScreeningSession,
-    get_db,
+    get_owner_db,
 )
 
 log = logging.getLogger("satyacheck.demo")
@@ -36,13 +36,15 @@ router = APIRouter(prefix="/api/demo", tags=["demo"])
         "Safe to call before every demo run."
     ),
 )
-async def demo_reset(db: Session = Depends(get_db)) -> JSONResponse:
+async def demo_reset(owner_id: str = Depends(current_owner),
+                     db: Session = Depends(get_owner_db)) -> JSONResponse:
+    """Clears the calling account's sessions only."""
     # Delete results first (FK dependency)
-    deleted_results = db.query(ScreeningResult).delete()
-    deleted_sessions = db.query(ScreeningSession).delete()
+    deleted_results = db.query(ScreeningResult).filter(ScreeningResult.owner_id == owner_id).delete()
+    deleted_sessions = db.query(ScreeningSession).filter(ScreeningSession.owner_id == owner_id).delete()
     db.commit()
 
-    person_count = db.query(Person).count()
+    person_count = db.query(Person).filter(Person.owner_id == owner_id).count()
     log.info(f"Demo reset: {deleted_sessions} sessions, {deleted_results} results cleared. {person_count} persons retained.")
 
     return JSONResponse(content={
@@ -58,12 +60,14 @@ async def demo_reset(db: Session = Depends(get_db)) -> JSONResponse:
     "/status",
     summary="[DEMO] Show current demo readiness status",
 )
-async def demo_status(db: Session = Depends(get_db)) -> JSONResponse:
-    person_count = db.query(Person).count()
-    session_count = db.query(ScreeningSession).count()
+async def demo_status(owner_id: str = Depends(current_owner),
+                      db: Session = Depends(get_owner_db)) -> JSONResponse:
+    person_count = db.query(Person).filter(Person.owner_id == owner_id).count()
+    session_count = db.query(ScreeningSession).filter(ScreeningSession.owner_id == owner_id).count()
 
-    from server.database import Voiceprint, FlaggedVoice
-    voiceprint_count = db.query(Voiceprint).count()
+    from server.database import Voiceprint
+    voiceprint_count = (db.query(Voiceprint).join(Person, Person.person_id == Voiceprint.person_id)
+                        .filter(Person.owner_id == owner_id).count())
 
     return JSONResponse(content={
         "enrolled_persons": person_count,

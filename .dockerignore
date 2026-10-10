@@ -1,0 +1,33 @@
+# Secrets never enter an image: configuration comes from the environment at run time.
+.env
+.env.*
+!.env.example
+
+# Mounted at run time, never baked in (7 GB of weights; the FAISS index is built locally).
+models/
+nlp_rag/index/
+
+# Runtime and personal data.
+data/sessions/
+data/enrollments/
+data/device_tests/
+data/reports/
+data/cohort/
+*.db
+*.db-shm
+*.db-wal
+
+# Front ends, tooling and caches the API image does not run.
+web/
+web2/
+web3/
+satyacheck_mobile/
+node_modules/
+**/__pycache__/
+**/*.pyc
+.git/
+.github/
+.pytest_cache/
+.venv/
+venv/
+review/

@@ -1,0 +1,14 @@
+# GPU overlay: give the API container the host's NVIDIA GPU. Needs the NVIDIA driver and
+# the NVIDIA Container Toolkit on the host. Without this file the API runs on CPU.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+
+services:
+  api:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

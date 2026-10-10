@@ -98,6 +98,8 @@ class ResultScreen extends StatelessWidget {
         'Result: ${bandLabel(result.band)}',
         'Trust score: ${_insufficient ? 'not given (insufficient speech)' : '${result.trustScore.round()}/100, not a probability'}',
         if (result.matchedPersonName != null) 'Matched voice: ${result.matchedPersonName}',
+        if (result.callerId != null) 'Caller ID: ${result.callerId} (as received, not verified, never scored)',
+        if (result.threatLabel != null) 'Resembles: ${result.threatLabel!.threat} (${result.threatLabel!.sectorText})',
         '',
         'Evidence',
         ...result.evidence.map((e) => '- ${e.explanation}${e.citationUrl == null ? '' : '\n  ${e.citationTitle ?? 'Source'}: ${e.citationUrl}'}'),
@@ -172,6 +174,11 @@ class ResultScreen extends StatelessWidget {
                     if (result.band == TrustBand.verified && result.matchedPersonName != null) ...[
                       const SizedBox(height: 10),
                       Text('Matched voice: ${result.matchedPersonName}', style: theme.textTheme.titleMedium),
+                    ],
+                    if (result.callerId != null) ...[
+                      const SizedBox(height: 10),
+                      Text('${result.channel == 'telephony' ? 'Phone call from' : 'Caller ID'} ${result.callerId}', style: theme.textTheme.titleSmall),
+                      Text('Caller ID is shown as received. It can be faked and never affects the score.', style: theme.textTheme.bodySmall),
                     ],
                     Padding(padding: const EdgeInsets.symmetric(vertical: 22), child: Divider(color: p.line)),
                     if (_insufficient)
@@ -602,6 +609,22 @@ class _Evidence extends StatelessWidget {
                 ),
             ]),
           ),
+      if (result.threatLabel != null) ...[
+        const SizedBox(height: 18),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: p.panel2, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.line)),
+          child: Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: 'This call resembles '),
+              TextSpan(text: result.threatLabel!.threat, style: const TextStyle(fontWeight: FontWeight.w700)),
+              TextSpan(text: ' · ${result.threatLabel!.sectorText}. A pattern, not a finding of fraud.', style: TextStyle(color: p.muted)),
+            ]),
+            style: theme.textTheme.bodyMedium,
+          ),
+        ),
+      ],
       if (playbooks.isNotEmpty) ...[
         const SizedBox(height: 18),
         Text('Resembles these published scam patterns', style: theme.textTheme.titleMedium),

@@ -1,0 +1,70 @@
+# SatyaCheck on one machine: Postgres with pgvector, a one-shot migration, and the API.
+#
+#   export POSTGRES_PASSWORD=... SATYACHECK_APP_DB_PASSWORD=... SUPABASE_URL=https://<ref>.supabase.co
+#   docker compose up --build
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build    # with an NVIDIA GPU
+#
+# Sign-in still comes from the Supabase project (SUPABASE_URL): its JWKS verifies tokens.
+# Only the data lives in this Postgres. For a hosted database instead, skip the db and
+# migrate services and point DATABASE_URL at Supabase (see .env.example).
+#
+# Secrets are read from the shell environment, never written here. Compose also reads a
+# .env next to this file for ${...} values, but only the names used below.
+
+name: satyacheck
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: satyacheck
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d satyacheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Creates the tables, the satyacheck_app role (RLS cannot be bypassed by it) and the
+  # policies, then exits. Runs as the owner; the API never does.
+  migrate:
+    build: .
+    image: satyacheck-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_ADMIN_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/satyacheck
+      SATYACHECK_APP_DB_PASSWORD: ${SATYACHECK_APP_DB_PASSWORD:?set SATYACHECK_APP_DB_PASSWORD}
+      WARM_MODELS: "false"
+    command: ["python", "-m", "alembic", "-c", "server/migrations/alembic.ini", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    image: satyacheck-api
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      SATYACHECK_ENV: ${SATYACHECK_ENV:-production}
+      DATABASE_URL: postgresql://satyacheck_app:${SATYACHECK_APP_DB_PASSWORD}@db:5432/satyacheck
+      SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL (sign-in verifies Supabase tokens)}
+      AUTH_MODE: jwt
+      SATYACHECK_CORS_ORIGINS: ${SATYACHECK_CORS_ORIGINS:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      EXOTEL_OWNER_ID: ${EXOTEL_OWNER_ID:-}
+      ENABLE_LLM_REWRITE: "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./nlp_rag/index:/app/nlp_rag/index:ro
+      - appdata:/app/data/sessions
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  appdata:

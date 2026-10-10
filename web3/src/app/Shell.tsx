@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Broadcast, Files, Lifebuoy, MagnifyingGlass, Moon, Phone, Sun, UsersThree, Waveform, ArrowClockwise } from '@phosphor-icons/react';
+import { Broadcast, Files, PhoneCall, Lifebuoy, MagnifyingGlass, Moon, Phone, Sun, UsersThree, Waveform, ArrowClockwise } from '@phosphor-icons/react';
 import { useWorkspace } from './workspace';
 import CommandPalette from './CommandPalette';
 import AmbientField from '../components/AmbientField';
@@ -9,12 +9,13 @@ import { EASE, gsap, reducedMotion } from '../lib/motion';
 export const NAV = [
   { to: '/', label: 'Check', icon: Waveform },
   { to: '/live', label: 'Live', icon: Broadcast },
+  { to: '/calls', label: 'Calls', icon: PhoneCall },
   { to: '/voices', label: 'Voices', icon: UsersThree },
   { to: '/reports', label: 'Reports', icon: Files },
   { to: '/help', label: 'Help', icon: Lifebuoy },
 ] as const;
 
-const PAGE_TITLE: Record<string, string> = { '/live': 'Listen live', '/voices': 'Known voices', '/reports': 'Reports', '/help': 'Help' };
+const PAGE_TITLE: Record<string, string> = { '/live': 'Listen live', '/calls': 'Phone calls', '/voices': 'Known voices', '/reports': 'Reports', '/help': 'Help' };
 const HEALTH_LABEL = { checking: 'Connecting', online: 'Service online', offline: 'Service offline' } as const;
 const PROXIMITY = 110;
 
@@ -25,7 +26,8 @@ function isActive(pathname: string, to: string) {
 }
 
 export default function Shell({ children }: { children: ReactNode }) {
-  const { theme, toggleTheme, health, recheckHealth, setPaletteOpen } = useWorkspace();
+  const { theme, toggleTheme, health, healthDetail, recheckHealth, setPaletteOpen } = useWorkspace();
+  const degraded = health === 'online' && healthDetail?.retrievalAvailable === false;
   const { pathname } = useLocation();
   const main = useRef<HTMLElement>(null);
   const view = useRef<HTMLDivElement>(null);
@@ -124,11 +126,11 @@ export default function Shell({ children }: { children: ReactNode }) {
               className={`tool-btn health health-${health}`}
               onClick={recheckHealth}
               disabled={health === 'checking'}
-              aria-label={`${HEALTH_LABEL[health]}. Check again`}
-              title={`${HEALTH_LABEL[health]}. Click to check again.`}
+              aria-label={`${HEALTH_LABEL[health]}${degraded ? ', scam-pattern search unavailable' : ''}. Check again`}
+              title={`${HEALTH_LABEL[health]}.${degraded ? ' Scam-pattern search is unavailable, so intent uses keyword checks only.' : ''} Click to check again.`}
             >
               <span className="health-dot" aria-hidden="true" />
-              <span className="health-text">{HEALTH_LABEL[health]}</span>
+              <span className="health-text">{degraded ? 'Online, limited' : HEALTH_LABEL[health]}</span>
               {health === 'offline' && <ArrowClockwise size={14} weight="bold" aria-hidden="true" />}
             </button>
             <button type="button" className="tool-btn" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>

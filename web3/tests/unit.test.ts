@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getMockFixture } from '../src/api/mock.ts';
-import { audioError, parseScreening, request } from '../src/lib/api.ts';
+import { apiUrl, audioError, checkHealth, deletePerson, enroll, listScreenings, parseScreening, request, screenFile } from '../src/lib/api.ts';
+import { toInt16 } from '../src/hooks/useLiveSession.ts';
 import { encodeWav, peaks, resample } from '../src/lib/audio.ts';
 import { calm, displayBand, measurements, trustIntervals, markPhrases, reportText, safeLink, signals } from '../src/lib/verdict.ts';
 
@@ -101,4 +102,124 @@ test('synthetic measures carry references and flags, and shouting templates are 
   const rows = measurements(getMockFixture('red'));
   assert.deepEqual(rows.slice(2).map(r => [r.value, r.flag.mark]), [['86%', 'H'], ['98%', 'H'], ['6.5 s', 'H']]);
   assert.equal(calm('DO NOT transfer money via UPI.'), 'Do not transfer money via UPI.');
+});
+
+test('the API defaults to same-origin paths so the dev proxy carries them', () => {
+  assert.equal(apiUrl('/api/health'), '/api/health');
+});
+
+test('enrollment sends consent and still requires a confirmed voiceprint', async () => {
+  const original = globalThis.fetch;
+  let sent: FormData | null = null;
+  try {
+    globalThis.fetch = async (_url, init) => {
+      sent = init?.body as FormData;
+      return new Response(JSON.stringify({ person_id: 'p1', name: 'Asha', voiceprints: [{ voiceprint_id: 'v1', duration_s: 20 }] }), { status: 201 });
+    };
+    const file = new File([new Uint8Array(10)], 'a.wav', { type: 'audio/wav' });
+    await enroll({ name: 'Asha', relation: 'Mother', file, consent: true }, new AbortController().signal);
+    assert.equal(sent!.get('consent'), 'true');
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ person_id: 'p1', name: 'Asha', voiceprints: [] }), { status: 201 });
+    await assert.rejects(enroll({ name: 'Asha', relation: 'Mother', file, consent: true }, new AbortController().signal), /did not confirm a saved voiceprint/);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('delete reports whether the stored voiceprint was removed', async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ deleted: 'p1', voiceprint_deleted: false }), { status: 200 });
+    assert.deepEqual(await deletePerson('p1'), { voiceprintDeleted: false });
+    globalThis.fetch = async () => new Response(JSON.stringify({ deleted: 'p1' }), { status: 200 });
+    assert.deepEqual(await deletePerson('p1'), { voiceprintDeleted: null });
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('health reports when intent runs on keyword markers only', async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ status: 'ok', nlp_retrieval_available: false, nlp_retrieval_reason: 'index missing', use_real_spoof: true }), { status: 200 });
+    const health = await checkHealth(new AbortController().signal);
+    assert.equal(health.status, 'online');
+    assert.equal(health.retrievalAvailable, false);
+    assert.equal(health.retrievalReason, 'index missing');
+    globalThis.fetch = async () => { throw new TypeError('offline'); };
+    assert.equal((await checkHealth(new AbortController().signal)).status, 'offline');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('live frames go out as clipped little-endian int16', () => {
+  const pcm = new Int16Array(toInt16(new Float32Array([0, 0.5, -0.5, 1, -1, 2, -2])));
+  assert.deepEqual(Array.from(pcm), [0, 16383, -16384, 32767, -32768, 32767, -32768]);
+});
+
+test('enrollment sends extra numbers and aliases, skipping blanks', async () => {
+  const original = globalThis.fetch;
+  let sent: FormData | null = null;
+  try {
+    globalThis.fetch = async (_url, init) => {
+      sent = init?.body as FormData;
+      return new Response(JSON.stringify({ person_id: 'p1', name: 'Asha', voiceprints: [{ voiceprint_id: 'v1', duration_s: 20 }] }), { status: 201 });
+    };
+    const file = new File([new Uint8Array(10)], 'a.wav', { type: 'audio/wav' });
+    await enroll({ name: 'Asha', relation: 'Mother', file, consent: true, phoneNumbers: ['+919800000001', ' '], aliases: ['Mummy', ' Maa '] }, new AbortController().signal);
+    assert.deepEqual(sent!.getAll('phone_numbers'), ['+919800000001']);
+    assert.deepEqual(sent!.getAll('aliases'), ['Mummy', 'Maa']);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('a claimed caller is sent with the upload, and only when chosen', async () => {
+  const original = globalThis.fetch;
+  const bodies: FormData[] = [];
+  try {
+    globalThis.fetch = async (_url, init) => {
+      bodies.push(init?.body as FormData);
+      return new Response('{}', { status: 200 });
+    };
+    const file = new File([new Uint8Array(10)], 'a.wav', { type: 'audio/wav' });
+    await assert.rejects(screenFile(file, new AbortController().signal, 'p1'), /incomplete result/);
+    await assert.rejects(screenFile(file, new AbortController().signal), /incomplete result/);
+    assert.equal(bodies[0].get('claimed_identity'), 'p1');
+    assert.equal(bodies[1].get('claimed_identity'), null);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('the reports list pages with the server cursor and rejects a malformed reply', async () => {
+  const original = globalThis.fetch;
+  const urls: string[] = [];
+  try {
+    globalThis.fetch = async url => {
+      urls.push(String(url));
+      return new Response(JSON.stringify({ items: [{ session_id: 's1', created_at: '2026-10-10', status: 'complete', channel_type: 'upload', band: 'caution', trust_score: 51 }], next_cursor: 'abc' }), { status: 200 });
+    };
+    const page = await listScreenings('xyz', 5);
+    assert.equal(page.items[0].session_id, 's1');
+    assert.equal(page.nextCursor, 'abc');
+    assert.match(urls[0], /\/api\/screen\?limit=5&cursor=xyz$/);
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ rows: [] }), { status: 200 });
+    await assert.rejects(listScreenings(), /could not be read/);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('a 401 is reported as an expired sign-in, not a generic failure', async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response('{}', { status: 401 });
+    await assert.rejects(request('/api/persons'), /sign-in has expired/);
+  } finally {
+    globalThis.fetch = original;
+  }
 });

@@ -36,11 +36,22 @@ def sessions_dir() -> Path:
     return config.DATA_DIR / "sessions"
 
 
+def _retention_hint() -> None:
+    # Without this, retention being off looks exactly like no call ever arriving. The flag
+    # read here is this shell's, not the server's (the runbook sets it on the uvicorn line
+    # only), so it is shown only when nothing is retained and worded as a possibility.
+    if not config.RETAIN_SESSION_AUDIO:
+        print("RETAIN_SESSION_AUDIO is off by default, and this shell does not set it.")
+        print("If the server was started without RETAIN_SESSION_AUDIO=true, it keeps no")
+        print("call audio: restart it with RETAIN_SESSION_AUDIO=true, screen a call, retry.")
+
+
 def list_sessions() -> None:
     root = sessions_dir()
     if not root.is_dir():
         print(f"no retained sessions yet ({root})")
         print("Screen a call first — chunks are kept as they are scored.")
+        _retention_hint()
         return
     rows = []
     for d in sorted(root.iterdir()):
@@ -50,6 +61,7 @@ def list_sessions() -> None:
                 rows.append((d.name, len(wavs), max(w.stat().st_mtime for w in wavs)))
     if not rows:
         print("no session audio retained yet")
+        _retention_hint()
         return
     rows.sort(key=lambda r: r[2], reverse=True)
     print(f"{'session':34s} {'chunks':>7s}   newest first")
@@ -57,7 +69,7 @@ def list_sessions() -> None:
         print(f"{name:34s} {n:7d}")
 
 
-def enrol(session: str, name: str, relation: str) -> int:
+def enrol(session: str, name: str, relation: str, owner: str | None = None) -> int:
     chunks = sorted((sessions_dir() / session).glob("chunk_*.wav"))
     if not chunks:
         print(f"no chunks for session '{session}'", file=sys.stderr)
@@ -69,39 +81,41 @@ def enrol(session: str, name: str, relation: str) -> int:
     selected = chunks[::2] if len(chunks) >= 4 else chunks
     print(f"enrolling from {len(selected)} of {len(chunks)} chunk(s) in {session}")
 
-    from audio_ml.api import enroll_person
+    import audio_ml.api
+    from server import database, voiceprint_store
 
+    vectors = audio_ml.api.compute_voiceprint([str(p) for p in selected])
+    if not vectors:
+        print("no voiceprint computed — not enough usable speech in that call", file=sys.stderr)
+        return 1
+
+    # Person and vectors in one transaction, exactly like /api/enroll: the app lists what
+    # the verifier compares against, and a failure stores neither.
+    owner = owner or config.DEV_OWNER_ID
     person_id = f"person_{uuid.uuid4().hex[:10]}"
-    result = enroll_person(
-        person_id=person_id,
-        name=name,
-        relationship=relation,
-        wav_paths=[str(p) for p in selected],
-    )
-    if not result:
-        print("enroll_person returned nothing — not enough usable speech in that call",
-              file=sys.stderr)
-        return 1
-
-    npz = config.ENROLLMENTS_DIR / f"{person_id}.npz"
-    if not npz.is_file():
-        print(f"no voiceprint written at {npz}", file=sys.stderr)
-        return 1
-
-    # The DB row is what the app's "Known voices" list reads; without it the matcher would
-    # compare against a person the user cannot see.
+    db = database.owner_session(owner)
     try:
-        from server.database import SessionLocal, Person
-        db = SessionLocal()
-        db.add(Person(person_id=person_id, name=name, relation=relation))
+        db.add(database.Person(person_id=person_id, owner_id=owner, name=name, relation=relation))
+        db.flush()
+        saved = voiceprint_store.save_voiceprints(
+            db, owner, person_id, vectors,
+            duration_s=vectors["n_samples"] / config.TARGET_SAMPLE_RATE,
+            snr_db=0.0,   # not measured for call enrolments
+        )
+        if not saved:
+            db.rollback()
+            print("no usable voiceprint vector — nothing stored", file=sys.stderr)
+            return 1
         db.commit()
-        db.close()
     except Exception as e:
-        print(f"warning: voiceprint saved but DB row failed: {e}", file=sys.stderr)
+        db.rollback()
+        print(f"could not store the voiceprint, nothing saved: {e}", file=sys.stderr)
+        return 1
+    finally:
+        db.close()
 
-    print(f"enrolled {name} as {person_id}")
-    print(f"  voiceprint: {npz}")
-    print("Restart is not required — verify_speaker globs this directory per call.")
+    print(f"enrolled {name} as {person_id} (voiceprints: {', '.join(saved)})")
+    print("Restart is not required — screening reads the database on every call.")
     return 0
 
 
@@ -111,12 +125,13 @@ def main() -> int:
     ap.add_argument("--session", help="session id to enrol from")
     ap.add_argument("--name", default="Caller")
     ap.add_argument("--relation", default="Family")
+    ap.add_argument("--owner", help="account that owns the new contact (default: the dev account)")
     args = ap.parse_args()
 
     if args.list or not args.session:
         list_sessions()
         return 0
-    return enrol(args.session, args.name, args.relation)
+    return enrol(args.session, args.name, args.relation, args.owner)
 
 
 if __name__ == "__main__":

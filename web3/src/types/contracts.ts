@@ -183,6 +183,13 @@ export interface FusionWeights {
   text_weight: number;
 }
 
+/** Which kind of fraud the call resembles. A pattern, never a verdict. */
+export interface ThreatLabel {
+  sector: string;
+  threat: string;
+  family: string;
+}
+
 export interface TrustScoreResult {
   trust_score: number;
   risk_score: number;
@@ -197,9 +204,21 @@ export interface TrustScoreResult {
   recommended_actions: string[];
   challenge_question: ChallengeQuestion | null;
   vernacular_warning: string | null;
+  /** Set only for caution / suspicious / high_risk with a cited playbook. */
+  threat_label?: ThreatLabel | null;
 }
 
 // ── Screening API ──────────────────────────────────────────────
+
+export type ChannelType = "speakerphone" | "voicemail" | "upload" | "whatsapp" | "telephony";
+
+/** Caller ID and claimed identity as received. Explanation only, never an input to the score. */
+export interface CallerMetadata {
+  claimed_number: string | null;
+  claimed_name: string | null;
+  claimed_identity: string | null;
+  channel_type: ChannelType;
+}
 
 export interface ScreeningResponse {
   session_id: string;
@@ -212,6 +231,24 @@ export interface ScreeningResponse {
   fusion: TrustScoreResult;
   processing_time_ms: number;
   timestamp: string;
+  caller_context?: CallerMetadata | null;
+}
+
+/** Where an alert sits in the tamper-evident (Merkle) evidence log. */
+export interface EvidenceAnchor {
+  alert_id: string;
+  leaf_index: number;
+  leaf_hash: string;
+  tree_size: number;
+  root_hash: string;
+  audit_path: string[];
+}
+
+export interface IncidentReportPacket {
+  report_id: string;
+  session_id: string;
+  evidence?: EvidenceAnchor | null;
+  [key: string]: unknown;
 }
 
 // ── Enrollment ─────────────────────────────────────────────────
@@ -223,6 +260,8 @@ export interface EnrolledPerson {
   phone_number: string | null;
   avatar_url: string | null;
   created_at: string;
+  consent_recorded_at?: string | null;
+  consent_version?: string | null;
 }
 
 export interface EnrollmentRequest {
@@ -286,3 +325,47 @@ export const BAND_CONFIG: Record<TrustBand, BandConfig> = {
     textColor: "#CBD5E1",
   },
 };
+
+// ── Live screening protocol v2 (contracts.py, upgrade plan Phase 3) ────────────────
+
+export interface CoverageSpan { start_s: number; end_s: number; scored: boolean }
+
+export interface SessionAuthenticity { median: number; peak: number; max_synth_run_s: number; scored_s: number }
+
+export interface StreamV2Alert {
+  type: 'alert';
+  alert_id: string;
+  session_id: string;
+  window_index: number;
+  audio_start_s: number;
+  audio_end_s: number;
+  band: TrustBand;
+  evidence: ReasonCode[];
+  transcript_rev: number;
+  claim_rev: number;
+  resolved: boolean;
+  resolved_reason: string | null;
+}
+
+export interface StreamV2Assessment {
+  type: 'assessment';
+  session_id: string;
+  window_index: number;
+  audio_start_s: number;
+  audio_end_s: number;
+  current: ScreeningResponse;
+  display_band: TrustBand;
+  alerts: StreamV2Alert[];
+  transcript_committed: string;
+  transcript_tentative: string;
+  coverage: CoverageSpan[];
+  coverage_degraded: boolean;
+  authenticity: SessionAuthenticity;
+  transcript_rev: number;
+  claim_rev: number;
+  is_final: boolean;
+}
+
+export interface StreamV2Ready { type: 'ready'; session_id: string; schema_version: number; max_frame_bytes: number }
+
+export interface StreamV2Error { type: 'error'; code: 'unauthorized' | 'busy' | 'bad_request' | 'internal'; detail: string }

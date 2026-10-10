@@ -9,15 +9,19 @@ import './styles/ui.css';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/report.css';
+import './styles/calls.css';
 import './lib/motion';
 import { WorkspaceProvider } from './app/workspace';
+import { CallFeedProvider } from './app/callFeed';
 import Shell from './app/Shell';
+import AuthGate from './app/AuthGate';
 import CheckPage from './features/check/CheckPage';
 import { ButtonLink } from './components/ui';
 
 const ReportPage = lazy(() => import('./features/report/ReportPage'));
 const ReportsPage = lazy(() => import('./features/report/ReportsPage'));
 const LivePage = lazy(() => import('./features/live/LivePage'));
+const CallsPage = lazy(() => import('./features/calls/CallsPage'));
 const VoicesPage = lazy(() => import('./features/voices/VoicesPage'));
 const HelpPage = lazy(() => import('./features/help/HelpPage'));
 
@@ -51,12 +55,15 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Boundary>
         <WorkspaceProvider>
+          <CallFeedProvider>
           <BrowserRouter>
+            <AuthGate>
             <Shell>
               <Suspense fallback={<div className="page-loading" role="status">Loading…</div>}>
                 <Routes>
                   <Route path="/" element={<CheckPage />} />
                   <Route path="/live" element={<LivePage />} />
+                  <Route path="/calls" element={<CallsPage />} />
                   <Route path="/voices" element={<VoicesPage />} />
                   <Route path="/reports" element={<ReportsPage />} />
                   <Route path="/report/:id" element={<ReportPage />} />
@@ -65,7 +72,9 @@ createRoot(document.getElementById('root')!).render(
                 </Routes>
               </Suspense>
             </Shell>
+            </AuthGate>
           </BrowserRouter>
+          </CallFeedProvider>
         </WorkspaceProvider>
     </Boundary>
   </StrictMode>,

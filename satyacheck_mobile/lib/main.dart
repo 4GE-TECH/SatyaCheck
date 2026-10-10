@@ -4,10 +4,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api_client.dart';
+import 'calls_screen.dart';
 import 'models.dart';
 import 'native_bridge.dart';
 import 'enroll_screen.dart';
 import 'result_screen.dart';
+import 'sign_in_screen.dart';
 import 'theme.dart';
 import 'voice_capture.dart';
 import 'widgets.dart';
@@ -23,6 +25,7 @@ class SatyaCheckApp extends StatefulWidget {
 
 class _SatyaCheckAppState extends State<SatyaCheckApp> {
   ThemeMode _mode = ThemeMode.system;
+  late final ApiClient _api = widget.api ?? ApiClient();
   @override
   Widget build(BuildContext context) => MaterialApp(
         title: 'SatyaCheck',
@@ -30,7 +33,10 @@ class _SatyaCheckAppState extends State<SatyaCheckApp> {
         theme: satyaTheme(Brightness.light),
         darkTheme: satyaTheme(Brightness.dark),
         themeMode: _mode,
-        home: HomePage(api: widget.api, themeMode: _mode, onTheme: (mode) => setState(() => _mode = mode)),
+        home: AuthGate(
+          auth: _api.auth,
+          child: HomePage(api: _api, themeMode: _mode, onTheme: (mode) => setState(() => _mode = mode)),
+        ),
       );
 }
 
@@ -42,6 +48,7 @@ const _examples = [
 
 const _tabs = [
   (Icons.graphic_eq_rounded, 'Check'),
+  (Icons.phone_in_talk_outlined, 'Calls'),
   (Icons.people_alt_outlined, 'Voices'),
   (Icons.history_rounded, 'Recent'),
   (Icons.tune_rounded, 'Setup'),
@@ -58,6 +65,10 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   late final ApiClient _api = widget.api ?? ApiClient();
+
+  /// Created the first time the Calls tab opens, then kept running so calls are not missed
+  /// while another tab is showing. The feed is live only: nothing is replayed later.
+  LiveFeedController? _feed;
   final _bridge = NativeBridge.instance;
   final List<CallRecord> _history = [];
   int _destination = 0, _refreshId = 0;
@@ -66,6 +77,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Permissions _permissions = Permissions.none;
   List<EnrolledPerson> _people = [];
   String? _peopleError, _error, _selectedPath;
+
+  /// "Who's calling?" for the selected recording: a claim the voice is checked against.
+  String? _claimedId;
   String _selectedLabel = 'Selected recording';
   Float32List? _peaks;
 
@@ -80,6 +94,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _feed?.dispose();
     super.dispose();
   }
 
@@ -126,6 +141,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     setState(() {
       _selectedPath = path;
       _selectedLabel = label;
+      _claimedId = null;
       _error = null;
       _peaks = null;
     });
@@ -173,7 +189,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         if (size == 0 || size > 50 * 1024 * 1024) throw const FormatException('Choose a non-empty recording smaller than 50 MB.');
         bytes = await file.readAsBytes();
       }
-      final result = await _api.screenWav(bytes, filename: asset == null ? 'recording.audio' : 'example.wav');
+      final claim = asset == null && _people.any((person) => person.personId == _claimedId) ? _claimedId : null;
+      final result = await _api.screenWav(bytes, filename: asset == null ? 'recording.audio' : 'example.wav', claimedIdentity: claim);
       if (!mounted) return;
       if (result == null) {
         record.error = _api.screeningError ?? 'No result was returned. Please try again.';
@@ -199,11 +216,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  void _navigate(int destination) => setState(() => _destination = destination);
+  void _navigate(int destination) {
+    if (destination == 1 && _feed == null) {
+      _feed = LiveFeedController(_api);
+      unawaited(_feed!.connect());
+    }
+    setState(() => _destination = destination);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final content = switch (_destination) { 1 => _voices(), 2 => _recent(), 3 => _setup(), _ => _home() };
+    final content = switch (_destination) {
+      1 => CallsView(feed: _feed!, api: _api, padding: _pagePadding),
+      2 => _voices(),
+      3 => _recent(),
+      4 => _setup(),
+      _ => _home(),
+    };
     return PopScope(
       canPop: _destination == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -311,7 +340,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           child: _ExampleTile(title: example.$2, story: example.$3, enabled: !_busy, onTap: () => _check(asset: example.$1, label: 'Example · ${example.$2}')),
         ),
       const SizedBox(height: 16),
-      InfoMessage('On a live call? Use a separate device near the speaker. Android gives other apps silence during a cellular call on this handset.', tone: p.voice1),
+      InfoMessage('On a live call? Calls routed through Exotel are screened on the server: open Calls to watch them. Otherwise use a separate device near the speaker, because Android gives other apps silence during a cellular call on this handset.', tone: p.voice1),
     ]);
   }
 
@@ -359,6 +388,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             const SizedBox(width: 10),
             Expanded(child: _SourceTile(label: 'Record nearby', icon: Icons.mic_none_rounded, onTap: _busy ? null : _record)),
           ]),
+          if (_selectedPath != null && _people.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _CallerPicker(people: _people, value: _claimedId, enabled: !_busy, onChanged: (id) => setState(() => _claimedId = id)),
+          ],
           const SizedBox(height: 10),
           PillButton(
             label: _busy ? 'Checking…' : 'Check this recording',
@@ -502,6 +535,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         const SizedBox(height: 10),
         SelectableText(_api.baseUrl, style: TextStyle(fontFamily: mono, fontSize: 13.5, color: p.muted)),
       ]),
+      if (_api.auth.enabled)
+        group('Account', [
+          Text('Signed in as ${_api.auth.email ?? 'your account'}', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 6),
+          Text('Known voices and reports belong to this account. Nobody else signed in to the service can see them.', style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 12),
+          PillButton(label: 'Sign out', kind: PillKind.secondary, icon: Icons.logout_rounded, onPressed: _api.auth.signOut),
+        ]),
       group('Appearance', [
         SegmentedButton<ThemeMode>(
           showSelectedIcon: false,
@@ -610,6 +651,40 @@ class _GlassTabs extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// "Who's calling?" — pick the person the caller said they were. The voice is checked
+/// against theirs. A claim narrows the check; it is never proof either way.
+class _CallerPicker extends StatelessWidget {
+  const _CallerPicker({required this.people, required this.value, required this.enabled, required this.onChanged});
+  final List<EnrolledPerson> people;
+  final String? value;
+  final bool enabled;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      DropdownButtonFormField<String?>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Who’s calling? (optional)'),
+        items: [
+          const DropdownMenuItem<String?>(value: null, child: Text('Not sure, or someone new')),
+          for (final person in people)
+            DropdownMenuItem<String?>(
+              value: person.personId,
+              child: Text(person.relation.isEmpty ? person.name : '${person.name} (${person.relation})', overflow: TextOverflow.ellipsis),
+            ),
+        ],
+        onChanged: enabled ? onChanged : null,
+      ),
+      const SizedBox(height: 6),
+      Text('If the caller said who they are, pick them. Their voice is checked against that person’s. It is a check, not proof.',
+          style: theme.textTheme.bodySmall),
+    ]);
   }
 }
 

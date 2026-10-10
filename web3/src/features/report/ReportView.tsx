@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowSquareOut, Check, CopySimple, DownloadSimple, Printer, Question, SpeakerHigh, Stop } from '@phosphor-icons/react';
-import type { ScreeningResponse } from '../../types/contracts';
+import type { EvidenceAnchor, ScreeningResponse } from '../../types/contracts';
 import type { CheckRecord } from '../../app/workspace';
 import { useEvidence } from '../../hooks/useEvidence';
-import { downloadReportPdf } from '../../lib/api';
+import { downloadReportPdf, getReportPacket } from '../../lib/api';
 import {
   BANDS, calm, displayBand, fixed, isDevanagari, languageName, markPhrases, measurements, reportText, safeLink, verifiable, when,
 } from '../../lib/verdict';
@@ -65,7 +65,10 @@ export default function ReportView({ record, focus = true }: { record: CheckReco
             <p className="verdict-summary">{insufficient ? data.quality.reason || copy.summary : copy.summary}</p>
             <dl className="verdict-meta">
               <div><dt>Recording</dt><dd className="ellipsis" title={record.name}>{record.name}</dd></div>
-              <div><dt>Source</dt><dd>{SOURCE_LABEL[record.source]}</dd></div>
+              <div><dt>Source</dt><dd>{data.caller_context?.channel_type === 'telephony' ? 'Phone call' : SOURCE_LABEL[record.source]}</dd></div>
+              {(data.caller_context?.claimed_number || data.caller_context?.claimed_name) && (
+                <div><dt>Caller ID</dt><dd className="num">{data.caller_context.claimed_number || data.caller_context.claimed_name}</dd></div>
+              )}
               <div><dt>Received</dt><dd>{when(data.timestamp)}</dd></div>
               <div><dt>Language</dt><dd>{languageName(data.transcript.detected_language)}</dd></div>
             </dl>
@@ -178,6 +181,12 @@ export default function ReportView({ record, focus = true }: { record: CheckReco
         ) : (
           <p className="empty-line">No evidence items were returned. Treat this result with extra caution.</p>
         )}
+        {data.fusion.threat_label && (
+          <p className="threat-line">
+            This call resembles <strong>{data.fusion.threat_label.threat}</strong>
+            <span className="muted"> · {data.fusion.threat_label.sector.replace(/_/g, ' ')}. A pattern, not a finding of fraud.</span>
+          </p>
+        )}
         {data.script.playbooks.length > 0 && (
           <div className="playbooks">
             <h3>Resembles these published scam patterns</h3>
@@ -203,9 +212,40 @@ export default function ReportView({ record, focus = true }: { record: CheckReco
           <div><dt>Session</dt><dd className="mono">{data.session_id}</dd></div>
           <div><dt>Audio SHA-256</dt><dd className="mono">{sample ? 'sample digest, not a real recording' : data.audio_sha256 || 'not supplied'}</dd></div>
           <div><dt>Analysis time</dt><dd className="num">{fixed(data.processing_time_ms / 1000, 2)} s</dd></div>
+          {(data.caller_context?.claimed_number || data.caller_context?.claimed_name) && (
+            <div><dt>Caller ID</dt><dd className="mono">{data.caller_context.claimed_number || data.caller_context.claimed_name} (as received, not verified, never scored)</dd></div>
+          )}
         </dl>
+        {!sample && <EvidenceRecord sessionId={data.session_id} />}
       </footer>
     </article>
+  );
+}
+
+/** The tamper-evident log anchor for this session's latest alert, when the service keeps an evidence log. */
+function EvidenceRecord({ sessionId }: { sessionId: string }) {
+  const [anchor, setAnchor] = useState<EvidenceAnchor | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    getReportPacket(sessionId, controller.signal).then(packet => {
+      if (!controller.signal.aborted) setAnchor(packet?.evidence ?? null);
+    });
+    return () => controller.abort();
+  }, [sessionId]);
+  if (!anchor) return null;
+  return (
+    <details className="anchor">
+      <summary>Tamper-evident record: alert logged as entry {anchor.leaf_index + 1} of {anchor.tree_size}</summary>
+      <p className="muted small">
+        Recomputing the root from the leaf hash and audit path (RFC 9162, section 2.1.3.2) proves the alert was logged and not
+        altered. The log holds no audio or transcript.
+      </p>
+      <dl>
+        <div><dt>Root</dt><dd className="mono">{anchor.root_hash}</dd></div>
+        <div><dt>Leaf</dt><dd className="mono">{anchor.leaf_hash}</dd></div>
+        {anchor.audit_path.map((hash, i) => <div key={i}><dt>Path {i + 1}</dt><dd className="mono">{hash}</dd></div>)}
+      </dl>
+    </details>
   );
 }
 

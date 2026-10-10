@@ -6,6 +6,15 @@ it can be run from minute one and re-run after every threshold change. This is
 the file that tells you instantly whether a calibration tweak has broken the
 legitimate-IVR case.
 
+Every scenario runs twice: through `audio_ml.fusion.fuse` (signal level) and through
+the PRODUCTION path — server/audio_adapter into server/orchestrator._compute_fusion —
+whose band is compared by overlay colour. Both share audio_ml/fusion_core.py, but only
+the second proves what a user is shown. (Importing server/ from audio_ml/ is otherwise
+off limits; this gate is the deliberate exception, it is an entry point no product code
+imports, and the import is lazy.) Extra production checks follow the matrix: intent-only
+scams reach high_risk, a replay is capped at caution, a flagged voice is high_risk, and a
+clone stays red with any one branch degraded.
+
 It also writes data/scenario_matrix.json, which feeds the
 "12 scenarios tested" slide. That slide buys breadth credit without spending
 demo clock.
@@ -21,7 +30,7 @@ from types import SimpleNamespace as S
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from audio_ml.fusion import fuse  # noqa: E402
+from audio_ml.fusion import BAND_COLOUR, fuse  # noqa: E402
 
 
 def sp(verdict, norm, raw=None, flagged=0):
@@ -102,25 +111,93 @@ ESCALATION = [
 ]
 
 
-def main() -> int:
+def production_band(speaker, spoof, script, degrade: str | None = None) -> str:
+    """The band the live path returns for these signals, optionally with one branch
+    degraded exactly as it degrades in production ("speaker", "spoof" or "text")."""
+    from audio_ml.signals import SpeakerSignal, SpoofSignal
+    from contracts import ScriptAnalysisResult, SpeakerVerificationResult
+    from server.audio_adapter import to_speaker_result, to_spoof_result
+    from server.orchestrator import _compute_fusion
+
+    if degrade == "speaker":
+        speaker_result = SpeakerVerificationResult.neutral()
+    else:
+        speaker_result = to_speaker_result(SpeakerSignal(
+            verdict=speaker.verdict, raw_cosine=speaker.raw_cosine, norm_score=speaker.norm_score,
+            flagged_voice_hits=speaker.flagged_voice_hits))
+    spoof_result = to_spoof_result(SpoofSignal(
+        score=spoof.score, peak=spoof.peak, verdict=spoof.verdict, n_chunks=0 if degrade == "spoof" else 8))
+    script_result = ScriptAnalysisResult(risk=script.risk)
+    if degrade == "text":
+        script_result = ScriptAnalysisResult.neutral()
+        script_result.details["available"] = False
+    return _compute_fusion(speaker_result, spoof_result, script_result).band.value
+
+
+def _claim_checks() -> list[tuple[str, bool, str]]:
+    """Who the caller claims to be (server/claims.py), through resolution and fusion."""
+    from contracts import AntiSpoofResult, ScriptAnalysisResult, SpeakerVerificationResult
+    from server.claims import Claim, PersonRef, resolve
+    from server.orchestrator import _compute_fusion
+
+    papa = PersonRef("p_papa", "Papa", "Father", (), ("+919800000001",), True)
+
+    def band(cos, claim, spoof_risk, text_risk):
+        speaker = resolve(SpeakerVerificationResult(details={"scores": {"p_papa": cos}}), [claim], [papa])
+        spoof = AntiSpoofResult(risk=spoof_risk, median_score=spoof_risk, peak_score=spoof_risk,
+                                details={"available": True})
+        return _compute_fusion(speaker, spoof, ScriptAnalysisResult(risk=text_risk)).band.value
+
+    clone = band(0.7619, Claim("transcript", frozenset({"p_papa"}), "Papa"), 0.94, 0.88)
+    spoofed = band(0.30, Claim("caller_id", frozenset({"p_papa"}), "+919800000001"), 0.05, 0.05)
+    grey = band(0.7912, Claim("user", frozenset({"p_papa"}), "p_papa"), 0.07, 0.10)
+    return [("a claimed-Papa clone with a scam script is high_risk", clone == "high_risk", clone),
+            ("a spoofed number on a benign call is not red", BAND_COLOUR[spoofed] != "red", spoofed),
+            ("a genuine grey-zone caller is not red", BAND_COLOUR[grey] != "red", grey)]
+
+
+def production_checks() -> list[tuple[str, bool, str]]:
+    """(name, passed, observed) for the checks the 12-scenario matrix cannot express."""
+    by_num = {name.split()[0]: (sp_, cm_, sc_) for name, sp_, cm_, sc_, _ in SCENARIOS}
+    checks = []
+    for num, label in (("3", "human scammer, bank/KYC"), ("8", "human, digital arrest")):
+        band = production_band(*by_num[num])
+        checks.append((f"intent alone reaches high_risk ({label})", band == "high_risk", band))
+    band = production_band(*by_num["7"])
+    checks.append(("a replay with mild intent is capped at caution", band == "caution", band))
+    band = production_band(sp("unknown", 0.10, flagged=1), cm(0.05, 0.08, "bonafide"), sc(0.05))
+    checks.append(("a flagged voice with benign words is high_risk", band == "high_risk", band))
+    checks += _claim_checks()
+    for branch in ("speaker", "spoof", "text"):
+        band = production_band(*by_num["4"], degrade=branch)
+        checks.append((f"clone stays red with {branch} degraded", BAND_COLOUR[band] == "red", band))
+        band = production_band(*by_num["2"], degrade=branch)
+        checks.append((f"legit IVR never verified with {branch} degraded", band != "verified", band))
+    return checks
+
+
+def run(write: bool = True) -> int:
+    """Run the matrix on both paths. Returns the number of failures."""
     rows, failures = [], 0
-    print(f"{'scenario':<40} {'trust':>5}  {'band':<11} {'mode':<16} result")
-    print("-" * 92)
+    print(f"{'scenario':<40} {'trust':>5}  {'band':<11} {'production':<22} result")
+    print("-" * 100)
 
     for name, speaker, spoof, script, ok_bands in SCENARIOS:
         r = fuse(speaker, spoof, script)
         d = r if isinstance(r, dict) else r.model_dump()
-        passed = d["band"] in ok_bands
+        prod = production_band(speaker, spoof, script)
+        prod_colour = BAND_COLOUR[prod]
+        passed = d["band"] in ok_bands and prod_colour in ok_bands
         failures += 0 if passed else 1
-        print(f"{name:<40} {d['trust_score']:>5}  {d['band']:<11} "
-              f"{d['mode']:<16} {'PASS' if passed else 'FAIL -> ' + str(sorted(ok_bands))}")
+        print(f"{name:<40} {d['trust_score']:>5}  {d['band']:<11} {prod + ' (' + prod_colour + ')':<22} "
+              f"{'PASS' if passed else 'FAIL -> ' + str(sorted(ok_bands))}")
         rows.append({"scenario": name.strip(), "trust": d["trust_score"],
-                     "band": d["band"], "mode": d["mode"],
+                     "band": d["band"], "mode": d["mode"], "production_band": prod,
                      "expected": sorted(ok_bands), "pass": passed,
                      "breakdown": d["risk_breakdown"]})
 
     print("\nScenario 11 — escalation over time (must climb monotonically)")
-    print("-" * 92)
+    print("-" * 100)
     prev, esc = 101, []
     for label, script in ESCALATION:
         r = fuse(sp("unknown", 0.12), cm(0.10, 0.16, "bonafide"), script)
@@ -128,20 +205,37 @@ def main() -> int:
         mono = d["trust_score"] <= prev
         failures += 0 if mono else 1
         print(f"{label:<40} {d['trust_score']:>5}  {d['band']:<11} "
-              f"{'':<16} {'ok' if mono else 'NOT MONOTONIC'}")
+              f"{'':<22} {'ok' if mono else 'NOT MONOTONIC'}")
         esc.append({"label": label.strip(), "trust": d["trust_score"],
                     "band": d["band"]})
         prev = d["trust_score"]
 
-    os.makedirs("data", exist_ok=True)
-    with open("data/scenario_matrix.json", "w") as f:
-        json.dump({"scenarios": rows, "escalation": esc,
-                   "failures": failures}, f, indent=2)
+    print("\nProduction path checks")
+    print("-" * 100)
+    checks = []
+    for check, passed, observed in production_checks():
+        failures += 0 if passed else 1
+        print(f"{check:<62} {observed:<12} {'PASS' if passed else 'FAIL'}")
+        checks.append({"check": check, "observed": observed, "pass": passed})
+
+    if write:
+        os.makedirs("data", exist_ok=True)
+        with open("data/scenario_matrix.json", "w") as f:
+            json.dump({"scenarios": rows, "escalation": esc, "production_checks": checks,
+                       "failures": failures}, f, indent=2)
 
     print("\n" + ("ALL SCENARIOS PASS" if failures == 0
                   else f"{failures} FAILURE(S) — do not freeze until this is 0"))
-    print("wrote data/scenario_matrix.json")
-    return 1 if failures else 0
+    if write:
+        print("wrote data/scenario_matrix.json")
+    return failures
+
+
+def main() -> int:
+    import logging
+
+    logging.disable(logging.WARNING)   # fusion logs every degraded branch; the table says it
+    return 1 if run(write=True) else 0
 
 
 if __name__ == "__main__":

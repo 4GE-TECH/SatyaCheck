@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EASE, gsap, reducedMotion } from '../lib/motion';
-import { Broadcast, FileText, Files, Flask, Lifebuoy, MagnifyingGlass, MoonStars, UsersThree, Waveform, type IconProps } from '@phosphor-icons/react';
+import { Broadcast, FileText, Files, Flask, Lifebuoy, MagnifyingGlass, MoonStars, PhoneCall, UsersThree, Waveform, type IconProps } from '@phosphor-icons/react';
 import { useWorkspace } from './workspace';
 import { BANDS, displayBand } from '../lib/verdict';
 import { SAMPLES } from '../features/check/samples';
@@ -29,6 +29,7 @@ export default function CommandPalette() {
     return [
       { id: 'check', label: 'Check a recording', group: 'Go to', icon: Waveform, run: go('/') },
       { id: 'live', label: 'Listen live', group: 'Go to', icon: Broadcast, run: go('/live') },
+      { id: 'calls', label: 'Phone calls', hint: 'Exotel calls as they happen', group: 'Go to', icon: PhoneCall, run: go('/calls') },
       { id: 'voices', label: 'Known voices', group: 'Go to', icon: UsersThree, run: go('/voices') },
       { id: 'reports', label: 'Reports', group: 'Go to', icon: Files, run: go('/reports') },
       { id: 'help', label: 'How to read a report', group: 'Go to', icon: Lifebuoy, run: go('/help') },

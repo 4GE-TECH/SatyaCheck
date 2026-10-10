@@ -56,6 +56,9 @@ class SpeakerSignal(BaseModel):
     verdict: Literal["match", "mismatch", "unknown"] = "unknown"
     flagged_voice_hits: int = 0
     condition_used: str = "wb"
+    # Best cosine per enrolled person (person_id -> cosine), so the server can check a
+    # claimed identity 1:1 without embedding the probe again (server/claims.py).
+    scores: Dict[str, float] = Field(default_factory=dict)
 
 
 class SpoofSegment(BaseModel):
@@ -85,6 +88,18 @@ class SpoofSignal(BaseModel):
     timeline: List[SpoofSegment] = Field(default_factory=list)
     verdict: Literal["bonafide", "synthetic", "partial_synthetic", "uncertain"] = "uncertain"
     n_chunks: int = 0
+    # Item 8: the clip is unlike Model A's training data (audio_ml/ood.py). When True
+    # the scores above are reported but must not be weighed; the adapter abstains.
+    ood: bool = False
+    # Phone-channel calibration (audio_ml/spoof.py): 'phone_channel' when the scores above
+    # were rescaled for a narrowband line; raw_median is Model A's uncalibrated median.
+    calibration: Optional[str] = None
+    raw_median: Optional[float] = None
+    ood_score: Optional[float] = None  # fraction of windows beyond the OOD threshold
+    # Which rule made `ood` True: "narrowband_channel" (phone-band audio, ood.hf_power_ratio)
+    # or "embedding_distance" (k-NN gate). None when in domain or the check is off.
+    ood_reason: Optional[Literal["narrowband_channel", "embedding_distance"]] = None
+    hf_ratio: Optional[float] = None  # share of power above ~4 kHz; None when not measured
 
 
 class Person(BaseModel):
@@ -103,12 +118,11 @@ class Person(BaseModel):
 
 
 class FusionResult(BaseModel):
-    """A's fusion output.
+    """`audio_ml.fusion.fuse` output, for the signal-level scenario matrix.
 
-    Present for completeness so `audio_ml/fusion.py` and
-    `audio_ml/eval/test_scenarios.py` run standalone. **Not** what the product
-    serves: `config.USE_REAL_FUSION` is False and C's `_compute_fusion` returns a
-    `contracts.TrustScoreResult` instead. See `nlp_rag/NEEDS_FROM_A.md` item 8.
+    The product serves `contracts.TrustScoreResult` from `server/orchestrator`. Both are
+    computed by the same `audio_ml/fusion_core.fuse_risk`; this one reports the band as
+    the overlay colour (green / amber / red / unverified / insufficient).
     """
 
     trust_score: float

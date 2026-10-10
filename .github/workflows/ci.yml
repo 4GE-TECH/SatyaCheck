@@ -1,0 +1,80 @@
+# Continuous integration (upgrade plan, Phase 6).
+#
+# The model weights (7 GB, git-ignored) are not on the runner, so tests that need them skip
+# themselves (each checks config.MODELS_DIR). Everything else runs: the twelve-scenario
+# gate, the contract, fusion, auth, tenancy, streaming protocol and retention tests, the web
+# app's unit and browser tests, and the Flutter suite including goldens.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: System packages
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libsndfile1
+      - name: Python packages (CPU torch)
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2.0" "torchaudio>=2.2.0"
+          pip install -r requirements.txt pytest
+      - name: Scenario gate (must pass after any threshold or fusion change)
+        run: python -m audio_ml.eval.test_scenarios
+      - name: Tests
+        run: python -m pytest -q -p no:cacheprovider
+
+  web3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Browser tests
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:ui
+
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: satyacheck_mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.1"
+          channel: stable
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos lib
+      - run: flutter test

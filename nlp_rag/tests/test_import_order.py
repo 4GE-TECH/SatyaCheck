@@ -23,6 +23,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+import config
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _WITHOUT_PRELOAD = """
@@ -66,6 +70,8 @@ def test_speechbrain_first_breaks_bge_m3_without_the_fix():
     assert "REPRODUCED" in result.stdout
 
 
+@pytest.mark.skipif(not (config.MODELS_DIR / "bge-m3" / "config.json").is_file(),
+                    reason="needs models/bge-m3/: without the encoder there is nothing to preload")
 def test_conftest_preloads_before_speechbrain_is_ever_imported():
     result = _run(_WITH_CONFTEST_PRELOAD)
     assert result.returncode == 0, (

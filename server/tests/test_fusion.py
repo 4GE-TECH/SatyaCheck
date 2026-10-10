@@ -249,3 +249,60 @@ def test_identity_reason_codes_quote_the_threshold_actually_applied():
                 f"{code.code} quotes the fusion-scale threshold "
                 f"{config.ASV_MATCH_THRESHOLD}, not the cosine cut actually applied"
             )
+
+
+def test_an_abstaining_spoof_branch_reports_no_effective_authenticity_risk():
+    """When anti-spoof abstains its weight is zero, so its effective risk is too.
+
+    The evidence panel renders `authenticity_risk_effective` as "combined probability
+    that the audio is synthetic". Reporting 0.82 for a branch that contributed
+    nothing contradicts both the weights and the out-of-domain reason code.
+    """
+    spoof = _spoof(0.97, available=False)
+    spoof.details["abstain_reason"] = "out_of_distribution"
+    fusion = _compute_fusion(_speaker(SpeakerVerdict.UNKNOWN, 0.5), spoof, _script(0.9))
+
+    assert fusion.weights_used.cm_weight == 0.0
+    assert fusion.authenticity_risk_effective == 0.0
+
+
+# --- upgrade plan Phase 0 step 6: the live path carries the safety floors ----------------
+
+def test_intent_alone_reaches_high_risk_for_an_unknown_caller():
+    """The orchestrator's plain weighted sum capped this at risk 0.50 (authority_check:
+    0.10*0.5 + 0.45*small + 0.45*0.88) — a human running a blatant scam script could
+    never turn red. The shared core's intent floor fixes it."""
+    fusion = _compute_fusion(_speaker(SpeakerVerdict.UNKNOWN, 0.5), _spoof(0.05), _script(0.88))
+    assert fusion.band.value == "high_risk", f"risk {fusion.risk_score}"
+    assert fusion.mode == OperatingMode.AUTHORITY_CHECK
+
+
+def test_a_flagged_voice_hit_is_high_risk_on_the_live_path():
+    speaker = _speaker(SpeakerVerdict.UNKNOWN, 0.5)
+    speaker.details["flagged_voice_hits"] = 1
+    fusion = _compute_fusion(speaker, _spoof(0.0), _script(0.0))
+    assert fusion.band.value == "high_risk"
+
+
+def test_a_replayed_recording_is_never_verified_on_the_live_path():
+    speaker = _speaker(SpeakerVerdict.MATCH, 0.15)
+    speaker.is_replay = True
+    fusion = _compute_fusion(speaker, _spoof(0.05), _script(0.0))
+    assert fusion.band.value != "verified"
+
+
+def test_a_hybrid_attack_is_not_hidden_by_the_median():
+    """Median 0.30 with a 0.93 peak and partial_synthetic: the peak is blended in."""
+    hybrid = _spoof(0.30)
+    hybrid.peak_score = 0.93
+    hybrid.details["verdict"] = "partial_synthetic"
+    plain = _spoof(0.30)
+    speaker, script = _speaker(SpeakerVerdict.MISMATCH, 0.85), _script(0.5)
+    assert _compute_fusion(speaker, hybrid, script).authenticity_risk_effective > \
+        _compute_fusion(speaker, plain, script).authenticity_risk_effective
+
+
+def test_a_genuine_family_member_with_an_odd_request_is_caution_not_red():
+    fusion = _compute_fusion(_speaker(SpeakerVerdict.MATCH, 0.15), _spoof(0.07), _script(0.62))
+    assert fusion.band.value in ("caution", "suspicious")
+    assert fusion.band.value != "high_risk"

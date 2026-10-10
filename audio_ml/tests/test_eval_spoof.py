@@ -145,7 +145,11 @@ def test_cli_reports_eer_counts_and_per_sample_rate_breakdown(tmp_path):
     test = report["splits"]["test"]
     assert test["eer"] == 0.0
     assert test["n_bonafide"] == 2 and test["n_spoof"] == 2
-    assert set(test["by_orig_sr"]) == {"16000", "44100"}
+    by_sr = test["by_orig_sr"]
+    assert set(by_sr) == {"16000", "44100"}
+    # Each bucket holds only its own files: one per class, not the pooled 2 + 2.
+    for sr in ("16000", "44100"):
+        assert (by_sr[sr]["n_bonafide"], by_sr[sr]["n_spoof"]) == (1, 1), sr
     assert report["leakage"] == {"speaker_overlap": [], "hash_overlap": []}
     assert report["tdcf_asv_assumption"] == "ideal"
 
@@ -168,3 +172,25 @@ def test_limit_keeps_both_classes_even_when_the_manifest_is_sorted_by_label(tmp_
     assert ev.main(["--manifest", str(manifest), "--out", str(out), "--limit", "2"], scorer=scores) == 0
     test = json.loads(out.read_text())["splits"]["test"]
     assert (test["n_bonafide"], test["n_spoof"]) == (2, 2)
+
+
+def test_a_requested_split_with_no_rows_is_logged_not_silently_dropped(tmp_path, caplog):
+    manifest = _write_set(tmp_path, CLEAN)  # no test_c rows, but test_c is a default split
+    out = tmp_path / "r.json"
+    with caplog.at_level("WARNING", logger=ev.logger.name):
+        assert ev.main(["--manifest", str(manifest), "--out", str(out)], scorer=_fake_scorer) == 0
+    assert "test_c" not in json.loads(out.read_text())["splits"]
+    assert any("test_c" in r.getMessage() for r in caplog.records if r.levelname == "WARNING")
+
+
+def test_no_requested_split_in_the_manifest_is_bad_input_not_a_missing_model(tmp_path, caplog):
+    manifest = _write_set(tmp_path, CLEAN)
+    scored = []
+    with caplog.at_level("ERROR", logger=ev.logger.name):
+        code = ev.main(["--manifest", str(manifest), "--out", str(tmp_path / "r.json"),
+                        "--splits", "tset"], scorer=lambda p: scored.append(p) or 0.5)
+    assert code == 1
+    assert scored == []
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "tset" in messages and "Model A" not in messages
+    assert not (tmp_path / "r.json").exists()

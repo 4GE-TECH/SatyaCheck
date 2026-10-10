@@ -50,11 +50,12 @@ from contracts import (
     TrustBand,
     TrustScoreResult,
 )
+from server.tests.isolated_db import isolated_db  # noqa: F401  (fixture)
 from server.tests.test_ws_rolling_buffer import _split_into_wav_chunks
 from server.ws_router import _build_overlay_update
 
 CLIPS = config.REPO_ROOT / "data" / "eval_set" / "clips"
-WHISPER = config.REPO_ROOT / "models" / "faster-whisper-small" / "model.bin"
+WHISPER = config.MODELS_DIR / "faster-whisper-small" / "model.bin"
 SCAM_CLIP = CLIPS / "held-family-emergency-001.wav"
 GENUINE_CLIP = CLIPS / "friend_test.wav"
 
@@ -182,7 +183,28 @@ def test_a_spoken_scam_script_through_the_live_websocket_is_never_green(client):
     assert all(isinstance(o["latency_ms"], (int, float)) and o["latency_ms"] >= 0 for o in overlays)
 
 
-def test_a_genuine_benign_call_through_the_live_websocket_does_not_turn_red(client):
+@pytest.fixture
+def friend_enrolled(isolated_db):
+    """Friend enrolled from friend.wav (the call streams friend_test.wav, another recording).
+
+    This used to come for free from the legacy data/enrollments/friend.npz, which was
+    deleted on 2026-10-10; the premise is now explicit and isolated. A *stranger* whose
+    window has no transcript yet and a Model A false positive can still read suspicious:
+    that is AGENTS.md open item 1, a scoring decision not yet taken."""
+    import audio_ml.api
+    from server import voiceprint_store
+    from server.database import Person, owner_session
+
+    vectors = audio_ml.api.compute_voiceprint([str(CLIPS / "friend.wav")])
+    assert vectors, "could not build Friend's voiceprint"
+    with owner_session(config.DEV_OWNER_ID) as db:
+        db.add(Person(person_id="p_friend", owner_id=config.DEV_OWNER_ID, name="Friend", relation="Friend"))
+        db.flush()
+        voiceprint_store.save_voiceprints(db, config.DEV_OWNER_ID, "p_friend", vectors, duration_s=20, snr_db=20)
+        db.commit()
+
+
+def test_a_genuine_benign_call_through_the_live_websocket_does_not_turn_red(client, friend_enrolled):
     overlays = _stream(client, GENUINE_CLIP)
     assert all(o["state"] != "red" for o in overlays), overlays
 

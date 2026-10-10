@@ -1,7 +1,29 @@
-import type { EnrolledPerson, ScreeningResponse } from '../types/contracts';
+import type { EnrolledPerson, IncidentReportPacket, ScreeningResponse } from '../types/contracts';
+import { accessToken, authEnabled, signOut } from './auth';
+
+/**
+ * Where the backend lives. Empty means same origin: the Vite dev server proxies `/api`
+ * (set SATYACHECK_BACKEND for the proxy target). A build that talks to a remote backend
+ * directly sets VITE_SATYACHECK_BACKEND, and that backend must list this origin in
+ * SATYACHECK_CORS_ORIGINS.
+ */
+const BACKEND = (import.meta.env?.VITE_SATYACHECK_BACKEND ?? '').replace(/\/+$/, '');
+
+export function apiUrl(path: string): string {
+  return `${BACKEND}${path}`;
+}
+
+/** WebSocket URL for an /api path: https becomes wss, http becomes ws. */
+export function wsUrl(path: string): string {
+  const base = BACKEND || window.location.origin;
+  return `${base.replace(/^http/, 'ws')}${path}`;
+}
 
 export interface PersonRecord extends EnrolledPerson {
-  voiceprints?: { voiceprint_id: string; duration_s: number }[];
+  /** Summaries only: the service never returns voice vectors or answer hashes. */
+  voiceprints?: { voiceprint_id: string; condition?: string; duration_s: number; model_version?: string }[];
+  phone_numbers?: string[];
+  aliases?: string[];
 }
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -10,14 +32,21 @@ const AUDIO_EXTENSIONS = /\.(wav|mp3|ogg|opus|webm|m4a|flac|aac|amr|mp4)$/i;
 /** fetch with a timeout, caller abort, and the server's own error explanation surfaced. */
 export async function request(path: string, options: RequestInit = {}, timeout = 120_000): Promise<Response> {
   const signal = AbortSignal.any([AbortSignal.timeout(timeout), ...(options.signal ? [options.signal] : [])]);
+  const token = await accessToken();
+  const headers = new Headers(options.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
   let response: Response;
   try {
-    response = await fetch(path, { ...options, signal });
+    response = await fetch(apiUrl(path), { ...options, headers, signal });
   } catch (error) {
     if (options.signal?.aborted) throw error;
     throw new Error(signal.aborted
       ? 'The service is taking longer than expected. Please try again.'
       : 'Cannot reach the screening service. Check that it is running, then try again.');
+  }
+  if (response.status === 401) {
+    if (authEnabled) void signOut();
+    throw new Error('Your sign-in has expired. Sign in again to continue.');
   }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -50,10 +79,12 @@ export function audioError(file: File): string | null {
   return null;
 }
 
-export async function screenFile(file: File, signal: AbortSignal): Promise<ScreeningResponse> {
+export async function screenFile(file: File, signal: AbortSignal, claimedPersonId?: string | null): Promise<ScreeningResponse> {
   const body = new FormData();
   body.append('file', file);
   body.append('channel_type', 'upload');
+  // "Who's calling?": a medium-trust claim the voice is checked against, never proof.
+  if (claimedPersonId) body.append('claimed_identity', claimedPersonId);
   return parseScreening(await (await request('/api/screen', { method: 'POST', body, signal })).json());
 }
 
@@ -76,6 +107,11 @@ export interface EnrollInput {
   file: File;
   personId?: string | null;
   secret?: { question: string; answer: string } | null;
+  /** The person being enrolled agreed to voiceprint storage. A voiceprint is biometric data. */
+  consent: boolean;
+  /** Extra numbers they call from, and what callers call them ("Papa"). Hints, never proof. */
+  phoneNumbers?: string[];
+  aliases?: string[];
 }
 
 /** Enrollment succeeds only when the service confirms a stored voiceprint, never on status code alone. */
@@ -84,9 +120,12 @@ export async function enroll(input: EnrollInput, signal: AbortSignal): Promise<P
   body.append('name', input.name);
   body.append('relation', input.relation);
   body.append('file', input.file);
+  body.append('consent', String(input.consent));
   if (input.phone) body.append('phone_number', input.phone);
   if (input.personId) body.append('person_id', input.personId);
   if (input.secret) body.append('shared_secrets', JSON.stringify([input.secret]));
+  for (const number of input.phoneNumbers ?? []) if (number.trim()) body.append('phone_numbers', number.trim());
+  for (const alias of input.aliases ?? []) if (alias.trim()) body.append('aliases', alias.trim());
   const person = await (await request('/api/enroll', { method: 'POST', body, signal })).json() as PersonRecord;
   if (!person?.person_id || !Array.isArray(person.voiceprints) || !person.voiceprints.length) {
     throw new Error('The service did not confirm a saved voiceprint. Retry with a longer, clearer recording.');
@@ -94,18 +133,67 @@ export async function enroll(input: EnrollInput, signal: AbortSignal): Promise<P
   return person;
 }
 
-export async function deletePerson(id: string): Promise<void> {
-  await request(`/api/persons/${encodeURIComponent(id)}`, { method: 'DELETE' }, 12_000);
+export interface ScreeningListItem {
+  session_id: string;
+  created_at: string;
+  status: string;
+  channel_type: string | null;
+  band: string | null;
+  trust_score: number | null;
+}
+
+/** This account's screened calls, newest first. Pass the returned cursor for the next page. */
+export async function listScreenings(cursor?: string | null, limit = 20, signal?: AbortSignal):
+  Promise<{ items: ScreeningListItem[]; nextCursor: string | null }> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) params.set('cursor', cursor);
+  const data = await (await request(`/api/screen?${params}`, { signal }, 12_000)).json() as
+    { items?: ScreeningListItem[]; next_cursor?: string | null };
+  if (!Array.isArray(data?.items)) throw new Error('The list of reports could not be read. Please try again.');
+  return { items: data.items, nextCursor: data.next_cursor ?? null };
+}
+
+/** Deletes the contact and their stored voiceprint. Resolves to whether a voiceprint file was removed. */
+export async function deletePerson(id: string): Promise<{ voiceprintDeleted: boolean | null }> {
+  const response = await request(`/api/persons/${encodeURIComponent(id)}`, { method: 'DELETE' }, 12_000);
+  const body = await response.json().catch(() => null) as { voiceprint_deleted?: boolean } | null;
+  return { voiceprintDeleted: typeof body?.voiceprint_deleted === 'boolean' ? body.voiceprint_deleted : null };
 }
 
 export type Health = 'checking' | 'online' | 'offline';
 
-export async function checkHealth(signal: AbortSignal): Promise<Exclude<Health, 'checking'>> {
+export interface HealthDetail {
+  status: Exclude<Health, 'checking'>;
+  /** False when the intent branch is running on keyword markers only (scam-pattern search is down). */
+  retrievalAvailable: boolean | null;
+  retrievalReason: string | null;
+  realSpoof: boolean | null;
+}
+
+export async function checkHealth(signal: AbortSignal): Promise<HealthDetail> {
+  const offline: HealthDetail = { status: 'offline', retrievalAvailable: null, retrievalReason: null, realSpoof: null };
   try {
-    const response = await fetch('/api/health', { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) });
-    return response.ok ? 'online' : 'offline';
+    const response = await fetch(apiUrl('/api/health'), { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) });
+    if (!response.ok) return offline;
+    const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+    return {
+      status: 'online',
+      retrievalAvailable: typeof body.nlp_retrieval_available === 'boolean' ? body.nlp_retrieval_available : null,
+      retrievalReason: typeof body.nlp_retrieval_reason === 'string' ? body.nlp_retrieval_reason : null,
+      realSpoof: typeof body.use_real_spoof === 'boolean' ? body.use_real_spoof : null,
+    };
   } catch {
-    return 'offline';
+    return offline;
+  }
+}
+
+/** The incident report packet, including the tamper-evident log anchor when the call raised an alert. */
+export async function getReportPacket(sessionId: string, signal?: AbortSignal): Promise<IncidentReportPacket | null> {
+  try {
+    const data = await (await request(`/api/report/${encodeURIComponent(sessionId)}`, { signal }, 15_000)).json();
+    return data && typeof data === 'object' ? data as IncidentReportPacket : null;
+  } catch {
+    return null;
   }
 }
 

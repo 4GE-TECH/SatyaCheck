@@ -219,6 +219,41 @@ def _measure_speech_duration(waveform: list[float], sample_rate: int) -> float:
     return round(speech_frames * 0.01, 2)
 
 
+def _assess(waveform: list[float], sample_rate: int) -> tuple[list[AudioChunk], QualityGateResult]:
+    """SNR, VAD chunks and the quality gate — shared by `ingest_audio` and `ingest_pcm`
+    so a file and a stream of the same samples are judged identically."""
+    # ── Step 5: SNR estimate ──────────────────────────────────────
+    snr_db = _estimate_snr(waveform)
+
+    # ── Step 6: VAD + speech duration ────────────────────────────
+    chunks = _vad_chunk(waveform, config.TARGET_SAMPLE_RATE)
+    speech_duration_s = _measure_speech_duration(waveform, config.TARGET_SAMPLE_RATE)
+
+    # ── Step 7: Quality gate ──────────────────────────────────────
+    gate_passed = (
+        speech_duration_s >= config.MIN_SPEECH_DURATION_S
+        and snr_db >= config.MIN_SNR_DB
+    )
+    if gate_passed:
+        quality = QualityGateResult.passed_default(
+            speech_duration_s=speech_duration_s,
+            snr_db=snr_db,
+        )
+    else:
+        reason_parts = []
+        if speech_duration_s < config.MIN_SPEECH_DURATION_S:
+            reason_parts.append(f"Speech too short ({speech_duration_s:.1f}s < {config.MIN_SPEECH_DURATION_S}s)")
+        if snr_db < config.MIN_SNR_DB:
+            reason_parts.append(f"SNR too low ({snr_db:.1f}dB < {config.MIN_SNR_DB}dB)")
+        quality = QualityGateResult.insufficient(
+            speech_duration_s=speech_duration_s,
+            snr_db=snr_db,
+            reason="; ".join(reason_parts),
+        )
+
+    return chunks, quality
+
+
 def ingest_audio(
     audio_bytes: Optional[bytes] = None,
     audio_path: Optional[str] = None,
@@ -251,6 +286,7 @@ def ingest_audio(
 
     tmp_input = None
     tmp_output = None
+    handed_off = False
 
     try:
         # ── Step 1: Prepare input file ────────────────────────────────
@@ -298,36 +334,10 @@ def ingest_audio(
                 error="Waveform decode failed",
             )
 
-        # ── Step 5: SNR estimate ──────────────────────────────────────
-        snr_db = _estimate_snr(waveform)
+        # ── Steps 5–7: SNR, VAD, quality gate ──────────────────────────
+        chunks, quality = _assess(waveform, config.TARGET_SAMPLE_RATE)
 
-        # ── Step 6: VAD + speech duration ────────────────────────────
-        chunks = _vad_chunk(waveform, config.TARGET_SAMPLE_RATE)
-        speech_duration_s = _measure_speech_duration(waveform, config.TARGET_SAMPLE_RATE)
-
-        # ── Step 7: Quality gate ──────────────────────────────────────
-        gate_passed = (
-            speech_duration_s >= config.MIN_SPEECH_DURATION_S
-            and snr_db >= config.MIN_SNR_DB
-        )
-        if gate_passed:
-            quality = QualityGateResult.passed_default(
-                speech_duration_s=speech_duration_s,
-                snr_db=snr_db,
-            )
-        else:
-            reason_parts = []
-            if speech_duration_s < config.MIN_SPEECH_DURATION_S:
-                reason_parts.append(f"Speech too short ({speech_duration_s:.1f}s < {config.MIN_SPEECH_DURATION_S}s)")
-            if snr_db < config.MIN_SNR_DB:
-                reason_parts.append(f"SNR too low ({snr_db:.1f}dB < {config.MIN_SNR_DB}dB)")
-            quality = QualityGateResult.insufficient(
-                speech_duration_s=speech_duration_s,
-                snr_db=snr_db,
-                reason="; ".join(reason_parts),
-            )
-
-        return IngestedAudio(
+        result = IngestedAudio(
             audio_sha256=sha256,
             sample_rate=config.TARGET_SAMPLE_RATE,
             total_duration_s=round(duration_s, 3),
@@ -336,6 +346,8 @@ def ingest_audio(
             quality=quality,
             normalized_wav_path=tmp_output,
         )
+        handed_off = True  # the caller owns tmp_output now; discard() deletes it
+        return result
 
     except Exception as e:
         log.exception(f"Unexpected ingestion error: {e}")
@@ -356,6 +368,81 @@ def ingest_audio(
                 Path(tmp_input).unlink(missing_ok=True)
             except Exception:
                 pass
+        # A failed ingest returns no normalized_wav_path, so discard() never sees the
+        # temp WAV it may already have written. Delete it here, under the same flag.
+        if tmp_output and not handed_off and config.CLEANUP_TEMP_AUDIO:
+            try:
+                Path(tmp_output).unlink(missing_ok=True)
+                log.info(f"deleted temp audio of failed ingest: {tmp_output}")
+            except Exception as e:  # a locked temp file must not fail the request
+                log.warning(f"could not delete temp audio {tmp_output}: {e}")
+
+
+def discard(audio: IngestedAudio) -> None:
+    """Delete the normalised temp WAV, if `config.CLEANUP_TEMP_AUDIO` is on. Never raises.
+
+    Only ever the file `ingest_audio` itself created: `normalized_wav_path` is always a
+    fresh temp file, never the caller's `audio_path`. Call it once every branch that
+    reads the path has finished.
+    """
+    if not config.CLEANUP_TEMP_AUDIO or not audio.normalized_wav_path:
+        return
+    try:
+        Path(audio.normalized_wav_path).unlink(missing_ok=True)
+    except Exception as e:  # a locked temp file must not fail the request
+        log.warning(f"could not delete temp audio {audio.normalized_wav_path}: {e}")
+
+
+def ingest_pcm(samples, sample_rate: int = config.TARGET_SAMPLE_RATE) -> IngestedAudio:
+    """Ingest samples already at 16 kHz mono — a `SessionBuffer` window. Never raises.
+
+    The same SNR, VAD and quality gate as `ingest_audio`, without ffmpeg: frames reach
+    the pipeline already decoded and resampled (contracts.AudioFrame), so re-encoding
+    them through a subprocess bought nothing and cost two passes per streamed chunk.
+    A temp WAV is still written, because the branches take a path; `discard()` it after.
+    """
+    try:
+        import struct
+        import wave as _wave
+
+        if sample_rate != config.TARGET_SAMPLE_RATE:
+            raise ValueError(f"ingest_pcm needs {config.TARGET_SAMPLE_RATE} Hz, got {sample_rate}")
+        floats = [float(x) for x in samples]
+        if not floats:
+            return IngestedAudio(
+                audio_sha256="", sample_rate=sample_rate, total_duration_s=0.0, waveform=[],
+                chunks=[], quality=QualityGateResult.insufficient(reason="No audio data provided"),
+                error="No audio data provided",
+            )
+        pcm = struct.pack(
+            f"<{len(floats)}h",
+            *(max(-32768, min(32767, int(round(x * 32768.0)))) for x in floats),
+        )
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp.close()
+        with _wave.open(tmp.name, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(sample_rate)
+            w.writeframes(pcm)
+
+        chunks, quality = _assess(floats, sample_rate)
+        return IngestedAudio(
+            audio_sha256=_compute_sha256(pcm),
+            sample_rate=sample_rate,
+            total_duration_s=round(len(floats) / sample_rate, 3),
+            waveform=floats,
+            chunks=chunks,
+            quality=quality,
+            normalized_wav_path=tmp.name,
+        )
+    except Exception as e:
+        log.exception(f"ingest_pcm failed: {e}")
+        return IngestedAudio(
+            audio_sha256="", sample_rate=config.TARGET_SAMPLE_RATE, total_duration_s=0.0,
+            waveform=[], chunks=[],
+            quality=QualityGateResult.insufficient(reason=f"Ingestion error: {e}"), error=str(e),
+        )
 
 
 if __name__ == "__main__":

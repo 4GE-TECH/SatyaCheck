@@ -13,13 +13,17 @@ class EnrollScreen extends StatefulWidget {
 class _EnrollScreenState extends State<EnrollScreen> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController(),
-      _relation = TextEditingController(text: 'Family');
+      _relation = TextEditingController(text: 'Family'),
+      _aliases = TextEditingController(),
+      _numbers = TextEditingController();
   bool _recording = false, _saving = false, _consent = false, _hindi = false;
   String? _path, _error;
   @override
   void dispose() {
     _name.dispose();
     _relation.dispose();
+    _aliases.dispose();
+    _numbers.dispose();
     super.dispose();
   }
 
@@ -36,7 +40,10 @@ class _EnrollScreenState extends State<EnrollScreen> {
     final result = await widget.api.enroll(
         wavPath: _path!,
         name: _name.text.trim(),
-        relation: _relation.text.trim());
+        relation: _relation.text.trim(),
+        consent: _consent,
+        aliases: splitList(_aliases.text),
+        phoneNumbers: splitList(_numbers.text));
     if (!mounted) return;
     setState(() => _saving = false);
     if (result.ok) {
@@ -104,6 +111,25 @@ class _EnrollScreenState extends State<EnrollScreen> {
                   decoration: const InputDecoration(labelText: 'Relationship', hintText: 'Son, mother, friend…', counterText: ''),
                   validator: (value) => value == null || value.trim().isEmpty ? 'Enter your relationship.' : null,
                 ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _aliases,
+                  enabled: !locked,
+                  maxLength: 200,
+                  decoration: const InputDecoration(
+                      labelText: 'What callers call them (optional)', hintText: 'Papa, Raju bhaiya', counterText: '',
+                      helperText: 'Separate with commas. Helps match “It’s Papa” to this person.', helperMaxLines: 3),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _numbers,
+                  enabled: !locked,
+                  maxLength: 120,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                      labelText: 'Numbers they call from (optional)', hintText: '+91…', counterText: '',
+                      helperText: 'A matching number is a hint, never proof. Numbers can be faked.', helperMaxLines: 3),
+                ),
               ]),
             ),
             Reveal(
@@ -146,7 +172,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: Text('This person has agreed to enroll their voice for comparison.', style: theme.textTheme.bodyLarge?.copyWith(color: p.text)),
+                  title: Text('This person has agreed to enroll their voice for comparison. A voiceprint is biometric data: the service records when consent was given, and removing the person deletes it.', style: theme.textTheme.bodyLarge?.copyWith(color: p.text)),
                   value: _consent,
                   onChanged: locked ? null : (value) => setState(() => _consent = value ?? false),
                 ),
@@ -172,3 +198,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
 
 const englishScript = 'Hello, I’m recording my voice so my family can recognise me. I usually call in the evening to ask how everyone’s day went. If someone ever asks for money in my name, call me back on my saved number first.';
 const hindiScript = 'नमस्ते, मैं अपनी आवाज़ इसलिए रिकॉर्ड कर रहा हूँ ताकि मेरा परिवार मुझे पहचान सके। अगर कभी कोई मेरे नाम पर पैसे माँगे, तो पहले मेरे सेव किए हुए नंबर पर मुझे वापस फ़ोन करें।';
+
+/// "Papa, Raju" → ["Papa", "Raju"].
+List<String> splitList(String text) =>
+    [for (final part in text.split(RegExp(r'[,;\n]'))) if (part.trim().isNotEmpty) part.trim()];

@@ -43,13 +43,17 @@ export default function VoicesPage() {
     setRemoving(person.person_id);
     setRemoveError('');
     try {
-      await deletePerson(person.person_id);
+      const { voiceprintDeleted } = await deletePerson(person.person_id);
       const row = page.current?.querySelector(`[data-id="${CSS.escape(person.person_id)}"]`);
       if (row && !reducedMotion()) await gsap.to(row, { height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, duration: 0.45, ease: EASE.inOut });
       setPeople(list => list.filter(p => p.person_id !== person.person_id));
       if (editing?.person_id === person.person_id) setEditing(null);
       setConfirming(null);
-      setFlash(`${person.name} was removed. Their voice will no longer be matched.`);
+      setFlash(voiceprintDeleted === true
+        ? `${person.name} was removed, with their stored voiceprint. Their voice will no longer be matched.`
+        : voiceprintDeleted === false
+          ? `${person.name} was removed. No stored voiceprint file was found to delete.`
+          : `${person.name} was removed. Their voice will no longer be matched.`);
     } catch (problem) {
       setRemoveError(problem instanceof Error ? problem.message : 'Could not remove this voice. Please try again.');
     } finally {
@@ -100,6 +104,7 @@ export default function VoicesPage() {
                       <span className="person-sub">
                         {person.voiceprints?.length ? `${person.voiceprints.length} ${person.voiceprints.length === 1 ? 'voiceprint' : 'voiceprints'}` : 'No voiceprint returned'}
                         {person.created_at ? ` · since ${when(person.created_at)}` : ''}
+                        {person.consent_recorded_at ? ' · consent recorded' : ' · no consent on record'}
                       </span>
                     </div>
                     {confirming === person.person_id ? (
@@ -142,6 +147,8 @@ function Enroll({ editing, onCancel, onDone }: { editing: PersonRecord | null; o
   const [name, setName] = useState(editing?.name ?? '');
   const [relation, setRelation] = useState(editing?.relation ?? '');
   const [phone, setPhone] = useState(editing?.phone_number ?? '');
+  const [otherNumbers, setOtherNumbers] = useState((editing?.phone_numbers ?? []).filter(n => n !== editing?.phone_number).join(', '));
+  const [aliases, setAliases] = useState((editing?.aliases ?? []).join(', '));
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -182,6 +189,9 @@ function Enroll({ editing, onCancel, onDone }: { editing: PersonRecord | null; o
         name: name.trim(), relation: relation.trim(), phone: phone.trim() || undefined, file,
         personId: editing?.person_id ?? null,
         secret: question.trim() ? { question: question.trim(), answer: answer.trim() } : null,
+        consent,
+        phoneNumbers: splitList(otherNumbers),
+        aliases: splitList(aliases),
       }, active.signal);
       if (!active.signal.aborted) onDone(person);
     } catch (problem) {
@@ -214,6 +224,18 @@ function Enroll({ editing, onCancel, onDone }: { editing: PersonRecord | null; o
             <div className="field">
               <label htmlFor="v-phone">Phone <span className="muted">(optional)</span></label>
               <input id="v-phone" className="input" type="tel" maxLength={30} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91" />
+            </div>
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="v-aliases">What callers call them <span className="muted">(optional)</span></label>
+              <input id="v-aliases" className="input" maxLength={200} value={aliases} onChange={e => setAliases(e.target.value)} placeholder="Papa, Raju bhaiya" />
+              <span className="hint">Separate with commas. Helps match “It’s Papa” to this person.</span>
+            </div>
+            <div className="field">
+              <label htmlFor="v-numbers">Other numbers <span className="muted">(optional)</span></label>
+              <input id="v-numbers" className="input" type="tel" maxLength={120} value={otherNumbers} onChange={e => setOtherNumbers(e.target.value)} placeholder="+91…, +91…" />
+              <span className="hint">A matching number is a hint, never proof. Numbers can be faked.</span>
             </div>
           </div>
         </fieldset>
@@ -254,7 +276,7 @@ function Enroll({ editing, onCancel, onDone }: { editing: PersonRecord | null; o
           </div>
           <div className="target" aria-hidden={!recording && clipSeconds == null}>
             <div className="target-track"><span className="target-fill" style={{ transform: `scaleX(${progress})` }} /></div>
-            <span className="muted small">Aim for {TARGET_SECONDS} seconds in a quiet room. The service needs at least 15 seconds of speech.</span>
+            <span className="muted small"><span className="num">{Math.min(TARGET_SECONDS, Math.floor(recording ? recorder.seconds : clipSeconds ?? 0))} / {TARGET_SECONDS} s</span> · aim for {TARGET_SECONDS} seconds in a quiet room. The service needs at least 15 seconds of speech.</span>
           </div>
           {recorder.error && <Notice tone="danger">{recorder.error}</Notice>}
           <input ref={picker} type="file" className="sr-only" tabIndex={-1} aria-hidden="true" accept="audio/*,.wav,.mp3,.ogg,.opus,.webm,.m4a,.flac,.amr" onChange={e => { const f = e.target.files?.[0]; if (f) pick(f); e.target.value = ''; }} />
@@ -276,7 +298,7 @@ function Enroll({ editing, onCancel, onDone }: { editing: PersonRecord | null; o
           </details>
           <label className="checkline">
             <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
-            <span>{name.trim() || 'This person'} has agreed to have their voice enrolled for comparison.</span>
+            <span>{name.trim() || 'This person'} has agreed to have their voice enrolled for comparison. A voiceprint is biometric data: the service records when consent was given, and removing the person deletes it.</span>
           </label>
         </fieldset>
 
@@ -290,4 +312,9 @@ function Enroll({ editing, onCancel, onDone }: { editing: PersonRecord | null; o
       </form>
     </section>
   );
+}
+
+/** "Papa, Raju" → ["Papa", "Raju"]. */
+function splitList(text: string): string[] {
+  return text.split(/[,;\n]/).map(part => part.trim()).filter(Boolean);
 }

@@ -13,6 +13,7 @@ import VoiceField from '../../components/VoiceField';
 import InlineWave from '../../components/InlineWave';
 import { ambient } from '../../components/AmbientField';
 import { Button, ButtonLink, Notice, ToneChip } from '../../components/ui';
+import { CallerPicker } from '../../components/CallerPicker';
 import SignalAccordion from './SignalAccordion';
 import { SAMPLES } from './samples';
 import { ADVISORIES } from './advisories';
@@ -34,6 +35,7 @@ export default function CheckPage() {
   const [dragging, setDragging] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [claim, setClaim] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const preview = useRef<HTMLAudioElement>(null);
@@ -121,7 +123,7 @@ export default function CheckPage() {
     setError(null);
     preview.current?.pause();
     try {
-      const data = await screenFile(file, active.signal);
+      const data = await screenFile(file, active.signal, claim);
       if (active.signal.aborted) return;
       addRecord({ data, name: file.name, source, audio: file });
       navigate(`/report/${encodeURIComponent(data.session_id)}`);
@@ -244,6 +246,8 @@ export default function CheckPage() {
             </div>
 
             {(error || recorder.error) && <div className="composer-error"><Notice tone="danger">{error || recorder.error}</Notice></div>}
+
+            {file && <div className="composer-claim"><CallerPicker value={claim} onChange={setClaim} disabled={checking} /></div>}
 
             <div className="composer-foot">
               <p>Only check recordings you have permission to use. Audio goes to your configured screening service.</p>

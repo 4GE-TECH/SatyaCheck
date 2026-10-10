@@ -65,6 +65,8 @@ def to_speaker_result(signal: SpeakerSignal) -> contracts.SpeakerVerificationRes
             "relationship": signal.relationship,
             "flagged_voice_hits": signal.flagged_voice_hits,
             "condition_used": signal.condition_used,
+            # Consumed and removed by server/claims.py when the identity is resolved.
+            "scores": dict(signal.scores),
         },
     )
 
@@ -84,7 +86,14 @@ def to_spoof_result(signal: SpoofSignal) -> contracts.AntiSpoofResult:
     `uncertain` is not reported as synthetic. It means the model abstained, which
     is not evidence of synthesis — and with no checkpoint present that is exactly
     what `audio_ml/spoof.py` returns for everything.
+
+    An out-of-distribution clip (item 8) is the same: the scores are reported as
+    the evidence for *why* the branch abstained, but nothing is flagged synthetic.
+    Model A misreads genuine phone-line speech often enough (EER ~25% on AMR-NB)
+    that red timeline bars next to "this score was not used" would accuse a real
+    caller on a number we have just said is untrustworthy.
     """
+    trusted = not signal.ood
     return contracts.AntiSpoofResult(
         median_score=signal.score,
         peak_score=signal.peak,
@@ -92,13 +101,13 @@ def to_spoof_result(signal: SpoofSignal) -> contracts.AntiSpoofResult:
         raw_score=signal.score,
         norm_score=signal.score,
         risk=signal.score,
-        is_synthetic=signal.verdict in ("synthetic", "partial_synthetic"),
+        is_synthetic=trusted and signal.verdict in ("synthetic", "partial_synthetic"),
         timeline=[
             contracts.SpoofSegment(
                 start_s=segment.start_s,
                 end_s=segment.end_s,
                 score=segment.score,
-                is_synthetic=(segment.label == "synthetic"),
+                is_synthetic=trusted and segment.label == "synthetic",
             )
             for segment in signal.timeline
         ],
@@ -108,7 +117,17 @@ def to_spoof_result(signal: SpoofSignal) -> contracts.AntiSpoofResult:
             # No window scored means the model never ran (missing checkpoint, load
             # failure, empty audio). Without this flag fusion reads the placeholder
             # 0.5 as real evidence; with it, fusion drops w_cm and renormalises.
-            "available": signal.n_chunks > 0,
+            # An out-of-distribution clip (item 8) is scored but not trusted: the same
+            # abstention, with the reason kept so the evidence says *why*.
+            "available": signal.n_chunks > 0 and not signal.ood,
+            **({"calibration": signal.calibration, "raw_median": signal.raw_median}
+               if getattr(signal, "calibration", None) else {}),
+            # `ood_reason` names the rule that fired (narrowband_channel /
+            # embedding_distance); absent unless the branch abstained, so output with the
+            # OOD flag off is unchanged.
+            **({"abstain_reason": "out_of_distribution", "ood_score": signal.ood_score,
+                "ood_reason": signal.ood_reason, "hf_ratio": signal.hf_ratio}
+               if signal.ood else {}),
         },
     )
 

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'auth.dart';
 import 'models.dart';
 
 /// Talks to the SatyaCheck backend. The only part of the app that makes network calls.
@@ -22,7 +23,12 @@ import 'models.dart';
 /// subnet must leave the call untouched — a screening app that interferes with answering
 /// the phone is worse than no screening app.
 class ApiClient {
-  ApiClient({String? baseUrl}) : _baseUrl = baseUrl ?? defaultBaseUrl;
+  ApiClient({String? baseUrl, AuthSession? auth})
+      : _baseUrl = baseUrl ?? defaultBaseUrl,
+        auth = auth ?? AuthSession();
+
+  /// Who is signed in. Every request carries its token; a 401 signs out.
+  final AuthSession auth;
 
   /// Where the backend lives, from the phone's point of view.
   ///
@@ -46,11 +52,42 @@ class ApiClient {
     defaultValue: 'http://localhost:8000',
   );
 
+  /// Token for the live call feed, when the backend sets `LIVE_FEED_TOKEN`.
+  ///
+  ///     flutter run --dart-define=SATYACHECK_LIVE_TOKEN=...
+  ///
+  /// It can also be typed in the Calls tab; that copy lives in memory only.
+  static const defaultLiveToken = String.fromEnvironment('SATYACHECK_LIVE_TOKEN');
+
   final String _baseUrl;
 
   String get baseUrl => _baseUrl;
+
+  /// `http://` becomes `ws://` and `https://` becomes `wss://`, so a Cloudflare tunnel works as-is.
+  String get _wsBase => _baseUrl.replaceFirst(RegExp('^http'), 'ws');
   String? peopleError;
   String? screeningError;
+
+  static const signedOutMessage = 'Your sign-in has expired. Sign in again to continue.';
+
+  /// Adds the signed-in account's token. Without sign-in the backend's dev mode applies.
+  Future<void> _authorize(HttpClientRequest request) async {
+    final token = await auth.accessToken();
+    if (token != null) request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+  }
+
+  /// A 401 means the token is no longer accepted: forget it so the app asks to sign in.
+  bool _expired(int status) {
+    if (status != 401) return false;
+    auth.signOut();
+    return true;
+  }
+
+  /// Sockets sign in with their first message, never the URL (URLs end up in logs).
+  Future<void> _authorizeSocket(WebSocket socket) async {
+    final token = await auth.accessToken();
+    if (token != null) socket.add(jsonEncode({'type': 'auth', 'token': token}));
+  }
 
   /// Is the backend reachable? Short timeout: this is called before a call is answered.
   Future<bool> ping() async {
@@ -76,6 +113,7 @@ class ApiClient {
     Uint8List wav, {
     String filename = 'call.wav',
     String? claimedNumber,
+    String? claimedIdentity,
     Duration timeout = const Duration(seconds: 60),
   }) async {
     screeningError = null;
@@ -84,6 +122,7 @@ class ApiClient {
     try {
       final boundary = '----satyacheck${DateTime.now().microsecondsSinceEpoch}';
       final request = await client.postUrl(Uri.parse('$_baseUrl/api/screen'));
+      await _authorize(request);
       request.headers.set(HttpHeaders.contentTypeHeader,
           'multipart/form-data; boundary=$boundary');
 
@@ -98,6 +137,13 @@ class ApiClient {
               'Content-Disposition: form-data; name="claimed_number"\r\n\r\n')
           ..write('$claimedNumber\r\n');
       }
+      // "Who's calling?": the person the caller says they are. Checked, never trusted.
+      if (claimedIdentity != null && claimedIdentity.isNotEmpty) {
+        head
+          ..write('--$boundary\r\n')
+          ..write('Content-Disposition: form-data; name="claimed_identity"\r\n\r\n')
+          ..write('$claimedIdentity\r\n');
+      }
       head
         ..write('--$boundary\r\n')
         ..write(
@@ -111,6 +157,10 @@ class ApiClient {
       final response = await request.close().timeout(timeout);
       final body =
           await response.transform(utf8.decoder).join().timeout(timeout);
+      if (_expired(response.statusCode)) {
+        screeningError = signedOutMessage;
+        return null;
+      }
       if (response.statusCode != 200) {
         final decoded = jsonDecode(body);
         screeningError = decoded is Map && decoded['detail'] is String
@@ -156,6 +206,9 @@ class ApiClient {
     required String wavPath,
     required String name,
     required String relation,
+    required bool consent,
+    List<String> aliases = const [],
+    List<String> phoneNumbers = const [],
   }) async {
     final file = File(wavPath);
     final client = HttpClient()
@@ -168,14 +221,19 @@ class ApiClient {
       final bytes = await file.readAsBytes();
       final boundary = '----satyacheck${DateTime.now().microsecondsSinceEpoch}';
       final request = await client.postUrl(Uri.parse('$_baseUrl/api/enroll'));
+      await _authorize(request);
       request.headers.set(HttpHeaders.contentTypeHeader,
           'multipart/form-data; boundary=$boundary');
 
       String field(String key, String value) =>
           '--$boundary\r\nContent-Disposition: form-data; name="$key"\r\n\r\n$value\r\n';
 
-      request
-          .add(utf8.encode(field('name', name) + field('relation', relation)));
+      // The backend records when consent was given; a voiceprint is biometric data.
+      request.add(utf8.encode(field('name', name) +
+          field('relation', relation) +
+          field('consent', consent ? 'true' : 'false') +
+          [for (final a in aliases) if (a.trim().isNotEmpty) field('aliases', a.trim())].join() +
+          [for (final n in phoneNumbers) if (n.trim().isNotEmpty) field('phone_numbers', n.trim())].join()));
       request.add(utf8.encode(
         '--$boundary\r\n'
         'Content-Disposition: form-data; name="file"; filename="enrollment.wav"\r\n'
@@ -191,6 +249,7 @@ class ApiClient {
           .join()
           .timeout(const Duration(seconds: 120));
 
+      if (_expired(response.statusCode)) return const EnrollOutcome.failure(signedOutMessage);
       if (response.statusCode == 201) {
         final json = jsonDecode(body) as Map<String, dynamic>;
         if (json['person_id'] is! String ||
@@ -228,9 +287,14 @@ class ApiClient {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
     try {
       final request = await client.getUrl(Uri.parse('$_baseUrl/api/persons'));
+      await _authorize(request);
       final response =
           await request.close().timeout(const Duration(seconds: 10));
       final body = await response.transform(utf8.decoder).join();
+      if (_expired(response.statusCode)) {
+        peopleError = signedOutMessage;
+        return const [];
+      }
       if (response.statusCode != 200) {
         peopleError = 'Known voices could not be loaded. Please try again.';
         debugPrint('SatyaCheck persons: HTTP ${response.statusCode}');
@@ -245,6 +309,8 @@ class ApiClient {
                 personId: e['person_id'] as String? ?? '',
                 name: e['name'] as String? ?? '',
                 relation: e['relation'] as String? ?? '',
+                aliases: [for (final a in (e['aliases'] as List? ?? const [])) if (a is String) a],
+                phoneNumbers: [for (final n in (e['phone_numbers'] as List? ?? const [])) if (n is String) n],
               ))
           .toList();
     } catch (error) {
@@ -257,13 +323,45 @@ class ApiClient {
     }
   }
 
+  /// The stored final verdict of a finished call, for its full report. Null when unavailable.
+  Future<ScreeningResult?> screening(String sessionId) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+    try {
+      final request = await client.getUrl(Uri.parse('$_baseUrl/api/screen/${Uri.encodeComponent(sessionId)}'));
+      await _authorize(request);
+      final response = await request.close().timeout(const Duration(seconds: 15));
+      final body = await response.transform(utf8.decoder).join();
+      _expired(response.statusCode);
+      if (response.statusCode != 200) {
+        debugPrint('SatyaCheck screening $sessionId: HTTP ${response.statusCode}');
+        return null;
+      }
+      final json = jsonDecode(body);
+      if (json is! Map || json['fusion'] is! Map || json['quality'] is! Map) return null;
+      return ScreeningResult.fromJson(json.cast<String, dynamic>());
+    } catch (error) {
+      debugPrint('SatyaCheck screening $sessionId unavailable: $error');
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  /// Watch the live verdict feed (`/api/ws/live`). Throws when the socket cannot be opened.
+  Future<LiveFeedSocket> openLiveFeed({String token = ''}) async {
+    final query = token.isEmpty ? '' : '?token=${Uri.encodeQueryComponent(token)}';
+    final socket = await WebSocket.connect('$_wsBase/api/ws/live$query').timeout(const Duration(seconds: 8));
+    await _authorizeSocket(socket);
+    return LiveFeedSocket._(socket);
+  }
+
   /// Open a streaming screening session. Returns null if the socket cannot be opened.
   Future<ScreeningSocket?> openStream(String sessionId) async {
     try {
-      final url =
-          '${_baseUrl.replaceFirst('http', 'ws')}/api/ws/screen/$sessionId';
+      final url = '$_wsBase/api/ws/screen/$sessionId';
       final socket =
           await WebSocket.connect(url).timeout(const Duration(seconds: 8));
+      await _authorizeSocket(socket);
       return ScreeningSocket._(socket, sessionId);
     } catch (_) {
       return null;
@@ -329,5 +427,45 @@ class ScreeningSocket {
       await _socket.close();
     } catch (_) {}
     if (!_updates.isClosed) await _updates.close();
+  }
+}
+
+/// The live verdict feed. Receive-only: one socket carries every call.
+class LiveFeedSocket {
+  LiveFeedSocket._(this._socket) {
+    _socket.listen(
+      (raw) {
+        try {
+          final verdict = LiveVerdict.fromJson(jsonDecode(raw as String));
+          if (verdict != null && !_verdicts.isClosed) _verdicts.add(verdict);
+        } catch (_) {
+          // A malformed frame is ignored; the next verdict carries the whole state again.
+        }
+      },
+      onDone: _finish,
+      onError: (_) => _finish(),
+      cancelOnError: true,
+    );
+  }
+
+  final WebSocket _socket;
+  final _verdicts = StreamController<LiveVerdict>.broadcast();
+  final _closed = Completer<int?>();
+
+  Stream<LiveVerdict> get verdicts => _verdicts.stream;
+
+  /// Completes with the close code when the feed ends. 1008 means a missing or wrong token.
+  Future<int?> get closed => _closed.future;
+
+  void _finish() {
+    if (!_closed.isCompleted) _closed.complete(_socket.closeCode);
+    if (!_verdicts.isClosed) _verdicts.close();
+  }
+
+  Future<void> close() async {
+    try {
+      await _socket.close();
+    } catch (_) {}
+    _finish();
   }
 }

@@ -1,0 +1,117 @@
+"""SatyaCheck — session escalation: persistence, then latch (item 9, FR-13).
+
+Per-window fusion (`orchestrator._compute_fusion`) is stateless and stays that way. This
+module decides what a *session* shows, given the stream of per-window verdicts.
+
+Two rules, in order:
+
+1. **Persistence.** A warning band is confirmed only once the last
+   `config.ESCALATION_PERSISTENCE_N` windows all reached it. The confirmed level is
+   the lowest band among those N windows, so caution / suspicious / suspicious
+   confirms caution, not suspicious. One noisy window — a cough, a Whisper
+   hallucination, a burst of codec noise — no longer turns a call red.
+2. **Latch.** Once confirmed, a warning band never improves within the session. The
+   scam phrase scrolling out of the 9 s window must not take the overlay from red
+   back to grey.
+
+The trust score follows the same rule as the band: its floor only takes scores from
+windows whose band is confirmed. A 45 shown under a grey band would contradict itself.
+A window that is not confirmed yet holds whatever the session showed last.
+
+N=1 reproduces the behaviour before this module existed — every window confirms itself.
+
+`latch=False` keeps rule 1 and drops rule 2 and the floor: the session shows the current
+persistence run, so it comes back up when the evidence does (the session runner's choice,
+config.SESSION_LATCH_WARNINGS; its final verdict is judged on the whole call).
+
+C owns this file.
+"""
+
+from __future__ import annotations
+
+from collections import deque
+from typing import Optional
+
+from contracts import ScreeningResponse, TrustBand
+
+# Warning severity. Neutral bands rank 0: they never replace an earlier warning.
+_WARNING_RANK = {
+    TrustBand.CAUTION: 1,
+    TrustBand.SUSPICIOUS: 2,
+    TrustBand.HIGH_RISK: 3,
+}
+_BAND_FOR_RANK = {rank: band for band, rank in _WARNING_RANK.items()}
+
+# Shown before any window has been confirmed. Grey and mid-scale: nothing has been
+# measured that the session is prepared to stand behind yet.
+_NOTHING_SHOWN = (TrustBand.UNVERIFIED, 50.0)
+
+
+class EscalationGate:
+    """Turns a stream of per-window responses into what one session displays."""
+
+    def __init__(self, n: int, latch: bool = True) -> None:
+        if n < 1:
+            raise ValueError(f"persistence N must be >= 1, got {n}")
+        self.n = n
+        self.latch = latch
+        self._recent: deque[tuple[int, float, bool]] = deque(maxlen=n)  # (rank, trust, scored)
+        self._latched_rank = 0
+        self._floor: Optional[float] = None
+        self._shown: Optional[tuple[TrustBand, float]] = None
+
+    @property
+    def latched_band(self) -> Optional[TrustBand]:
+        return _BAND_FOR_RANK.get(self._latched_rank)
+
+    def apply(self, response: ScreeningResponse) -> ScreeningResponse:
+        band = response.fusion.band
+        rank = _WARNING_RANK.get(band, 0)
+        trust = response.fusion.trust_score
+        # An insufficient window still breaks a persistence run (it is not evidence the
+        # warning continued), but its placeholder trust is a refusal to score, not a
+        # measurement: it never sets the floor.
+        scored = band != TrustBand.INSUFFICIENT
+        self._recent.append((rank, trust, scored))
+
+        confirmed = min(r for r, _, _ in self._recent) if len(self._recent) == self.n else 0
+        self._latched_rank = max(self._latched_rank, confirmed) if self.latch else confirmed
+        effective = self._latched_rank
+
+        # Windows in the persistence run whose band the session now stands behind.
+        counted = [t for r, t, ok in self._recent if ok and r <= effective]
+        if not self.latch:
+            # No history: a confirmed run shows its own lowest score; a calm window, its own.
+            self._floor = min(counted) if counted and effective > 0 else None
+        elif counted:
+            low = min(counted)
+            self._floor = low if self._floor is None else min(self._floor, low)
+
+        if effective > 0:
+            # A confirmed warning — possibly confirmed by this very window's run even
+            # when this window itself reached higher (caution, suspicious, suspicious).
+            shown_band, shown_trust = _BAND_FOR_RANK[effective], self._floor
+        elif rank > 0:
+            # This window's warning is not confirmed yet: hold what the session showed.
+            shown_band, shown_trust = self._shown or _NOTHING_SHOWN
+            # Never hold green over a warning window: green means "we verified this
+            # person", and this window's own evidence says otherwise (it may even be
+            # authority_check, where green is never shown). Hold neutral grey instead.
+            if shown_band == TrustBand.VERIFIED:
+                shown_band = TrustBand.UNVERIFIED
+        else:
+            shown_band, shown_trust = band, self._floor if self._floor is not None else trust
+
+        # `insufficient` is never held over a later window: that window *was* scored,
+        # and "too short to evaluate" would misdescribe it.
+        if shown_band != TrustBand.INSUFFICIENT:
+            self._shown = (shown_band, shown_trust)
+        if shown_band == band and shown_trust == trust:
+            return response
+        return response.model_copy(
+            update={
+                "fusion": response.fusion.model_copy(
+                    update={"band": shown_band, "trust_score": shown_trust}
+                )
+            }
+        )

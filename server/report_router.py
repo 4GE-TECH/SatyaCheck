@@ -17,8 +17,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 import config
-from contracts import IncidentReportPacket, ReasonCode, ScreeningResponse
-from server.database import ScreeningResult, get_db
+from contracts import CallerMetadata, IncidentReportPacket, ReasonCode, ScreeningResponse
+from server.auth import current_owner
+from server.database import ScreeningResult, get_owner_db
 
 log = logging.getLogger("satyacheck.report")
 router = APIRouter(prefix="/api/report", tags=["report"])
@@ -32,13 +33,26 @@ def _build_report_packet(response: ScreeningResponse, report_id: str) -> Inciden
         audio_sha256=response.audio_sha256,
         trust_score=response.fusion.trust_score,
         band=response.fusion.band,
-        caller_metadata=response.script.details.get("caller_metadata") or {},  # type: ignore[arg-type]
+        # Used to read script.details["caller_metadata"], which nothing ever wrote, so
+        # every report shipped an empty caller block.
+        caller_metadata=response.caller_context or CallerMetadata(),
         transcript_full=response.transcript.text,
         evidence_reason_codes=response.fusion.reason_codes,
         matched_playbooks=playbooks,
         recommended_complaint_category="Financial Fraud / Impersonation",
         pdf_report_path=None,
+        evidence=_session_anchor(response.session_id),
     )
+
+
+def _session_anchor(session_id: str):
+    """The evidence-log anchor of this session's latest alert, or None. Never raises."""
+    try:
+        from server.evidence import get_log
+        return get_log().latest_for_session(session_id)
+    except Exception as e:
+        log.warning(f"evidence anchor unavailable for {session_id}: {e}")
+        return None
 
 
 def _generate_pdf(packet: IncidentReportPacket, output_path: Path) -> bool:
@@ -133,6 +147,22 @@ def _generate_pdf(packet: IncidentReportPacket, output_path: Path) -> bool:
             elements.append(Spacer(1, 0.3*cm))
 
         # ── Footer ────────────────────────────────────────────────────
+        # -- Tamper-evident record (item 17) --
+        if packet.evidence is not None:
+            ev = packet.evidence
+            mono = ParagraphStyle("mono", parent=styles["Normal"], fontName="Courier", fontSize=7)
+            elements.append(Paragraph("<b>Tamper-Evident Record</b>", styles["Heading2"]))
+            elements.append(Paragraph(
+                f"Alert {ev.alert_id} is leaf {ev.leaf_index} of {ev.tree_size} in the SatyaCheck "
+                "evidence log. Recomputing the root from the leaf hash and audit path (RFC 9162 "
+                "section 2.1.3.2) proves the alert was logged and has not been altered. No audio "
+                "or transcript is stored in the log.", styles["Normal"]))
+            elements.append(Paragraph(f"Root: {ev.root_hash}", mono))
+            elements.append(Paragraph(f"Leaf: {ev.leaf_hash}", mono))
+            for i, h in enumerate(ev.audit_path):
+                elements.append(Paragraph(f"Path {i}: {h}", mono))
+            elements.append(Spacer(1, 0.3*cm))
+
         elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
         elements.append(Spacer(1, 0.2*cm))
         elements.append(Paragraph(
@@ -156,11 +186,13 @@ def _generate_pdf(packet: IncidentReportPacket, output_path: Path) -> bool:
 )
 async def get_report_json(
     session_id: str,
-    db: Session = Depends(get_db),
+    owner_id: str = Depends(current_owner),
+    db: Session = Depends(get_owner_db),
 ) -> IncidentReportPacket:
     result = (
         db.query(ScreeningResult)
-        .filter(ScreeningResult.session_id == session_id, ScreeningResult.is_final == True)
+        .filter(ScreeningResult.session_id == session_id, ScreeningResult.owner_id == owner_id,
+                ScreeningResult.is_final == True)
         .order_by(ScreeningResult.id.desc())
         .first()
     )
@@ -180,14 +212,16 @@ async def get_report_json(
 )
 async def get_report_pdf(
     session_id: str,
-    db: Session = Depends(get_db),
+    owner_id: str = Depends(current_owner),
+    db: Session = Depends(get_owner_db),
 ) -> FileResponse:
     if not config.ENABLE_PDF_REPORTS:
         raise HTTPException(status_code=501, detail="PDF reports are disabled.")
 
     result = (
         db.query(ScreeningResult)
-        .filter(ScreeningResult.session_id == session_id, ScreeningResult.is_final == True)
+        .filter(ScreeningResult.session_id == session_id, ScreeningResult.owner_id == owner_id,
+                ScreeningResult.is_final == True)
         .order_by(ScreeningResult.id.desc())
         .first()
     )

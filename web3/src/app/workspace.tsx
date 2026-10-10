@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ScreeningResponse } from '../types/contracts';
-import { checkHealth, type Health } from '../lib/api';
+import { checkHealth, type Health, type HealthDetail } from '../lib/api';
 
 export type Source = 'upload' | 'clip' | 'live' | 'sample' | 'saved';
 
@@ -22,6 +22,7 @@ interface Workspace {
   theme: Theme;
   toggleTheme: () => void;
   health: Health;
+  healthDetail: HealthDetail | null;
   recheckHealth: () => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
@@ -34,6 +35,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [records, setRecords] = useState<CheckRecord[]>([]);
   const [theme, setTheme] = useState<Theme>(() => (window.matchMedia(LIGHT_QUERY).matches ? 'light' : 'dark'));
   const [health, setHealth] = useState<Health>('checking');
+  const [healthDetail, setHealthDetail] = useState<HealthDetail | null>(null);
   const [healthTick, setHealthTick] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const chosenTheme = useRef(false);
@@ -52,10 +54,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    checkHealth(controller.signal).then(result => { if (!controller.signal.aborted) setHealth(result); });
-    const timer = window.setInterval(() => {
-      checkHealth(controller.signal).then(result => { if (!controller.signal.aborted) setHealth(result); });
-    }, 30_000);
+    const run = () => checkHealth(controller.signal).then(result => {
+      if (controller.signal.aborted) return;
+      setHealth(result.status);
+      setHealthDetail(result);
+    });
+    run();
+    const timer = window.setInterval(run, 30_000);
     return () => { controller.abort(); window.clearInterval(timer); };
   }, [healthTick]);
 
@@ -70,8 +75,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const recheckHealth = useCallback(() => { setHealth('checking'); setHealthTick(n => n + 1); }, []);
 
   const value = useMemo<Workspace>(() => ({
-    records, addRecord, findRecord, theme, toggleTheme, health, recheckHealth, paletteOpen, setPaletteOpen,
-  }), [records, addRecord, findRecord, theme, toggleTheme, health, recheckHealth, paletteOpen]);
+    records, addRecord, findRecord, theme, toggleTheme, health, healthDetail, recheckHealth, paletteOpen, setPaletteOpen,
+  }), [records, addRecord, findRecord, theme, toggleTheme, health, healthDetail, recheckHealth, paletteOpen]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

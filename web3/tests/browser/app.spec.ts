@@ -22,6 +22,8 @@ async function settle(page: Page) {
 async function offline(page: Page) {
   // Match the service by path only: a glob like **/api/** would also catch the /src/api/ source modules.
   await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ status: 503, json: { detail: 'Screening service is unavailable.' } }));
+  // The call feed connects on every page; keep it silent and away from any real service.
+  await page.routeWebSocket(url => url.pathname === '/api/ws/live', () => {});
 }
 
 async function noOverflow(page: Page, where: string) {
@@ -118,23 +120,53 @@ test('removing a known voice asks first, then calls the service', async ({ page 
   await expect(page.getByText('No one enrolled yet')).toBeVisible();
 });
 
-test('live listening streams WAV slices, updates in place, and finalises with the audio', async ({ page }) => {
+test('live listening streams v2 frames, updates in place, and finalises with the audio', async ({ page }) => {
   await offline(page);
-  const slices: { final: boolean; riff: boolean }[] = [];
-  await page.routeWebSocket('**/api/ws/screen/*', ws => {
+  const log = { start: null as Record<string, unknown> | null, frames: 0, bytes: 0, ended: false };
+  await page.routeWebSocket('**/api/ws/v2/screen/*', ws => {
+    const sessionId = new URL(ws.url()).pathname.split('/').pop()!;
+    let window = 0;
+    const assess = (fixture: 'caution' | 'red', final: boolean) => {
+      const current = { ...getMockFixture(fixture), session_id: sessionId };
+      const alerts = fixture === 'red' ? [{
+        type: 'alert', alert_id: 'a1', session_id: sessionId, window_index: window, audio_start_s: 2, audio_end_s: 5,
+        band: current.fusion.band, evidence: current.fusion.reason_codes.slice(0, 1), transcript_rev: window, claim_rev: 0, resolved: false, resolved_reason: null,
+      }] : [];
+      ws.send(JSON.stringify({
+        type: 'assessment', session_id: sessionId, window_index: window++, audio_start_s: 0, audio_end_s: log.frames / 2,
+        current, display_band: current.fusion.band, alerts,
+        transcript_committed: 'Beta, I am in trouble', transcript_tentative: final ? '' : 'send money',
+        coverage: [{ start_s: 0, end_s: 2, scored: true }, { start_s: 2, end_s: 3, scored: false }, { start_s: 3, end_s: Math.max(4, log.frames / 2), scored: true }],
+        coverage_degraded: false, authenticity: { median: 0.2, peak: 0.6, max_synth_run_s: 1, scored_s: 4 },
+        transcript_rev: window, claim_rev: 0, is_final: final,
+      }));
+    };
     ws.onMessage(raw => {
-      const message = JSON.parse(String(raw));
-      slices.push({ final: message.is_final, riff: Buffer.from(message.audio_base64, 'base64').subarray(0, 4).toString() === 'RIFF' });
-      const fixture = slices.length > 1 ? 'red' : 'caution';
-      ws.send(JSON.stringify({ type: 'screening_update', session_id: message.session_id, chunk_index: message.chunk_index, response: { ...getMockFixture(fixture), session_id: message.session_id } }));
-      if (message.is_final) ws.close();
+      if (typeof raw !== 'string') {
+        log.frames += 1;
+        log.bytes = raw.length;
+        if (log.frames === 4) assess('caution', false);
+        return;
+      }
+      const message = JSON.parse(raw);
+      if (message.type === 'start') {
+        log.start = message;
+        ws.send(JSON.stringify({ type: 'ready', session_id: sessionId, schema_version: 2, max_frame_bytes: 64000 }));
+      } else if (message.type === 'end') {
+        log.ended = true;
+        assess('red', true);
+        ws.close();
+      }
     });
   });
   await page.goto('/live');
   await page.getByRole('button', { name: 'Start listening' }).click();
   await expect(page.getByText('Provisional')).toBeVisible({ timeout: 10_000 });
   await expect(page.locator('.trace-dot')).toHaveCount(1);
-  await page.waitForTimeout(3300);
+  await expect(page.getByText('Beta, I am in trouble')).toBeVisible();
+  await expect(page.locator('.live-transcript .tentative')).toHaveText('send money');
+  await expect(page.locator('.coverage-bar .gap')).toHaveCount(1);
+  await page.waitForTimeout(1500);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(400);
   await page.screenshot({ path: resolve(REVIEW, 'live-session.png') });
@@ -142,9 +174,85 @@ test('live listening streams WAV slices, updates in place, and finalises with th
   await expect(page).toHaveURL(/\/report\/live_/, { timeout: 10_000 });
   await expect(page.locator('.verdict .tone-chip')).toHaveText('High risk');
   await expect(page.getByRole('img', { name: /Spectrogram of the recording/ })).toBeVisible();
-  expect(slices.length).toBeGreaterThanOrEqual(2);
-  expect(slices.every(s => s.riff)).toBe(true);
-  expect(slices.at(-1)!.final).toBe(true);
+  expect(log.start).toMatchObject({ type: 'start', client: 'web3', sample_rate: 16000, encoding: 's16le' });
+  expect(log.frames).toBeGreaterThanOrEqual(4);
+  expect(log.bytes).toBeLessThanOrEqual(16000);  // 0.5 s of 16 kHz int16
+  expect(log.ended).toBe(true);
+});
+
+function verdict(over: Record<string, unknown> = {}) {
+  return {
+    type: 'verdict', schema_version: 1, session_id: 'MZcall01', window_index: 0, is_final: false, escalated: false,
+    timestamp: '2026-10-10T10:00:00Z', band: 'insufficient', overlay_state: 'grey', trust_score: 100, risk_score: 0,
+    mode: 'authority_check', signals: { identity: 'unknown', authenticity: 'unavailable', intent_risk: 0 },
+    reason_codes: [], transcript: '', language: 'unknown',
+    caller_context: { claimed_number: '+919876543210', claimed_name: null, claimed_identity: null, channel_type: 'telephony' },
+    threat_label: null, recommended_actions: [], vernacular_warning: null, window_trust_score: 100, window_band: 'insufficient',
+    ...over,
+  };
+}
+
+test('phone calls arrive on the live feed, escalate in place, and end with a report link', async ({ page }) => {
+  await offline(page);
+  let feed: { send: (m: string) => void } | null = null;
+  await page.routeWebSocket(url => url.pathname === '/api/ws/live', ws => {
+    feed = ws;
+    ws.send(JSON.stringify({ type: 'hello', schema_version: 1, server_time: '2026-10-10T10:00:00Z' }));
+  });
+  await page.goto('/calls');
+  await expect(page.getByText('Watching for calls')).toBeVisible();
+  await expect(page.getByText('No call in progress.')).toBeVisible();
+  await expect(page.locator('.stream-url code')).toContainText('/api/exotel/stream');
+
+  await expect.poll(() => feed !== null).toBe(true);
+  feed!.send(JSON.stringify(verdict()));
+  const card = page.locator('.call-card');
+  await expect(card).toHaveCount(1);
+  await expect(card).toContainText('+919876543210');
+  await expect(card.locator('.tone-chip')).toHaveText('Listening…');
+
+  feed!.send(JSON.stringify(verdict({
+    window_index: 4, escalated: true, band: 'high_risk', overlay_state: 'red', trust_score: 12, risk_score: 0.88,
+    signals: { identity: 'unknown', authenticity: 'synthetic', intent_risk: 0.94 },
+    reason_codes: [{ code: 'RC_SYNTHETIC_VOICE_DETECTED', signal: 'authenticity', value: 'Peak 98%', threshold: '> 40%', explanation: 'Deepfake speech synthesis signatures detected.', citation_title: null, citation_url: null, severity: 'critical' }],
+    transcript: 'Papa emergency ho gaya hai, turant 50000 bhejo is UPI ID pe!', language: 'hi',
+    threat_label: { sector: 'law_enforcement_impersonation', threat: 'Digital arrest', family: 'digital_arrest' },
+    recommended_actions: ['DO NOT transfer money via UPI.'],
+    vernacular_warning: 'सावधान! कोई भी पैसा ट्रांसफर न करें।',
+    window_trust_score: 40, window_band: 'suspicious',
+  })));
+  await expect(card.locator('.tone-chip')).toHaveText('High risk');
+  await expect(card).toHaveClass(/tone-danger/);
+  await expect(card).toContainText('Signs of a synthetic voice');
+  await expect(card).toContainText('Digital arrest');
+  await expect(card).toContainText('Deepfake speech synthesis signatures detected.');
+  await expect(card).toContainText('turant 50000 bhejo');
+  await expect(card).toContainText('Do not transfer money via UPI.');
+  await expect(page.getByRole('link', { name: 'Open the full report' })).toHaveCount(0);
+  await settle(page);
+  await page.screenshot({ path: resolve(REVIEW, 'calls-live.png') });
+
+  feed!.send(JSON.stringify(verdict({ window_index: 5, is_final: true, band: 'high_risk', overlay_state: 'red', trust_score: 12 })));
+  await expect(page.getByRole('heading', { name: /Ended in this session/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open the full report' })).toHaveAttribute('href', '/report/MZcall01');
+  await noOverflow(page, 'calls page');
+});
+
+test('a token-protected call feed asks for the token instead of retrying blindly', async ({ page }) => {
+  await offline(page);
+  const tokens: string[] = [];
+  await page.routeWebSocket(url => url.pathname === '/api/ws/live', ws => {
+    const token = new URL(ws.url()).searchParams.get('token') ?? '';
+    tokens.push(token);
+    if (token !== 'secret') ws.close({ code: 1008, reason: 'token' });
+    else ws.send(JSON.stringify({ type: 'hello', schema_version: 1 }));
+  });
+  await page.goto('/calls');
+  await expect(page.getByText('The feed needs a token')).toBeVisible();
+  await page.getByLabel('Live-feed token').fill('secret');
+  await page.getByRole('button', { name: 'Connect with token' }).click();
+  await expect(page.getByText('Watching for calls')).toBeVisible();
+  expect(tokens.at(-1)).toBe('secret');
 });
 
 test('saved reports load by ID, and malformed ones are refused', async ({ page }) => {
@@ -175,7 +283,7 @@ test('every route fits small screens without sideways scrolling', async ({ page 
   await page.route('**/api/persons', route => route.fulfill({ json: [] }));
   for (const width of [320, 390, 768]) {
     await page.setViewportSize({ width, height: 860 });
-    for (const path of ['/', '/live', '/voices', '/reports', '/help']) {
+    for (const path of ['/', '/live', '/calls', '/voices', '/reports', '/help']) {
       await page.goto(path);
       await noOverflow(page, `${path} at ${width}px`);
     }

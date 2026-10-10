@@ -14,8 +14,10 @@ import base64
 import io
 import shutil
 import logging
+import re
 import uuid
 import wave
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -29,13 +31,30 @@ from contracts import (
     StreamScreeningUpdateMessage,
     TrustBand,
 )
-from server.audio_ingest import ingest_audio
-from server.database import SessionLocal, ScreeningSession, ScreeningResult
+from server.audio_ingest import discard, ingest_audio
+from server.escalation import EscalationGate
+from server import database
+from server.database import ScreeningSession, ScreeningResult
+from server.ws_util import is_client_gone
 from server.guardian import publish_alert_from_response
 from server.orchestrator import screen_audio
 
 log = logging.getLogger("satyacheck.ws")
 router = APIRouter(prefix="/api/ws", tags=["websocket"])
+
+# A session id names a folder under data/sessions. The route takes it from the URL
+# path, where %5C decodes to a backslash that survives as one segment, so anything
+# but a plain name could write retained audio outside DATA_DIR.
+_SAFE_SESSION_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
+
+
+def _session_audio_dir(session_id: str) -> Optional[Path]:
+    """data/sessions/<id>, or None (logged) when the id is not a plain folder name."""
+    if not _SAFE_SESSION_ID.fullmatch(session_id or ""):
+        log.warning(f"session id {session_id!r} is not a plain folder name; "
+                    f"not retaining its audio")
+        return None
+    return config.DATA_DIR / "sessions" / session_id
 
 
 # TrustBand -> the four colours the overlay renders, matching the app's own mapping
@@ -49,15 +68,6 @@ _OVERLAY_STATE = {
     TrustBand.HIGH_RISK: "red",
     TrustBand.UNVERIFIED: "grey",
     TrustBand.INSUFFICIENT: "grey",
-}
-
-
-# Warning severity for session escalation. Neutral bands rank 0: they never replace an
-# earlier warning, and an earlier neutral band never replaces a later one.
-_WARNING_RANK = {
-    TrustBand.CAUTION: 1,
-    TrustBand.SUSPICIOUS: 2,
-    TrustBand.HIGH_RISK: 3,
 }
 
 
@@ -124,9 +134,10 @@ class SessionState:
     def __init__(self, session_id: str) -> None:
         self.session_id = session_id
         self.chunk_index: int = 0
-        self.min_trust_score: float = 100.0  # monotone: only decreases
         self.last_response: Optional[ScreeningResponse] = None
-        self.worst_band: Optional[TrustBand] = None  # worst warning band so far
+        # Persistence then latch — see server/escalation.py. Read per session so a
+        # changed config takes effect on the next call, not the next restart.
+        self.escalation = EscalationGate(config.ESCALATION_PERSISTENCE_N)
         # Accumulated 16kHz mono float samples, across chunks. Each chunk is scored
         # against the trailing config.STREAM_CONTEXT_S seconds of this buffer, not in
         # isolation — see config.py's comment on why the app's small chunks would
@@ -144,36 +155,16 @@ class SessionState:
         return _pcm_to_wav_bytes(self.buffer, self.sample_rate)
 
     def update(self, response: ScreeningResponse) -> ScreeningResponse:
-        """Apply monotone escalation: neither trust nor the warning band can improve
-        within a session.
+        """Apply session escalation: a warning band must persist for
+        `config.ESCALATION_PERSISTENCE_N` windows, then neither trust nor band can
+        improve within the session.
 
         Carrying the trust floor alone was not enough: the band comes from the current
         9 s window, so once the scam phrase scrolled out of it the band fell back to
-        `unverified` and the overlay went red -> grey mid-call. The worst warning band
-        is carried the same way. Neutral bands (verified / unverified / insufficient)
-        never override an earlier warning, and never overwrite each other here.
+        `unverified` and the overlay went red -> grey mid-call. `EscalationGate`
+        latches the band the same way it latches the floor.
         """
-        current_score = response.fusion.trust_score
-        if current_score < self.min_trust_score:
-            self.min_trust_score = current_score
-        elif current_score > self.min_trust_score:
-            # Re-score shows improvement, but we keep the session floor
-            response = response.model_copy(
-                update={
-                    "fusion": response.fusion.model_copy(
-                        update={"trust_score": self.min_trust_score}
-                    )
-                }
-            )
-
-        band = response.fusion.band
-        if _WARNING_RANK.get(band, 0) >= _WARNING_RANK.get(self.worst_band, 0):
-            if _WARNING_RANK.get(band, 0) > 0:
-                self.worst_band = band
-        else:
-            response = response.model_copy(
-                update={"fusion": response.fusion.model_copy(update={"band": self.worst_band})}
-            )
+        response = self.escalation.apply(response)
         self.last_response = response
         self.chunk_index += 1
         return response
@@ -189,27 +180,47 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
       Server → {"type": "screening_update", "session_id": "...", "chunk_index": N, "response": {...}}
       Client → {"type": "reset_session"} to restart
     """
+    if config.USE_PIPELINE_RUNNER:
+        await _ws_screen_runner(ws, session_id)
+        return
     await ws.accept()
+    principal, pending = await _authenticate(ws, session_id)
+    if principal is None:
+        return
+    owner_id = principal.owner_id
     log.info(f"WS /screen connected: session={session_id}")
     state = SessionState(session_id)
 
-    db = SessionLocal()
+    db = database.owner_session(owner_id)
     try:
-        # Create session record
-        db_session = ScreeningSession(
-            session_id=session_id,
-            status="streaming",
-            channel_type="speakerphone",
-        )
-        db.add(db_session)
+        # Create session record. An id another account already used is refused outright.
+        existing = db.get(ScreeningSession, session_id)
+        if existing is not None and existing.owner_id != owner_id:
+            log.warning(f"WS /screen refused: session id {session_id} belongs to another account")
+            await ws.close(code=1008)
+            return
+        if existing is None:
+            db_session = ScreeningSession(
+                session_id=session_id,
+                owner_id=owner_id,
+                status="streaming",
+                channel_type="speakerphone",
+            )
+            db.add(db_session)
+        else:
+            db_session = existing
+            db_session.status = "streaming"
         db.commit()
 
         while True:
-            try:
-                raw = await ws.receive_text()
-            except WebSocketDisconnect:
-                log.info(f"WS disconnected: session={session_id}")
-                break
+            if pending is not None:
+                raw, pending = pending, None
+            else:
+                try:
+                    raw = await ws.receive_text()
+                except WebSocketDisconnect:
+                    log.info(f"WS disconnected: session={session_id}")
+                    break
 
             try:
                 msg = StreamAudioChunkMessage.model_validate_json(raw)
@@ -247,9 +258,11 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
             # ffmpeg already wrote a 16 kHz mono WAV per chunk and left it on disk, so this
             # is a copy, not a re-encode. `enroll_person` takes a list of WAV paths, which
             # is exactly the shape a session produces.
-            if ingested.normalized_wav_path:
+            if config.RETAIN_SESSION_AUDIO and ingested.normalized_wav_path:
                 try:
-                    session_dir = config.DATA_DIR / "sessions" / session_id
+                    session_dir = _session_audio_dir(session_id)
+                    if session_dir is None:
+                        raise ValueError("unsafe session id")
                     session_dir.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(
                         ingested.normalized_wav_path,
@@ -268,17 +281,15 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
             # in testing (0.5 to 3s per clip), so splitting windows bought nothing but
             # a second ffmpeg/quality-gate pass per chunk.
             window_wav = state.append_and_window(ingested.waveform, ingested.sample_rate)
+            discard(ingested)  # copied above if retained; the buffer holds the samples
             windowed = ingest_audio(audio_bytes=window_wav)
 
             # ── Screen the window ──────────────────────────────────────
-            # Load enrolled embeddings from DB
-            from server.screen_router import _load_enrolled_embeddings
-            enrolled = _load_enrolled_embeddings(db)
-
-            response = await screen_audio(
-                audio=windowed,
-                enrolled_embeddings=enrolled,
-            )
+            # The speaker branch reads enrolled voiceprints from server/voiceprint_store.py.
+            try:
+                response = await screen_audio(audio=windowed, owner_id=owner_id)
+            finally:
+                discard(windowed)
             response = response.model_copy(update={"session_id": session_id})
 
             # Apply monotone escalation
@@ -286,6 +297,7 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
 
             # ── Persist chunk result ───────────────────────────────────
             db_result = ScreeningResult(
+                owner_id=owner_id,
                 session_id=session_id,
                 chunk_index=state.chunk_index - 1,
                 response_json=response.model_dump_json(),
@@ -312,7 +324,7 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
 
             # ── Guardian alert if HIGH_RISK ────────────────────────────
             if response.fusion.band in (TrustBand.HIGH_RISK, TrustBand.SUSPICIOUS):
-                await publish_alert_from_response(response)
+                await publish_alert_from_response(response, owner_id)
 
             if msg.is_final:
                 db_session.status = "complete"
@@ -321,13 +333,145 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
                 break
 
     except Exception as e:
-        log.exception(f"WS error for session {session_id}: {e}")
-        try:
-            await ws.send_json({"type": "error", "detail": str(e)})
-        except Exception:
-            pass
+        if is_client_gone(e):
+            # The phone hung up or lost signal mid-send: a normal close, not an error.
+            log.info(f"WS client left mid-send: session={session_id}")
+        else:
+            log.exception(f"WS error for session {session_id}: {e}")
+            try:
+                await ws.send_json({"type": "error", "detail": str(e)})
+            except Exception:
+                pass
     finally:
         db.close()
+        try:
+            await ws.close()
+        except Exception:
+            pass
+
+
+async def _authenticate(ws: WebSocket, session_id: str):
+    """(principal, pending first message) for an accepted socket, or (None, None) after
+    closing it with 1008. In jwt mode the first message must be {"type": "auth", ...}."""
+    from server.auth import AuthError, authenticate_ws
+
+    try:
+        return await authenticate_ws(ws)
+    except AuthError as e:
+        log.warning(f"WS /screen refused: session={session_id}: {e}")
+        try:
+            await ws.close(code=1008)
+        except Exception:  # noqa: BLE001 — the client may already be gone
+            pass
+        return None, None
+
+
+# ── Pipeline runner path (config.USE_PIPELINE_RUNNER, item 5) ──────────────────
+
+def _retain_pcm(session_id: str, pcm_s16le: bytes, chunk_index: int) -> None:
+    """Runner path: write one decoded chunk (16 kHz mono s16le) to
+    data/sessions/<id>/chunk_NNNN.wav — the same file the per-chunk path copies from
+    ffmpeg's output, so enrolment-from-a-call reads either path's sessions alike."""
+    if not config.RETAIN_SESSION_AUDIO or not pcm_s16le:
+        return
+    try:
+        session_dir = _session_audio_dir(session_id)
+        if session_dir is None:
+            return
+        session_dir.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(session_dir / f"chunk_{chunk_index:04d}.wav"), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(config.TARGET_SAMPLE_RATE)
+            w.writeframes(pcm_s16le)
+    except Exception as e:  # never break a live call over a debug artefact
+        log.warning(f"[{session_id}] could not retain session audio: {e}")
+
+
+async def _ws_screen_runner(ws: WebSocket, session_id: str) -> None:
+    """The same protocol as `ws_screen`, through `SessionRunner`.
+
+    Each base64 WAV chunk is decoded to 16 kHz mono by `acquisition.api.AppWsDecoder`
+    (continuing seq / t_start_s) and pushed as an `AudioFrame`; the transport is named
+    only on `SessionOpen.source`. Verdicts arrive per
+    window (every `STREAM_HOP_S` of audio), not per chunk, and the dispatcher's
+    AppOverlaySink sends the two messages the app reads. The session closes on
+    `is_final` or disconnect; either way exactly one final verdict is dispatched.
+    """
+    from acquisition.api import AppWsDecoder
+    from contracts import AudioSource, SessionClose, SessionOpen
+    from server.pipeline.dispatcher import build_dispatcher
+    from server.pipeline.runner import SessionRunner
+
+    await ws.accept()
+    principal, pending = await _authenticate(ws, session_id)
+    if principal is None:
+        return
+    log.info(f"WS /screen connected (pipeline runner): session={session_id}")
+    runner = SessionRunner(dispatcher=build_dispatcher(ws=ws), owner_id=principal.owner_id)
+    opened = SessionOpen(session_id=session_id, source=AudioSource.APP_WS)
+    await runner.open(opened)
+    decoder = AppWsDecoder(session_id)
+    reason = "client disconnected"
+    try:
+        while True:
+            if pending is not None:
+                raw, pending = pending, None
+            else:
+                try:
+                    raw = await ws.receive_text()
+                except WebSocketDisconnect:
+                    log.info(f"WS disconnected: session={session_id}")
+                    break
+
+            try:
+                msg = StreamAudioChunkMessage.model_validate_json(raw)
+            except Exception as e:
+                await ws.send_json({"type": "error", "detail": f"Invalid message: {e}"})
+                continue
+
+            if msg.type == StreamClientMessageType.RESET_SESSION:
+                await runner.close(SessionClose(session_id=session_id, reason="reset_session"))
+                await runner.open(opened)
+                decoder = AppWsDecoder(session_id)
+                await ws.send_json({"type": "info", "detail": "Session reset"})
+                continue
+
+            if msg.type != StreamClientMessageType.AUDIO_CHUNK:
+                await ws.send_json({"type": "error", "detail": f"Unknown message type: {msg.type}"})
+                continue
+
+            try:
+                audio_bytes = base64.b64decode(msg.audio_base64)
+            except Exception:
+                await ws.send_json({"type": "error", "detail": "Invalid base64 audio"})
+                continue
+
+            frames = decoder.decode(audio_bytes, is_final=msg.is_final)
+            if not frames:
+                # acquisition logged why. An is_final chunk still ends the session below:
+                # close() scores the tail and emits the one final verdict.
+                log.warning(f"[{session_id}] chunk {msg.chunk_index} decoded to no audio")
+            for frame in frames:
+                _retain_pcm(session_id, frame.pcm_s16le, msg.chunk_index)
+                await runner.push(frame)
+            if msg.is_final:
+                reason = "final chunk"
+                log.info(f"WS session complete: {session_id} (frames={decoder.next_seq})")
+                break
+
+    except Exception as e:
+        if is_client_gone(e):
+            # The phone hung up or lost signal mid-send: a normal close, not an error.
+            log.info(f"WS client left mid-send: session={session_id}")
+        else:
+            log.exception(f"WS error for session {session_id}: {e}")
+            try:
+                await ws.send_json({"type": "error", "detail": str(e)})
+            except Exception:
+                pass
+    finally:
+        await runner.close(SessionClose(session_id=session_id, reason=reason))
         try:
             await ws.close()
         except Exception:
@@ -338,8 +482,15 @@ async def ws_screen(ws: WebSocket, session_id: str) -> None:
 async def ws_guardian(ws: WebSocket) -> None:
     """Guardian alert WebSocket. Connect to receive real-time alerts for HIGH_RISK sessions."""
     from server.guardian import subscribe, unsubscribe
+    from server.auth import AuthError, authenticate_ws
     await ws.accept()
-    conn_id = await subscribe(ws)
+    try:
+        principal, _ = await authenticate_ws(ws, silent_dev_after=0.5)
+    except AuthError as e:
+        log.warning(f"Guardian WS refused: {e}")
+        await ws.close(code=1008)
+        return
+    conn_id = await subscribe(ws, principal.owner_id)
     log.info(f"Guardian WS connected: {conn_id}")
     try:
         # Keep connection alive — guardian only receives, never sends

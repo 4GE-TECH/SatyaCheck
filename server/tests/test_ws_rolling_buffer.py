@@ -25,7 +25,7 @@ import pytest
 import config
 
 CLIPS = config.REPO_ROOT / "data" / "eval_set" / "clips"
-WHISPER = config.REPO_ROOT / "models" / "faster-whisper-small" / "model.bin"
+WHISPER = config.MODELS_DIR / "faster-whisper-small" / "model.bin"
 SCAM_CLIP = CLIPS / "held-family-emergency-001.wav"
 
 pytestmark = pytest.mark.skipif(

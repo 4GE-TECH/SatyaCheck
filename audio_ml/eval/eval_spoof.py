@@ -198,6 +198,7 @@ def evaluate(rows, root, splits, scorer, asv) -> dict:
     for split in splits:
         subset = [r for r in rows if r.split == split]
         if not subset:
+            logger.warning("split %r has no rows in the manifest; not evaluated", split)
             continue
         scored, failed = [], 0
         for i, r in enumerate(subset, 1):
@@ -233,6 +234,11 @@ def main(argv: Optional[Sequence[str]] = None,
         return 1
     root = args.audio_root or args.manifest.parent
     rows = load_manifest(args.manifest)
+    present = {r.split for r in rows}
+    if not present & set(args.splits):
+        logger.error("none of the requested splits %s is in the manifest (it has %s)",
+                     args.splits, sorted(present))
+        return 1
 
     speaker_problems = check_speaker_disjoint(rows)
     hash_problems = check_hash_disjoint(rows, root, eval_splits=args.splits)

@@ -7,8 +7,9 @@ person, and returns `unknown`. `unknown` is a legitimate verdict meaning "no
 enrolled person is close", so the UI shows *unverified* for someone enrolled thirty
 seconds earlier and nothing anywhere reports a problem.
 
-So: assert the `.npz` exists and assert the verdict for that speaker afterwards.
-Asserting HTTP 201 passes while the feature is broken.
+So: assert the voiceprint rows exist and assert the verdict for that speaker afterwards.
+Asserting HTTP 201 passes while the feature is broken. Since the upgrade plan's Phase 0
+the database is the only voiceprint store; no `.npz` is written.
 """
 
 from __future__ import annotations
@@ -16,9 +17,10 @@ from __future__ import annotations
 import pytest
 
 import config
+from server.tests.isolated_db import isolated_db  # noqa: F401  (fixture)
 
 CLIPS = config.REPO_ROOT / "data" / "eval_set" / "clips"
-ECAPA = config.REPO_ROOT / "models" / "ecapa" / "hyperparams.yaml"
+ECAPA = config.MODELS_DIR / "ecapa" / "hyperparams.yaml"
 
 pytestmark = pytest.mark.skipif(
     not ECAPA.is_file() or not (CLIPS / "friend.wav").is_file(),
@@ -27,8 +29,8 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
-    """A TestClient with isolated voiceprint and database storage."""
+def client(isolated_db, tmp_path, monkeypatch):
+    """A TestClient with an isolated database and an empty legacy voiceprint folder."""
     from fastapi.testclient import TestClient
 
     from audio_ml import enroll
@@ -39,16 +41,9 @@ def client(tmp_path, monkeypatch):
 
     from server.main import app
 
-    with TestClient(app) as c:
-        c.enrollments = tmp_path / "enrollments"
-        # The voiceprints above are isolated in tmp_path, but the SQLite database is the
-        # real config.DB_PATH. Without this cleanup every run left another "Friend" row
-        # behind: 42 of them had piled up in the phone's "Known voices" list.
-        before = {p["person_id"] for p in c.get("/api/persons").json()}
-        yield c
-        for p in c.get("/api/persons").json():
-            if p["person_id"] not in before:
-                c.delete(f"/api/persons/{p['person_id']}")
+    c = TestClient(app)
+    c.enrollments = tmp_path / "enrollments"
+    return c
 
 
 def _enroll(client, name: str, clip: str):
@@ -75,16 +70,22 @@ def test_the_recorded_clips_can_actually_be_enrolled(client):
     )
 
 
-def test_enrollment_writes_the_voiceprint_audio_ml_reads(client):
-    """The `.npz` on disk IS the integration point between C's API and A's verifier."""
+def test_enrollment_stores_the_voiceprint_the_verifier_reads(client):
+    """The database rows ARE the integration point between the API and the verifier."""
     response = _enroll(client, "Friend", "friend")
     assert response.status_code == 201
 
     person_id = response.json()["person_id"]
-    assert (client.enrollments / f"{person_id}.npz").is_file(), (
-        "the API reported success but audio_ml has no voiceprint on disk — "
-        "verify_speaker will return 'unknown' for this person forever"
+    from server import database
+    from server.voiceprint_store import get_candidates
+
+    with database.SessionLocal() as db:
+        candidates = get_candidates(db, config.DEV_OWNER_ID)
+    assert [c["person_id"] for c in candidates] == [person_id], (
+        "the API reported success but the verifier has no voiceprint for this person"
     )
+    assert set(candidates[0]["centroids"]) == {"wb", "nb8k_sim"}
+    assert list(client.enrollments.glob("*.npz")) == [], "no legacy file may be written"
 
 
 def test_an_enrolled_person_screens_as_a_match(client):

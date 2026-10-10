@@ -1,0 +1,89 @@
+/* ── Phone calls (Exotel live feed) ────────────────────────────────── */
+
+.feed-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap;
+  padding: 12px 12px 12px 20px; border-radius: 999px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1);
+}
+.feed-state { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+.feed-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--neutral); }
+.feed-open .feed-dot { background: var(--safe); box-shadow: 0 0 0 4px var(--safe-soft); }
+.feed-connecting .feed-dot, .feed-reconnecting .feed-dot { background: var(--caution); animation: blink 1.2s ease-in-out infinite; }
+.feed-refused .feed-dot { background: var(--danger); }
+.feed-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.token-form { display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 640px; }
+.token-form .btn { align-self: flex-start; }
+
+.calls-section { display: flex; flex-direction: column; gap: 16px; }
+.calls-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.calls-heading { display: inline-flex; align-items: center; gap: 10px; font-size: 1.25rem; }
+.calls-count {
+  display: inline-grid; place-items: center; min-width: 28px; height: 26px; padding: 0 8px; border-radius: 999px;
+  font-size: 0.875rem; background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.calls-empty { display: flex; gap: 20px; align-items: flex-start; padding: 28px; }
+.calls-empty > svg { flex-shrink: 0; color: var(--voice-3); }
+.calls-empty > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.calls-empty-title { font-size: 1.25rem; font-weight: 640; letter-spacing: -0.02em; }
+.stream-url {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 6px 6px 14px; border-radius: 14px;
+  background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line); width: fit-content; max-width: 100%;
+}
+.stream-url code { font-family: var(--mono); font-size: 0.875rem; overflow-wrap: anywhere; }
+
+.call-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 18px; }
+.call-card {
+  --edge: 0; --rail: var(--neutral);
+  position: relative; display: flex; flex-direction: column; gap: 16px; padding: 22px 22px 22px 28px; overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--line), 0 0 0 calc(var(--edge) * 10px) color-mix(in srgb, var(--rail) calc(var(--edge) * 45%), transparent), var(--shadow-1);
+}
+.call-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--rail); }
+.call-card.tone-danger { --rail: var(--danger); }
+.call-card.tone-caution { --rail: var(--caution); }
+.call-card.tone-safe { --rail: var(--safe); }
+.call-card.is-final { opacity: 0.92; }
+.call-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.call-who { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+.call-who > svg { flex-shrink: 0; margin-top: 4px; color: var(--text-2); }
+.call-who .small { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.call-number { font-size: 1.25rem; font-weight: 600; overflow-wrap: anywhere; }
+.call-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.call-score { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.call-trust { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.call-trust .num { font-size: 3rem; font-weight: 500; line-height: 1; }
+.call-card.tone-danger .call-trust .num { color: var(--danger); }
+.call-card.tone-caution .call-trust .num { color: var(--caution); }
+.call-card.tone-safe .call-trust .num { color: var(--safe); }
+.call-spark { position: relative; width: 100%; height: 64px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
+.call-spark svg { display: block; width: 100%; height: 100%; }
+.spark-dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--text); border: 2px solid var(--panel); }
+.call-card.tone-danger .spark-dot { background: var(--danger); }
+.call-card.tone-caution .spark-dot { background: var(--caution); }
+.call-card.tone-safe .spark-dot { background: var(--safe); }
+.spark-window { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.call-signals { margin: 0; display: flex; flex-direction: column; }
+.call-signals > div { display: flex; flex-direction: column; gap: 2px; padding: 9px 0; border-top: 1px solid var(--line); }
+.call-signals > div:first-child { border-top: 0; padding-top: 0; }
+.call-signals dt { font-size: 0.8125rem; font-weight: 600; color: var(--muted); }
+.call-signals dd { margin: 0; font-weight: 560; }
+.call-threat { padding: 10px 14px; border-radius: 14px; background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line); }
+.call-vernacular { padding: 12px 14px; border-radius: 14px; font-size: 1.0625rem; font-weight: 600; background: var(--danger-soft); box-shadow: inset 0 0 0 1px var(--danger-line); }
+.call-card.tone-caution .call-vernacular { background: var(--caution-soft); box-shadow: inset 0 0 0 1px var(--caution-line); }
+.call-action { padding: 12px 14px; border-radius: 14px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); font-weight: 600; }
+.call-evidence { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.call-evidence li { display: flex; flex-direction: column; gap: 2px; padding-left: 12px; border-left: 3px solid var(--line-2); }
+.call-evidence li.sev-critical, .call-evidence li.sev-high { border-left-color: var(--danger); }
+.call-evidence li.sev-medium { border-left-color: var(--caution); }
+.call-transcript { display: flex; flex-direction: column; gap: 6px; }
+.call-transcript blockquote { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--bg-raise); box-shadow: inset 0 0 0 1px var(--line); line-height: 1.55; }
+.call-foot { display: flex; justify-content: flex-end; }
+
+@media (max-width: 720px) {
+  .feed-bar { border-radius: 24px; }
+  .call-body { grid-template-columns: 1fr; }
+  .calls-empty { flex-direction: column; padding: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-connecting .feed-dot, .feed-reconnecting .feed-dot { animation: none; }
+}

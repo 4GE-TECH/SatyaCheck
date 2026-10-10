@@ -1,0 +1,454 @@
+{
+  "pairs": [
+    {
+      "probe": "friend_test",
+      "claimed": "friend",
+      "kind": "genuine",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.9464,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "me_test2",
+      "claimed": "me",
+      "kind": "genuine",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.7912,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "friend_clone",
+      "claimed": "friend",
+      "kind": "clone",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.7619,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "cloned_scam",
+      "claimed": "friend",
+      "kind": "clone",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.7631,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "held-credential-002",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.2273,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "held-credential-002",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.6846,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "held-digital-arrest-004",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-digital-arrest-004",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-family-emergency-001",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-family-emergency-001",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-sms-fraud-001",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.239,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "held-sms-fraud-001",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.6809,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "held-telecom-002",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.799,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "held-telecom-002",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "wideband",
+      "codec": "clean",
+      "cosine": 0.2353,
+      "scored": true,
+      "condition_used": "wb"
+    },
+    {
+      "probe": "friend_test",
+      "claimed": "friend",
+      "kind": "genuine",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.9326,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "me_test2",
+      "claimed": "me",
+      "kind": "genuine",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.7977,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "friend_clone",
+      "claimed": "friend",
+      "kind": "clone",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.7877,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "cloned_scam",
+      "claimed": "friend",
+      "kind": "clone",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.7893,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-credential-002",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.2926,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-credential-002",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.7045,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-digital-arrest-004",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-digital-arrest-004",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-family-emergency-001",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-family-emergency-001",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-sms-fraud-001",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.3297,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-sms-fraud-001",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.7631,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-telecom-002",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.7932,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-telecom-002",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "g711_ulaw",
+      "cosine": 0.3418,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "friend_test",
+      "claimed": "friend",
+      "kind": "genuine",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.9155,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "me_test2",
+      "claimed": "me",
+      "kind": "genuine",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.8201,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "friend_clone",
+      "claimed": "friend",
+      "kind": "clone",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.8246,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "cloned_scam",
+      "claimed": "friend",
+      "kind": "clone",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.8369,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-credential-002",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.3263,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-credential-002",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.6861,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-digital-arrest-004",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-digital-arrest-004",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-family-emergency-001",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-family-emergency-001",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.0,
+      "scored": false,
+      "condition_used": "nb8k"
+    },
+    {
+      "probe": "held-sms-fraud-001",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.3339,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-sms-fraud-001",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.7362,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-telecom-002",
+      "claimed": "friend",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.8199,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    },
+    {
+      "probe": "held-telecom-002",
+      "claimed": "me",
+      "kind": "stranger",
+      "channel": "narrowband",
+      "codec": "amr_nb",
+      "cosine": 0.3525,
+      "scored": true,
+      "condition_used": "nb8k_sim"
+    }
+  ],
+  "thresholds": {
+    "wideband": {
+      "match": 0.819,
+      "low": 0.771,
+      "genuine_min": 0.7912,
+      "genuine_max": 0.9464,
+      "attack_max": 0.799,
+      "attack_min": 0.2273,
+      "attacks_below_low": 7,
+      "attacks": 8,
+      "genuine_in_grey_zone": 1,
+      "genuine": 2,
+      "unscored": 4
+    },
+    "narrowband": {
+      "match": 0.857,
+      "low": 0.778,
+      "genuine_min": 0.7977,
+      "genuine_max": 0.9326,
+      "attack_max": 0.8369,
+      "attack_min": 0.2926,
+      "attacks_below_low": 10,
+      "attacks": 16,
+      "genuine_in_grey_zone": 2,
+      "genuine": 4,
+      "unscored": 8
+    }
+  },
+  "margin": 0.02,
+  "note": "2 enrolled speakers, 2 genuine probes, 2 clones, held-* strangers; speakerphone not simulated. Small set: re-measure with real calls."
+}

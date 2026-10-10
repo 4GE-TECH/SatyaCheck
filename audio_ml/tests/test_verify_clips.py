@@ -26,7 +26,7 @@ import pytest
 import config
 
 CLIPS = config.REPO_ROOT / "data" / "eval_set" / "clips"
-ECAPA = config.REPO_ROOT / "models" / "ecapa" / "hyperparams.yaml"
+ECAPA = config.MODELS_DIR / "ecapa" / "hyperparams.yaml"
 
 pytestmark = pytest.mark.skipif(
     not ECAPA.is_file() or not (CLIPS / "friend.wav").is_file(),
@@ -71,11 +71,9 @@ def _verify(clip: str):
 
 
 def test_enrollment_writes_a_voiceprint_to_disk(enrolled):
-    """`verify_speaker` globs its own directory, so the .npz *is* the integration point.
-
-    `server/enroll_router.py` calls `audio_ml.api.enroll_person` for exactly this
-    reason: without the file on disk the identity branch has nothing to compare
-    against, and returns `unknown` for a person enrolled seconds earlier.
+    """On the CLI path `verify_speaker()` with no candidates globs this directory, so the
+    .npz is that path's integration point. (The server stores vectors in its database and
+    passes them as `candidates`; see server/tests/test_enroll_roundtrip.py.)
     """
     enrolled("friend", "friend")
     assert (enrolled.dir / "friend.npz").is_file()

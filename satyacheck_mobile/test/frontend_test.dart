@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:satyacheck/main.dart';
 import 'package:satyacheck/api_client.dart';
+import 'package:satyacheck/auth.dart';
 import 'package:satyacheck/models.dart';
 import 'package:satyacheck/result_screen.dart';
 import 'package:satyacheck/theme.dart';
@@ -25,8 +27,13 @@ Map<String, dynamic> fixture(
     };
 
 class OfflineApi extends ApiClient {
+  OfflineApi({super.auth});
+
   @override
   Future<bool> ping() async => false;
+
+  @override
+  Future<LiveFeedSocket> openLiveFeed({String token = ''}) async => throw const SocketException('offline');
 }
 
 void main() {
@@ -80,5 +87,31 @@ void main() {
     }
     expect(find.text('Choose audio'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('the Calls tab stays usable when the service is unreachable', (tester) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('com.satyacheck/native'), (call) async => call.method == 'getPermissionStatus' ? <String, dynamic>{} : null);
+    await tester.pumpWidget(SatyaCheckApp(api: OfflineApi()));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.text('Calls').last);
+    for (var i = 0; i < 25; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Phone calls'), findsOneWidget);
+    expect(find.text('Not watching for calls yet'), findsOneWidget);
+    expect(find.text('Reconnecting…'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('with sign-in on, the app waits behind it until there is a session', (tester) async {
+    final api = OfflineApi(auth: AuthSession(url: 'http://127.0.0.1:9', anonKey: 'anon'));
+    await tester.pumpWidget(SatyaCheckApp(api: api));
+    await tester.pump();
+    expect(find.text('Sign in to SatyaCheck'), findsOneWidget);
+    expect(find.text('Email me a code'), findsOneWidget);
+    expect(find.text('Check this recording'), findsNothing);
   });
 }

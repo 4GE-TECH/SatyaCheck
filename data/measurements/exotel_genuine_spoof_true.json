@@ -1,0 +1,605 @@
+{
+  "label": "genuine_spoof_true",
+  "config": {
+    "speed": 4.0,
+    "encoding": "raw",
+    "call_rate_hz": 8000,
+    "message_ms": 100,
+    "USE_REAL_SPEAKER": true,
+    "USE_REAL_SPOOF": true,
+    "USE_REAL_NLP": true,
+    "SPOOF_OOD_ENABLED": null,
+    "ESCALATION_PERSISTENCE_N": 1
+  },
+  "caveat": "simulated Exotel path (resampled to 8 kHz, local socket); not a live phone call",
+  "n_sessions": 24,
+  "n_genuine": 24,
+  "n_windows": 120,
+  "latency_ms": {
+    "n": 120,
+    "p50": 1460.4,
+    "p95": 2628.3,
+    "max": 14332.5
+  },
+  "first_transcript_s": {
+    "n": 0,
+    "p50": null,
+    "p95": null,
+    "max": null
+  },
+  "false_positive_rate": 0.16666666666666666,
+  "false_positive_files": [
+    "me.wav",
+    "me_test2.wav",
+    "Speaker-11_bonafide48.wav",
+    "Speaker-2_bonafide47.wav"
+  ],
+  "caution_rate": 0.4583333333333333,
+  "caution_files": [
+    "friend.wav",
+    "friend_test.wav",
+    "Speaker-11_bonafide11.wav",
+    "Speaker-11_bonafide91.wav",
+    "Speaker-15_bonafide115.wav",
+    "Speaker-15_bonafide118.wav",
+    "Speaker-15_bonafide164.wav",
+    "Speaker-15_bonafide45.wav",
+    "Speaker-15_bonafide79.wav",
+    "Speaker-23_bonafide106.wav",
+    "Speaker-43_bonafide78.wav"
+  ],
+  "sessions": [
+    {
+      "file": "friend.wav",
+      "genuine": true,
+      "audio_s": 30.36,
+      "n_windows": 16,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution"
+      ],
+      "latencies_ms": [
+        1429.1,
+        855.5,
+        1119.7,
+        1555.0,
+        2141.6,
+        2235.2,
+        2058.5,
+        1995.4,
+        1956.8,
+        2143.8,
+        2275.0,
+        2712.4,
+        2031.9,
+        2468.2,
+        2544.9,
+        4575.1
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "friend_test.wav",
+      "genuine": true,
+      "audio_s": 10.36,
+      "n_windows": 6,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "caution",
+        "caution",
+        "caution",
+        "caution",
+        "caution"
+      ],
+      "latencies_ms": [
+        708.4,
+        656.9,
+        1130.4,
+        1694.8,
+        2357.2,
+        14332.5
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "me.wav",
+      "genuine": true,
+      "audio_s": 34.11,
+      "n_windows": 18,
+      "final_band": "suspicious",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious"
+      ],
+      "latencies_ms": [
+        126.7,
+        655.3,
+        1131.0,
+        1540.5,
+        2659.9,
+        2808.4,
+        2096.9,
+        2098.5,
+        2140.8,
+        2200.4,
+        2136.9,
+        2157.0,
+        2103.0,
+        2195.7,
+        2059.6,
+        2062.5,
+        2072.6,
+        3005.4
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "me_test2.wav",
+      "genuine": true,
+      "audio_s": 28.65,
+      "n_windows": 15,
+      "final_band": "suspicious",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious",
+        "suspicious"
+      ],
+      "latencies_ms": [
+        121.2,
+        650.4,
+        1128.4,
+        1629.3,
+        2185.9,
+        2041.8,
+        2099.1,
+        1998.6,
+        2107.8,
+        2151.5,
+        2099.1,
+        2093.8,
+        2101.3,
+        2138.6,
+        2626.6
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-11_bonafide11.wav",
+      "genuine": true,
+      "audio_s": 5.5,
+      "n_windows": 3,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution"
+      ],
+      "latencies_ms": [
+        595.0,
+        633.0,
+        1605.1
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-11_bonafide48.wav",
+      "genuine": true,
+      "audio_s": 6.0,
+      "n_windows": 4,
+      "final_band": "suspicious",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "suspicious",
+        "suspicious"
+      ],
+      "latencies_ms": [
+        620.9,
+        670.6,
+        1128.9,
+        1524.4
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-11_bonafide63.wav",
+      "genuine": true,
+      "audio_s": 5.5,
+      "n_windows": 3,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified"
+      ],
+      "latencies_ms": [
+        606.1,
+        635.0,
+        1406.5
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-11_bonafide89.wav",
+      "genuine": true,
+      "audio_s": 5.24,
+      "n_windows": 3,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified"
+      ],
+      "latencies_ms": [
+        631.3,
+        675.5,
+        1530.3
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-11_bonafide91.wav",
+      "genuine": true,
+      "audio_s": 5.24,
+      "n_windows": 3,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution"
+      ],
+      "latencies_ms": [
+        624.2,
+        670.0,
+        1688.6
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-15_bonafide115.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution"
+      ],
+      "latencies_ms": [
+        619.6,
+        646.1,
+        1458.9
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-15_bonafide118.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution"
+      ],
+      "latencies_ms": [
+        635.1,
+        685.3,
+        1513.6
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-15_bonafide164.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution"
+      ],
+      "latencies_ms": [
+        629.0,
+        669.8,
+        1625.4
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-15_bonafide45.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution"
+      ],
+      "latencies_ms": [
+        635.4,
+        674.5,
+        1550.3
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-15_bonafide79.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution"
+      ],
+      "latencies_ms": [
+        625.2,
+        667.3,
+        1542.3
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-2_bonafide47.wav",
+      "genuine": true,
+      "audio_s": 6.2,
+      "n_windows": 4,
+      "final_band": "suspicious",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "suspicious",
+        "suspicious"
+      ],
+      "latencies_ms": [
+        636.5,
+        657.7,
+        1133.9,
+        2055.0
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-2_bonafide55.wav",
+      "genuine": true,
+      "audio_s": 5.6,
+      "n_windows": 3,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified"
+      ],
+      "latencies_ms": [
+        636.3,
+        662.2,
+        1721.1
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-2_bonafide60.wav",
+      "genuine": true,
+      "audio_s": 5.6,
+      "n_windows": 3,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified"
+      ],
+      "latencies_ms": [
+        631.1,
+        652.1,
+        1509.8
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-23_bonafide106.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution"
+      ],
+      "latencies_ms": [
+        625.8,
+        667.0,
+        1642.3
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-23_bonafide12.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified"
+      ],
+      "latencies_ms": [
+        638.4,
+        648.7,
+        1461.9
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-23_bonafide50.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified"
+      ],
+      "latencies_ms": [
+        119.1,
+        146.0,
+        1443.0
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-23_bonafide54.wav",
+      "genuine": true,
+      "audio_s": 5.0,
+      "n_windows": 3,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified"
+      ],
+      "latencies_ms": [
+        631.2,
+        644.1,
+        1590.9
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-43_bonafide63.wav",
+      "genuine": true,
+      "audio_s": 6.08,
+      "n_windows": 4,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified",
+        "unverified"
+      ],
+      "latencies_ms": [
+        122.1,
+        641.4,
+        1104.9,
+        1936.6
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-43_bonafide76.wav",
+      "genuine": true,
+      "audio_s": 6.08,
+      "n_windows": 4,
+      "final_band": "unverified",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "unverified",
+        "unverified"
+      ],
+      "latencies_ms": [
+        120.0,
+        650.2,
+        1112.2,
+        2083.2
+      ],
+      "first_transcript_s": null
+    },
+    {
+      "file": "Speaker-43_bonafide78.wav",
+      "genuine": true,
+      "audio_s": 6.08,
+      "n_windows": 4,
+      "final_band": "caution",
+      "final_is_final": true,
+      "bands": [
+        "insufficient",
+        "insufficient",
+        "caution",
+        "caution"
+      ],
+      "latencies_ms": [
+        120.0,
+        158.5,
+        1102.5,
+        1905.5
+      ],
+      "first_transcript_s": null
+    }
+  ]
+}

@@ -100,6 +100,38 @@ class ReasonCode {
       );
 }
 
+/// `contracts.ThreatLabel`: which kind of fraud the call resembles. A pattern, never a verdict.
+class ThreatLabel {
+  const ThreatLabel({required this.sector, required this.threat, required this.family});
+
+  final String sector;
+  final String threat;
+  final String family;
+
+  /// `banking`, `law_enforcement_impersonation` become readable words.
+  String get sectorText => sector.replaceAll('_', ' ');
+
+  static ThreatLabel? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final threat = json['threat'];
+    if (threat is! String || threat.isEmpty) return null;
+    return ThreatLabel(
+      sector: json['sector'] as String? ?? '',
+      threat: threat,
+      family: json['family'] as String? ?? '',
+    );
+  }
+}
+
+/// The caller ID as received (`contracts.CallerMetadata`). Explanation only: never scored.
+String? callerIdFrom(Object? json) {
+  if (json is! Map) return null;
+  final number = json['claimed_number'], name = json['claimed_name'];
+  if (number is String && number.isNotEmpty) return number;
+  if (name is String && name.isNotEmpty) return name;
+  return null;
+}
+
 /// What the app shows after screening a call.
 class ScreeningResult {
   const ScreeningResult({
@@ -116,6 +148,9 @@ class ScreeningResult {
     this.recommendedActions = const [],
     this.vernacularWarning,
     this.processingMs = 0,
+    this.threatLabel,
+    this.callerId,
+    this.channel,
     this.raw = const {},
   });
 
@@ -140,6 +175,16 @@ class ScreeningResult {
   final String? vernacularWarning;
 
   final int processingMs;
+
+  /// The kind of fraud the call resembles, on warning bands with a cited playbook.
+  final ThreatLabel? threatLabel;
+
+  /// Caller ID as received from the phone network. Never part of the score.
+  final String? callerId;
+
+  /// `telephony` for calls screened through Exotel, `upload` for files, and so on.
+  final String? channel;
+
   final Map<String, dynamic> raw;
 
   Signal get signal => band.signal;
@@ -187,6 +232,9 @@ class ScreeningResult {
           .toList(),
       vernacularWarning: fusion['vernacular_warning'] as String?,
       processingMs: (json['processing_time_ms'] as num?)?.toInt() ?? 0,
+      threatLabel: ThreatLabel.fromJson(fusion['threat_label']),
+      callerId: callerIdFrom(json['caller_context']),
+      channel: (json['caller_context'] as Map?)?['channel_type'] as String?,
       raw: json,
     );
   }
@@ -198,11 +246,17 @@ class EnrolledPerson {
     required this.personId,
     required this.name,
     required this.relation,
+    this.aliases = const [],
+    this.phoneNumbers = const [],
   });
 
   final String personId;
   final String name;
   final String relation;
+
+  /// What callers call them ("Papa"), and numbers they call from. Hints, never proof.
+  final List<String> aliases;
+  final List<String> phoneNumbers;
 }
 
 /// The result of trying to enrol a voice.
@@ -240,4 +294,125 @@ class CallRecord {
   String? error;
 
   Signal get signal => result?.signal ?? Signal.grey;
+}
+
+/// One message from the live verdict feed, `/api/ws/live` (docs/LIVE_FEED.md, schema 1).
+///
+/// Exotel calls stream from Exotel straight to the backend; the phone only watches verdicts.
+class LiveVerdict {
+  const LiveVerdict({
+    required this.sessionId,
+    required this.windowIndex,
+    required this.isFinal,
+    required this.escalated,
+    required this.band,
+    required this.overlay,
+    required this.trustScore,
+    required this.mode,
+    required this.identity,
+    required this.authenticity,
+    required this.intentRisk,
+    this.windowTrustScore,
+    this.reasonCodes = const [],
+    this.transcript = '',
+    this.language = 'unknown',
+    this.callerId,
+    this.threatLabel,
+    this.recommendedActions = const [],
+    this.vernacularWarning,
+  });
+
+  final String sessionId;
+  final int windowIndex;
+  final bool isFinal;
+
+  /// This verdict raised the call's warning level.
+  final bool escalated;
+  final TrustBand band;
+
+  /// The colour the backend says to show, used as-is rather than re-derived from the band.
+  final Signal overlay;
+
+  /// The session score: never rises during a call.
+  final double trustScore;
+
+  /// This window's own score before the session floor; moves up and down.
+  final double? windowTrustScore;
+  final String mode;
+  final String identity;
+  final String authenticity;
+  final double intentRisk;
+  final List<ReasonCode> reasonCodes;
+  final String transcript;
+  final String language;
+  final String? callerId;
+  final ThreatLabel? threatLabel;
+  final List<String> recommendedActions;
+  final String? vernacularWarning;
+
+  static const _overlay = {'green': Signal.green, 'amber': Signal.amber, 'red': Signal.red};
+
+  /// Null for anything that is not a well-formed verdict, so a stray frame is ignored.
+  static LiveVerdict? fromJson(Object? decoded) {
+    if (decoded is! Map || decoded['type'] != 'verdict') return null;
+    final session = decoded['session_id'], trust = decoded['trust_score'];
+    if (session is! String || session.isEmpty || trust is! num) return null;
+    final signals = (decoded['signals'] as Map?) ?? const {};
+    var overlay = _overlay[decoded['overlay_state']] ?? Signal.grey;
+    // Green means "we verified this person". Never show it for a stranger check.
+    if (overlay == Signal.green && decoded['mode'] != 'identity_check') overlay = Signal.grey;
+    return LiveVerdict(
+      sessionId: session,
+      windowIndex: (decoded['window_index'] as num?)?.toInt() ?? 0,
+      isFinal: decoded['is_final'] == true,
+      escalated: decoded['escalated'] == true,
+      band: TrustBand.parse(decoded['band'] as String?),
+      overlay: overlay,
+      trustScore: trust.toDouble(),
+      windowTrustScore: (decoded['window_trust_score'] as num?)?.toDouble(),
+      mode: decoded['mode'] as String? ?? 'authority_check',
+      identity: signals['identity'] as String? ?? 'unknown',
+      authenticity: signals['authenticity'] as String? ?? 'unavailable',
+      intentRisk: (signals['intent_risk'] as num?)?.toDouble() ?? 0,
+      reasonCodes: ((decoded['reason_codes'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => ReasonCode.fromJson(e.cast<String, dynamic>()))
+          .toList(),
+      transcript: decoded['transcript'] as String? ?? '',
+      language: decoded['language'] as String? ?? 'unknown',
+      callerId: callerIdFrom(decoded['caller_context']),
+      threatLabel: ThreatLabel.fromJson(decoded['threat_label']),
+      recommendedActions: ((decoded['recommended_actions'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      vernacularWarning: decoded['vernacular_warning'] as String?,
+    );
+  }
+
+  /// Evidence worth showing, most severe first, with info lines left out.
+  List<ReasonCode> get evidence {
+    const order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3};
+    final sorted = reasonCodes.where((r) => r.severity != 'info').toList();
+    sorted.sort((a, b) => (order[a.severity] ?? 9).compareTo(order[b.severity] ?? 9));
+    return sorted;
+  }
+}
+
+/// One phone call on the live feed, built up from its verdicts.
+class LiveCall {
+  LiveCall(this.latest)
+      : startedAt = DateTime.now(),
+        updatedAt = DateTime.now(),
+        escalations = latest.escalated ? 1 : 0;
+
+  LiveVerdict latest;
+  final DateTime startedAt;
+  DateTime updatedAt;
+  int escalations;
+  bool get ended => latest.isFinal;
+
+  void add(LiveVerdict verdict) {
+    // A late non-final verdict after the final one must not reopen the call.
+    if (!latest.isFinal || verdict.isFinal) latest = verdict;
+    updatedAt = DateTime.now();
+    if (verdict.escalated) escalations++;
+  }
 }

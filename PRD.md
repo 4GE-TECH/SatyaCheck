@@ -105,7 +105,10 @@ Mainstream explainable deepfake detection produces internal attribution maps ove
 | FR-14 | Report packet (JSON + PDF) with audio SHA-256, formatted for 1930 / Chakshu | P1 |
 | FR-15 | Negative voiceprint list of previously-reported callers | P2 |
 | FR-16 | Replay detection via anomalously high cosine (> 0.95) | P2 |
-| FR-17 | Optional `claimed_number` / `claimed_identity` metadata enriching explanation only | P2 |
+| FR-17 | Claims choose which voiceprint is checked: the user's pick (`claimed_identity`), the caller's own words ("main Papa bol raha hoon") or the displayed number (`claimed_number`). Only the first two can turn a failed check into `mismatch`; a number alone never accuses, and conflicting claims accuse nobody | P1 |
+| FR-18 | Accounts: email one-time-code sign-in; every voice, call and report belongs to one account, enforced in queries and by Postgres row-level security; account deletion removes it all | P0 |
+| FR-19 | Live stream v2: raw 16 kHz frames, committed vs tentative transcript, append-only alerts, reported coverage gaps, admission control so an overloaded server refuses rather than lags | P1 |
+| FR-20 | Operable deployment: container image (GPU or CPU), readiness gate, Prometheus metrics without call data, request IDs, retention sweep, CI | P1 |
 
 ---
 
@@ -140,7 +143,7 @@ M5 is reported deliberately. Generalisation is the central open problem in the f
 
 - Distribution to non-technical households. Realistic path is via banks, telcos or government portals.
 - Evaluation at scale. The hackathon build uses ~30 clips from 4 consented speakers.
-- Real telephony integration.
+- Real telephony integration. Android silences other apps during a call; call audio arrives through a telephony provider (Exotel today) or a device beside the phone.
 - Legal determination of fraud. SatyaCheck is an assistant, not an authority.
 
 ---

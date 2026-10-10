@@ -114,6 +114,14 @@ ASR_MAX_NO_SPEECH_PROB: float = _get("ASR_MAX_NO_SPEECH_PROB", 0.60)
 ASR_MIN_AVG_LOGPROB: float = _get("ASR_MIN_AVG_LOGPROB", -1.0)
 
 #: Fewer word tokens than this is not enough text to retrieve against.
+# A segment decoded at least this confidently is speech unless its no_speech_prob reaches
+# ASR_SILENCE_NO_SPEECH_PROB (Whisper's own rule: silent = high no_speech AND poor decode).
+# A cloned voice on a live Exotel call came back at -0.24 with no_speech 0.76 per segment
+# and was gated as silence. The 0.9 cap keeps the fluent phantoms Whisper emits on
+# near-silence (PLAN.md section 7) rejected.
+ASR_CONFIDENT_LOGPROB: float = _get("ASR_CONFIDENT_LOGPROB", -0.5)
+ASR_SILENCE_NO_SPEECH_PROB: float = _get("ASR_SILENCE_NO_SPEECH_PROB", 0.9)
+
 ASR_MIN_TOKENS: int = _get("ASR_MIN_TOKENS", 3)
 
 #: An n-gram repeated more than this many times marks a decoder loop.
@@ -158,3 +166,13 @@ STREAM_PIN_LANGUAGE_PROB: float = _get(
 #: primary language is the better label. This affects the REPORTED label only. Decoding is
 #: always auto-detected; see the note in `asr.py`.
 ASR_MIN_LANGUAGE_PROB: float = _get("ASR_MIN_LANGUAGE_PROB", 0.60)
+
+#: Committing live ASR (nlp_rag.streaming.CommittingTranscriber, upgrade plan Phase 3).
+#: The first decode still waits STREAM_MIN_DECODE_S (the hallucination floor above); after
+#: that the uncommitted tail is re-decoded every STREAM_COMMIT_EVERY_S of new audio, a
+#: segment commits once two consecutive decodes agree on it and it ends at least
+#: STREAM_COMMIT_GUARD_S before the newest audio, and the tail never exceeds
+#: STREAM_COMMIT_MAX_TAIL_S — decode work stays flat however long the call runs.
+STREAM_COMMIT_EVERY_S: float = _get("STREAM_COMMIT_EVERY_S", 2.0)
+STREAM_COMMIT_GUARD_S: float = _get("STREAM_COMMIT_GUARD_S", 1.0)
+STREAM_COMMIT_MAX_TAIL_S: float = _get("STREAM_COMMIT_MAX_TAIL_S", 15.0)
