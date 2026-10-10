@@ -14,6 +14,20 @@ pydantic==2.12.5
 
 # ── Database ──────────────────────────────────────────────────────────
 SQLAlchemy==2.0.52
+# Postgres (Supabase) + migrations + pgvector; SQLite stays the dev/test default
+alembic>=1.14
+psycopg[binary]>=3.2
+pgvector>=0.3
+
+# -- Auth (Supabase access tokens, verified against the project's JWKS) --
+PyJWT[crypto]>=2.8
+
+# -- Operations (Prometheus /metrics: aggregate counts and timings only) --
+prometheus-client>=0.20
+
+# -- App-to-app calls (WebRTC via LiveKit; webrtc/README.md) --
+livekit>=1.1.20
+livekit-api>=1.2.1
 
 # ── Reports ───────────────────────────────────────────────────────────
 reportlab==5.0.1

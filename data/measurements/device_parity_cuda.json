@@ -1,0 +1,601 @@
+{
+  "device": "cuda",
+  "identity": [
+    {
+      "key": "wideband/clean/friend_test->friend",
+      "kind": "genuine",
+      "scored": true,
+      "cosine": 0.94642,
+      "side": "match"
+    },
+    {
+      "key": "wideband/clean/me_test2->me",
+      "kind": "genuine",
+      "scored": true,
+      "cosine": 0.79115,
+      "side": "inconclusive"
+    },
+    {
+      "key": "wideband/clean/friend_clone->friend",
+      "kind": "clone",
+      "scored": true,
+      "cosine": 0.7618,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/cloned_scam->friend",
+      "kind": "clone",
+      "scored": true,
+      "cosine": 0.76306,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-credential-002->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.22723,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-credential-002->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.68452,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-digital-arrest-004->friend",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-digital-arrest-004->me",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-family-emergency-001->friend",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-family-emergency-001->me",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-sms-fraud-001->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.23895,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-sms-fraud-001->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.68085,
+      "side": "low"
+    },
+    {
+      "key": "wideband/clean/held-telecom-002->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.79898,
+      "side": "inconclusive"
+    },
+    {
+      "key": "wideband/clean/held-telecom-002->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.23527,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/friend_test->friend",
+      "kind": "genuine",
+      "scored": true,
+      "cosine": 0.93266,
+      "side": "match"
+    },
+    {
+      "key": "narrowband/g711_ulaw/me_test2->me",
+      "kind": "genuine",
+      "scored": true,
+      "cosine": 0.79772,
+      "side": "inconclusive"
+    },
+    {
+      "key": "narrowband/g711_ulaw/friend_clone->friend",
+      "kind": "clone",
+      "scored": true,
+      "cosine": 0.7877,
+      "side": "inconclusive"
+    },
+    {
+      "key": "narrowband/g711_ulaw/cloned_scam->friend",
+      "kind": "clone",
+      "scored": true,
+      "cosine": 0.78929,
+      "side": "inconclusive"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-credential-002->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.2926,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-credential-002->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.70445,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-digital-arrest-004->friend",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-digital-arrest-004->me",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-family-emergency-001->friend",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-family-emergency-001->me",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-sms-fraud-001->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.32969,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-sms-fraud-001->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.76308,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-telecom-002->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.79321,
+      "side": "inconclusive"
+    },
+    {
+      "key": "narrowband/g711_ulaw/held-telecom-002->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.34168,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/friend_test->friend",
+      "kind": "genuine",
+      "scored": true,
+      "cosine": 0.91552,
+      "side": "match"
+    },
+    {
+      "key": "narrowband/amr_nb/me_test2->me",
+      "kind": "genuine",
+      "scored": true,
+      "cosine": 0.82004,
+      "side": "inconclusive"
+    },
+    {
+      "key": "narrowband/amr_nb/friend_clone->friend",
+      "kind": "clone",
+      "scored": true,
+      "cosine": 0.82462,
+      "side": "inconclusive"
+    },
+    {
+      "key": "narrowband/amr_nb/cloned_scam->friend",
+      "kind": "clone",
+      "scored": true,
+      "cosine": 0.83696,
+      "side": "inconclusive"
+    },
+    {
+      "key": "narrowband/amr_nb/held-credential-002->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.32627,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/held-credential-002->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.68604,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/held-digital-arrest-004->friend",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/held-digital-arrest-004->me",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/held-family-emergency-001->friend",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/held-family-emergency-001->me",
+      "kind": "stranger",
+      "scored": false,
+      "cosine": 0.0,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/held-sms-fraud-001->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.33387,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/held-sms-fraud-001->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.73624,
+      "side": "low"
+    },
+    {
+      "key": "narrowband/amr_nb/held-telecom-002->friend",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.81995,
+      "side": "inconclusive"
+    },
+    {
+      "key": "narrowband/amr_nb/held-telecom-002->me",
+      "kind": "stranger",
+      "scored": true,
+      "cosine": 0.35243,
+      "side": "low"
+    }
+  ],
+  "authenticity": [
+    {
+      "key": "cloned_scam",
+      "median": 0.9999,
+      "peak": 1.0,
+      "verdict": "synthetic",
+      "n_chunks": 2
+    },
+    {
+      "key": "friend",
+      "median": 0.9121,
+      "peak": 0.9971,
+      "verdict": "synthetic",
+      "n_chunks": 15
+    },
+    {
+      "key": "friend_clone",
+      "median": 0.9999,
+      "peak": 0.9999,
+      "verdict": "synthetic",
+      "n_chunks": 2
+    },
+    {
+      "key": "friend_test",
+      "median": 0.7099,
+      "peak": 0.8988,
+      "verdict": "synthetic",
+      "n_chunks": 5
+    },
+    {
+      "key": "friend_test_nb8k_enroll",
+      "median": 0.7767,
+      "peak": 0.8235,
+      "verdict": "synthetic",
+      "n_chunks": 2
+    },
+    {
+      "key": "friend_test_nb8k_probe",
+      "median": 0.6355,
+      "peak": 0.7097,
+      "verdict": "partial_synthetic",
+      "n_chunks": 2
+    },
+    {
+      "key": "held-credential-002",
+      "median": 0.0019,
+      "peak": 0.0296,
+      "verdict": "bonafide",
+      "n_chunks": 9
+    },
+    {
+      "key": "held-credential-002_nb8k",
+      "median": 0.0516,
+      "peak": 0.6064,
+      "verdict": "bonafide",
+      "n_chunks": 9
+    },
+    {
+      "key": "held-digital-arrest-004",
+      "median": 0.0068,
+      "peak": 0.2902,
+      "verdict": "bonafide",
+      "n_chunks": 10
+    },
+    {
+      "key": "held-digital-arrest-004_nb8k",
+      "median": 0.0161,
+      "peak": 0.2065,
+      "verdict": "bonafide",
+      "n_chunks": 10
+    },
+    {
+      "key": "held-family-emergency-001",
+      "median": 0.0205,
+      "peak": 0.0471,
+      "verdict": "bonafide",
+      "n_chunks": 8
+    },
+    {
+      "key": "held-family-emergency-001_nb8k",
+      "median": 0.0412,
+      "peak": 0.1286,
+      "verdict": "bonafide",
+      "n_chunks": 8
+    },
+    {
+      "key": "held-sms-fraud-001",
+      "median": 0.0033,
+      "peak": 0.0584,
+      "verdict": "bonafide",
+      "n_chunks": 8
+    },
+    {
+      "key": "held-sms-fraud-001_nb8k",
+      "median": 0.0042,
+      "peak": 0.0128,
+      "verdict": "bonafide",
+      "n_chunks": 8
+    },
+    {
+      "key": "held-telecom-002",
+      "median": 0.0075,
+      "peak": 0.0118,
+      "verdict": "bonafide",
+      "n_chunks": 8
+    },
+    {
+      "key": "held-telecom-002_nb8k",
+      "median": 0.0361,
+      "peak": 0.0648,
+      "verdict": "bonafide",
+      "n_chunks": 8
+    },
+    {
+      "key": "me",
+      "median": 0.1782,
+      "peak": 0.9558,
+      "verdict": "partial_synthetic",
+      "n_chunks": 17
+    },
+    {
+      "key": "me_test2",
+      "median": 0.404,
+      "peak": 0.988,
+      "verdict": "partial_synthetic",
+      "n_chunks": 14
+    },
+    {
+      "key": "test_tone_amr",
+      "median": 0.0,
+      "peak": 0.0,
+      "verdict": "bonafide",
+      "n_chunks": 2
+    },
+    {
+      "key": "test_tone_gsm",
+      "median": 0.0,
+      "peak": 0.0,
+      "verdict": "bonafide",
+      "n_chunks": 2
+    },
+    {
+      "key": "test_tone_nb8k",
+      "median": 0.0,
+      "peak": 0.0,
+      "verdict": "bonafide",
+      "n_chunks": 2
+    },
+    {
+      "key": "test_tone_ulaw",
+      "median": 0.0,
+      "peak": 0.0,
+      "verdict": "bonafide",
+      "n_chunks": 2
+    }
+  ],
+  "intent": [
+    {
+      "key": "text0",
+      "risk": 0.81153,
+      "top3": [
+        "anch-digital-arrest-001",
+        "anch-digital-arrest-001",
+        "anch-digital-arrest-001"
+      ],
+      "markers": [
+        "MK_ARREST_THREAT",
+        "MK_AUTHORITY_IMPERSONATION",
+        "MK_ISOLATION_DEMAND"
+      ]
+    },
+    {
+      "key": "text1",
+      "risk": 0.39187,
+      "top3": [],
+      "markers": [
+        "MK_URGENT_FINANCIAL_UPI"
+      ]
+    },
+    {
+      "key": "text2",
+      "risk": 0.70795,
+      "top3": [
+        "anch-kyc-update-001",
+        "anch-kyc-update-001",
+        "anch-kyc-update-001"
+      ],
+      "markers": [
+        "MK_OTP_SOLICITATION"
+      ]
+    },
+    {
+      "key": "text3",
+      "risk": 0.01,
+      "top3": [],
+      "markers": []
+    },
+    {
+      "key": "text4",
+      "risk": 0.06446,
+      "top3": [],
+      "markers": []
+    },
+    {
+      "key": "text5",
+      "risk": 0.36172,
+      "top3": [
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001",
+        "anch-utility-disconnection-001"
+      ],
+      "markers": []
+    },
+    {
+      "key": "text6",
+      "risk": 0.45604,
+      "top3": [
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001",
+        "anch-parcel-customs-001"
+      ],
+      "markers": [
+        "MK_AUTHORITY_IMPERSONATION"
+      ]
+    },
+    {
+      "key": "text7",
+      "risk": 0.04978,
+      "top3": [],
+      "markers": []
+    }
+  ],
+  "asr": [
+    {
+      "key": "held-credential-002",
+      "text": "I can see a pending debit of 19,000 on your account from a merchant in Delhi. If this is not you, I will block it right now. Further, I need to verify the card. So read me the number on the front and the 3 digits at the back and the code I am sending.",
+      "risk": 0.40351,
+      "markers": [
+        "MK_CARD_READBACK"
+      ]
+    },
+    {
+      "key": "held-credential-002_nb8k",
+      "text": "I can see a pending debit of 19,000 on your account from a merchant in Delhi. If this is not you, I will block it right now. Further, I need to verify the card. So read me the number on the front and the 3 digits at the back. And the code I am sending.",
+      "risk": 0.41356,
+      "markers": [
+        "MK_CARD_READBACK"
+      ]
+    },
+    {
+      "key": "held-digital-arrest-004",
+      "text": "Madam, please listen. Do not cut the call. I am speaking from the crime branch. Your Aadhaar is linked to an account in Mumbai. 22 lakh has come. Sir will join the call now. Keep the camera on. You cannot go out of the room till the officer says.",
+      "risk": 0.27793,
+      "markers": []
+    },
+    {
+      "key": "held-digital-arrest-004_nb8k",
+      "text": "Madam, please listen. Do not cut the call. I am speaking from the crime branch. Your Aadhaar is linked to an account in Mumbai. 22 lakh has come. Sir will join the call now. Keep the camera on. You cannot go out of the room till the officer says.",
+      "risk": 0.27793,
+      "markers": []
+    },
+    {
+      "key": "held-family-emergency-001",
+      "text": "पप्पा मेरे आख्स्टेण्ट लोग आप्टल मे हु पोलिस केस बन गया है और वो लोग सेटिल्में वांगरे है प्लीस ममी को मतबदाना में टेंचन में लगी अभी तुर्वन तिस नमबर पे पच्टाँ साजार भेज्दो में बाद में सब समजा दोंगा",
+      "risk": 0.43024,
+      "markers": [
+        "MK_URGENT_FINANCIAL_UPI"
+      ]
+    },
+    {
+      "key": "held-family-emergency-001_nb8k",
+      "text": "पप्पा मेरे अख्स्ट्ड़ेंट लगे आप्टल मे हु पूलिस केस बन गया है और वो लोग सेटिलमें मागरे है प्लीस ममी को मतबदाना में टेंचन में लगी अभी तुरन तिस नमबर पे पच्टाँ साथार बेज्दो में बाद में सब समजा दोंगा",
+      "risk": 0.45616,
+      "markers": [
+        "MK_URGENT_FINANCIAL_UPI"
+      ]
+    },
+    {
+      "key": "held-sms-fraud-001",
+      "text": "Your parcel could not be delivered as the address was incomplete. A redelivery fee is pending. Use the link in the message to update the address and pay the fee today. Otherwise, the item goes back to the origin mirrors and the amount is not refunded.",
+      "risk": 0.57744,
+      "markers": []
+    },
+    {
+      "key": "held-sms-fraud-001_nb8k",
+      "text": "Your parcel could not be delivered as the address was incomplete. A redelivery fee is pending. Use the link in the message to update the address and pay the fee today. Otherwise the item goes back to the origin arrows and the amount is not refunded.",
+      "risk": 0.49941,
+      "markers": []
+    },
+    {
+      "key": "held-telecom-002",
+      "text": "We are calling regarding the regulatory notice issued against your connection. There is a licensing violation recorded and a penalty amount is outstanding. Kindly confirm your name and address for verification and then the settlement has to be made today itself to the account we provide.",
+      "risk": 0.49932,
+      "markers": []
+    },
+    {
+      "key": "held-telecom-002_nb8k",
+      "text": "We are calling regarding regulatory notice issued against your connection. There is a licensing violation recorded and penalty amount is outstanding. Kindly confirm your name and address for verification and then the settlement has to be made today itself to the account we provide.",
+      "risk": 0.4944,
+      "markers": []
+    }
+  ]
+}

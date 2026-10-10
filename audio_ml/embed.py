@@ -18,7 +18,10 @@ from typing import Tuple, List
 logger = logging.getLogger(__name__)
 
 # Model paths — use forward slashes for cross-platform compatibility
-MODELS_DIR = Path(__file__).parent.parent / "models"
+try:
+    from config import MODELS_DIR
+except ImportError:   # standalone use outside the repo root
+    MODELS_DIR = Path(__file__).parent.parent / "models"
 ECAPA_MODEL_PATH = MODELS_DIR / "ecapa"
 # Shared with server/audio_ingest.py via config, so one checkout serves both.
 SILERO_VAD_REPO_PATH = MODELS_DIR / "torch" / "hub" / "snakers4_silero-vad_master"
@@ -155,7 +158,8 @@ def vad_segments(audio: np.ndarray, sr: int) -> List[Tuple[float, float]]:
             return []
 
         # Load model via torch.hub.load pointing at local cache
-        device = "cpu"  # Enforce CPU per CLAUDE.md rule 6
+        # VAD stays on CPU: the model is tiny, and moving audio to the GPU and back costs
+        # more than it saves.
         vad_model, utils = torch.hub.load(
             repo_or_dir=str(SILERO_VAD_REPO_PATH),
             model="silero_vad",
@@ -186,6 +190,41 @@ def vad_segments(audio: np.ndarray, sr: int) -> List[Tuple[float, float]]:
         return []
 
 
+def _import_speechbrain_encoder():
+    """Import speechbrain's EncoderClassifier without poisoning the rest of the process.
+
+    `import speechbrain` leaves seven `DeprecatedModuleRedirect` aliases in
+    `sys.modules` (old paths like `speechbrain.k2_integration`). Any later
+    `inspect.getmodule` — torch's op registration does one when `transformers` imports
+    `torch.distributed.tensor` — touches them, and the k2 alias raises ImportError
+    because k2 is not installed. speechbrain's guard against exactly this checks
+    `endswith("/inspect.py")`, which never matches a Windows path. The visible symptom
+    was BGE-m3 failing to load after ECAPA, silently dropping the intent branch to
+    markers-only (audio_ml/tests/test_speechbrain_redirects.py).
+
+    Dropping the aliases nobody has loaded removes the hazard. Nothing in this repo
+    imports a deprecated speechbrain path; the same test enforces that.
+    """
+    import sys
+
+    from speechbrain.inference import EncoderClassifier
+
+    try:
+        from speechbrain.utils.importutils import DeprecatedModuleRedirect
+
+        stale = [
+            name for name, module in list(sys.modules.items())
+            if isinstance(module, DeprecatedModuleRedirect) and module.lazy_module is None
+        ]
+        for name in stale:
+            del sys.modules[name]
+        if stale:
+            logger.debug(f"dropped {len(stale)} unloaded speechbrain redirect aliases")
+    except ImportError:  # a speechbrain without this mechanism has nothing to drop
+        pass
+    return EncoderClassifier
+
+
 def _load_ecapa_model(model_path: Path, device: str = "cpu"):
     """
     Load ECAPA-TDNN, preferring a local checkpoint directory over the HF cache.
@@ -213,7 +252,7 @@ def _load_ecapa_model(model_path: Path, device: str = "cpu"):
     Raises:
         Exception if the model cannot be loaded by any route.
     """
-    from speechbrain.inference import EncoderClassifier
+    EncoderClassifier = _import_speechbrain_encoder()
 
     if (model_path / "hyperparams.yaml").is_file():
         logger.info(f"Loading ECAPA model from local directory {model_path}")
@@ -253,8 +292,22 @@ def _load_ecapa_model(model_path: Path, device: str = "cpu"):
     return model
 
 
-# Global model cache
+# Global model cache, and where it actually loaded (reported by audio_ml.api.model_devices).
 _ecapa_model_cache = None
+ECAPA_DEVICE: str | None = None
+ECAPA_FALLBACK: str | None = None
+# Chunks embedded per forward pass. Equal-length chunks need no padding, so batching
+# changes throughput, not the embeddings (checked by scripts/device_parity.py).
+ECAPA_BATCH = 8
+
+
+def _ecapa_device() -> str:
+    try:
+        import config
+
+        return config.torch_device()
+    except Exception:  # noqa: BLE001 - standalone use outside the repo root
+        return "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def embed_chunks(
@@ -283,9 +336,7 @@ def embed_chunks(
     if len(audio) == 0:
         raise RuntimeError("embed_chunks: empty audio")
 
-    global _ecapa_model_cache
-
-    device = "cpu"
+    global _ecapa_model_cache, ECAPA_DEVICE, ECAPA_FALLBACK
 
     # Load model (cached after first load)
     if _ecapa_model_cache is None:
@@ -294,9 +345,22 @@ def embed_chunks(
         # scripts/download_models.py actually populates — it deliberately does not
         # create models/ecapa/. Checking for that directory rejected a machine
         # whose model was present and loadable.
-        _ecapa_model_cache = _load_ecapa_model(ECAPA_MODEL_PATH, device)
+        wanted = _ecapa_device()
+        try:
+            # speechbrain wants an indexed CUDA device ("cuda:0"), else it warns and guesses.
+            _ecapa_model_cache = _load_ecapa_model(ECAPA_MODEL_PATH, "cuda:0" if wanted == "cuda" else wanted)
+            ECAPA_DEVICE = wanted
+        except Exception as exc:  # noqa: BLE001
+            if wanted == "cpu":
+                raise
+            # A GPU that cannot hold the model degrades to CPU, loudly, and is reported.
+            ECAPA_FALLBACK = f"{type(exc).__name__}: {exc}"
+            logger.error(f"ECAPA failed to load on {wanted} ({ECAPA_FALLBACK}); falling back to cpu")
+            _ecapa_model_cache = _load_ecapa_model(ECAPA_MODEL_PATH, "cpu")
+            ECAPA_DEVICE = "cpu"
 
     ecapa_model = _ecapa_model_cache
+    device = ECAPA_DEVICE or "cpu"
 
     chunk_samples = int(CHUNK_LENGTH_S * sr)
     overlap_samples = int(CHUNK_OVERLAP_S * sr)
@@ -328,27 +392,23 @@ def embed_chunks(
     if not chunks_to_embed:
         raise RuntimeError(f"embed_chunks: no chunks extracted from audio")
 
-    # Extract embeddings using ECAPA model
+    # Extract embeddings using ECAPA model, a batch of equal-length chunks per pass
     with torch.no_grad():
-        for chunk in chunks_to_embed:
-            # Convert chunk to tensor: shape (n_samples,) -> (1, n_samples) for batch
-            chunk_tensor = torch.FloatTensor(chunk).unsqueeze(0).to(device)
+        for start in range(0, len(chunks_to_embed), ECAPA_BATCH):
+            batch = np.stack(chunks_to_embed[start:start + ECAPA_BATCH]).astype(np.float32)
+            batch_tensor = torch.from_numpy(batch).to(device)          # (n, n_samples)
 
-            # Extract embedding: encode_batch returns (batch, 1, 192)
-            embedding = ecapa_model.encode_batch(chunk_tensor)  # shape: (1, 1, 192)
-            embedding = embedding.squeeze().cpu().numpy()  # shape: (192,)
+            # encode_batch returns (n, 1, 192)
+            out = ecapa_model.encode_batch(batch_tensor).reshape(len(batch), -1).cpu().numpy()
 
             # Verify output dimension is 192
-            if embedding.ndim == 0:
-                # Single scalar case (should not happen but safety check)
-                embedding = embedding.reshape(1)
-            if embedding.shape[0] != 192:
+            if out.shape[1] != 192:
                 raise RuntimeError(
-                    f"ECAPA embedding has wrong dimension: {embedding.shape[0]}, expected 192. "
+                    f"ECAPA embedding has wrong dimension: {out.shape[1]}, expected 192. "
                     "Model may be misconfigured or corrupt."
                 )
 
-            embeddings.append(embedding.astype(np.float32))
+            embeddings.extend(row.astype(np.float32) for row in out)
 
     logger.info(f"embed_chunks: extracted {len(embeddings)} embedding(s) from {len(chunks_to_embed)} chunk(s)")
     return embeddings

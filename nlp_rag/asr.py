@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -47,6 +48,10 @@ GPU_COMPUTE_TYPE: str = getattr(_config, "WHISPER_GPU_COMPUTE_TYPE", "float16")
 MODEL_DIR = Path(_MODELS_DIR) / f"faster-whisper-{MODEL_SIZE}"
 
 _model = None
+#: Where Whisper actually loaded ("cuda" | "cpu" | None), and why not CUDA when it was
+#: wanted. Reported by nlp_rag.api.model_devices; readiness refuses silent fallbacks.
+LOADED_DEVICE: str | None = None
+LOAD_FALLBACK: str | None = None
 _load_attempted = False
 
 
@@ -84,6 +89,16 @@ def _add_nvidia_dll_dirs() -> None:
                         dll_dirs.append(str(dll_dir))
                         if hasattr(os, "add_dll_directory"):
                             os.add_dll_directory(str(dll_dir))
+        # The CUDA build of torch ships the same cuBLAS 12 / cuDNN 9 DLLs in torch/lib, so a
+        # machine with CUDA torch but without the nvidia-* wheels still finds them. Listed
+        # after the nvidia-* directories, which win when both exist.
+        torch_spec = importlib.util.find_spec("torch")
+        if torch_spec and torch_spec.origin:
+            torch_lib = Path(torch_spec.origin).parent / "lib"
+            if (torch_lib / "cublas64_12.dll").is_file():
+                dll_dirs.append(str(torch_lib))
+                if hasattr(os, "add_dll_directory"):
+                    os.add_dll_directory(str(torch_lib))
         if dll_dirs:
             os.environ["PATH"] = os.pathsep.join(dll_dirs) + os.pathsep + os.environ.get("PATH", "")
     except Exception:  # noqa: BLE001 - DLL path setup must never block loading
@@ -98,7 +113,7 @@ def _load_model():
     Any CUDA failure (no GPU, missing driver, missing cuBLAS/cuDNN) falls back to CPU
     int8 rather than leaving transcription disabled.
     """
-    global _model, _load_attempted
+    global _model, _load_attempted, LOADED_DEVICE, LOAD_FALLBACK
     if _load_attempted:
         return _model
     _load_attempted = True
@@ -127,6 +142,7 @@ def _load_model():
             # warmup transcription forces that failure here, inside the fallback path.
             list(candidate.transcribe(np.zeros(16000, dtype=np.float32), beam_size=1)[0])
             _model = candidate
+            LOADED_DEVICE = "cuda"
             logger.info("faster-whisper loaded on cuda (%s)", GPU_COMPUTE_TYPE)
             return _model
         except Exception as exc:  # noqa: BLE001 - fall through to CPU
@@ -134,10 +150,12 @@ def _load_model():
                 logger.warning("faster-whisper failed to load on cuda (%s); transcription disabled", exc)
                 _model = None
                 return _model
+            LOAD_FALLBACK = f"{type(exc).__name__}: {exc}"
             logger.warning("faster-whisper cuda load/warmup failed (%s); falling back to cpu", exc)
 
     try:
         _model = WhisperModel(str(MODEL_DIR), device="cpu", compute_type=COMPUTE_TYPE)
+        LOADED_DEVICE = "cpu"
         logger.info("faster-whisper loaded on cpu (%s)", COMPUTE_TYPE)
     except Exception as exc:  # noqa: BLE001 - any load failure degrades identically
         logger.warning("faster-whisper failed to load (%s); transcription disabled", exc)
@@ -199,6 +217,16 @@ def _reported_language(info, requested: str | None) -> str:
         return DEFAULT_LANGUAGE or detected
     return detected
 
+
+
+def _speech_weighted(segment: Any) -> Any:
+    """A confidently decoded segment counts as speech unless no_speech is extreme."""
+    logprob = float(getattr(segment, "avg_logprob", -9.0) or -9.0)
+    no_speech = float(getattr(segment, "no_speech_prob", 0.0) or 0.0)
+    if logprob >= thresholds.ASR_CONFIDENT_LOGPROB and no_speech < thresholds.ASR_SILENCE_NO_SPEECH_PROB:
+        return SimpleNamespace(start=getattr(segment, "start", 0.0), end=getattr(segment, "end", 0.0),
+                               no_speech_prob=0.0)
+    return segment
 
 
 def _aggregate_no_speech(segments: Sequence[Any]) -> float:
@@ -280,16 +308,29 @@ def transcribe_file(
             vad_filter=True,
             condition_on_previous_text=False,
         )
-        segments = list(segments)
+        decoded = list(segments)
+        # Judge confidence per segment: on 8 kHz phone audio a few garbled stretches
+        # dragged the whole-call mean under the floor and discarded the clearly heard
+        # sentences with them (seen live: a 73 s OTP-scam call gated on every decode).
+        floor = thresholds.ASR_MIN_AVG_LOGPROB
+        segments = [s for s in decoded if float(getattr(s, "avg_logprob", 0.0) or 0.0) >= floor]
+        if len(segments) < len(decoded):
+            logger.info("kept %d/%d segment(s) at or above avg_logprob %.2f",
+                        len(segments), len(decoded), floor)
         text = " ".join(s.text.strip() for s in segments).strip()
 
-        no_speech = _aggregate_no_speech(segments)
+        no_speech = _aggregate_no_speech([_speech_weighted(s) for s in segments])
         logprobs = [getattr(s, "avg_logprob", 0.0) for s in segments]
         avg_logprob = sum(logprobs) / len(logprobs) if logprobs else 0.0
 
         verdict = evaluate_transcript(text, no_speech, avg_logprob)
         if not verdict.ok:
-            logger.info("transcript gated: %s", verdict.reason)
+            all_logprobs = [float(getattr(s, "avg_logprob", 0.0) or 0.0) for s in decoded]
+            reason = "low_confidence" if decoded and not segments else verdict.reason
+            # Numbers only: transcripts never go to the log.
+            logger.info("transcript gated: %s (%d/%d segment(s) confident, best avg_logprob %s, "
+                        "%d word(s) kept)", reason, len(segments), len(decoded),
+                        f"{max(all_logprobs):.2f}" if all_logprobs else "n/a", len(text.split()))
             return TranscriptResult.empty()
 
         return TranscriptResult(

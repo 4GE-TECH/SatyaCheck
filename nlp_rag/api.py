@@ -35,7 +35,8 @@ from nlp_rag.markers import find_markers
 from nlp_rag.reason_codes import build_intent_reason_codes
 from nlp_rag.retrieve import Encoder, RetrievalResult, Retriever
 from nlp_rag.score import abstain, score_script
-from nlp_rag.streaming import StreamingTranscriber
+from nlp_rag.streaming import CommittingTranscriber, StreamingTranscriber
+from nlp_rag.threat_labels import threat_label_for
 from nlp_rag.warnings import warnings_by_band
 
 __all__ = [
@@ -44,8 +45,12 @@ __all__ = [
     "build_reason_codes",
     "challenge_question",
     "StreamingTranscriber",
+    "CommittingTranscriber",
     "configure",
     "reset",
+    "retrieval_status",
+    "model_devices",
+    "warm",
 ]
 
 logger = logging.getLogger(__name__)
@@ -55,6 +60,9 @@ CORPUS_DIR = Path(__file__).resolve().parent / "corpus"
 _retriever: Retriever | None = None
 _person_lookup: "Callable[[str], EnrolledPerson | None] | None" = None
 _configured = False
+#: Why the last `configure()` left the retriever unwired, or None. Read via
+#: `retrieval_status()`; see that function for why it exists.
+_retrieval_error: str | None = None
 
 
 # --- composition root --------------------------------------------------------
@@ -73,16 +81,19 @@ def configure(
     and `nlp_rag` may not import `server/` (CLAUDE.md rule 2). C registers a resolver
     once at startup; without one, `challenge_question` degrades to None.
     """
-    global _retriever, _configured, _person_lookup
+    global _retriever, _configured, _person_lookup, _retrieval_error
     _configured = True
     _retriever = None
+    _retrieval_error = None
     if person_lookup is not None:
         _person_lookup = person_lookup
     try:
         if encoder is None:
-            from nlp_rag.embed import load_encoder
+            from nlp_rag import embed
 
-            encoder = load_encoder()
+            encoder = embed.load_encoder()
+            if encoder is None:
+                _retrieval_error = embed.LAST_LOAD_ERROR or "encoder unavailable"
         if encoder is None:
             logger.warning("no encoder available; intent branch runs markers-only")
             return
@@ -109,12 +120,49 @@ def configure(
     except Exception as exc:  # noqa: BLE001 - a broken corpus degrades, never raises
         logger.warning("retriever unavailable (%s); intent branch runs markers-only", exc)
         _retriever = None
+        _retrieval_error = f"{type(exc).__name__}: {exc}"
 
 
 def reset() -> None:
     """Drop the wired retriever and person lookup. Restores the un-configured state."""
-    global _retriever, _configured, _person_lookup
-    _retriever, _configured, _person_lookup = None, False, None
+    global _retriever, _configured, _person_lookup, _retrieval_error
+    _retriever, _configured, _person_lookup, _retrieval_error = None, False, None, None
+
+
+def warm(audio_path: str | Path) -> None:
+    """Load Whisper and the encoder now, on a real clip, so the first call is not the one
+    that pays for loading. Bypasses the pre-transcribed demo cache on purpose: a cache hit
+    skips the decoder, which is exactly what must not happen here. Never raises."""
+    try:
+        transcribe_file(audio_path)
+        _ensure_configured()
+    except Exception as exc:  # noqa: BLE001 - rule 5; readiness reports what did not load
+        logger.warning("warm-up failed (%s)", exc)
+
+
+def model_devices() -> dict:
+    """Where each NLP model actually loaded ("cuda" | "cpu" | None if not loaded yet), and any
+    fallback away from the requested device. Never raises."""
+    from nlp_rag import asr, embed
+
+    return {
+        "whisper": {"device": asr.LOADED_DEVICE, "fallback": asr.LOAD_FALLBACK},
+        "bge_m3": {"device": embed.ENCODER_DEVICE, "fallback": embed.ENCODER_FALLBACK},
+    }
+
+
+def retrieval_status() -> dict:
+    """Whether retrieval is wired, and if not, why. Never raises.
+
+    Wiring, like `configure`; not one of C's four scoring functions. A failed BGE-m3 load
+    degrades the branch to markers-only and every request still succeeds, so without
+    this the only evidence is a startup WARNING. C surfaces it on /api/health.
+    """
+    return {
+        "configured": _configured,
+        "available": _retriever is not None,
+        "reason": None if _retriever is not None else _retrieval_error,
+    }
 
 
 def _ensure_configured() -> None:
@@ -172,6 +220,8 @@ def analyze_script(transcript: TranscriptResult) -> ScriptAnalysisResult:
 
         result = score_script(text, retrieval, find_markers(text))
         result.details["retrieval_available"] = _retriever is not None
+        # The family's sector/threat. Fusion decides whether to show it (warning bands only).
+        result.details["threat_label"] = threat_label_for(result.details.get("scam_family"))
         result.details["vernacular_warnings"] = warnings_by_band(_language_of(transcript))
         return result
     except Exception as exc:  # noqa: BLE001 - rule 5

@@ -35,6 +35,20 @@ _MODELS_DIR = getattr(_config, "MODELS_DIR", None) or (
 MODEL_NAME: str = getattr(_config, "BGE_MODEL_NAME", "BAAI/bge-m3")
 MODEL_DIR = Path(_MODELS_DIR) / MODEL_NAME.split("/")[-1]
 
+#: Why the last `load_encoder` returned None, or None if it succeeded. `load_encoder`
+#: degrades instead of raising, so without this the cause survives only in the log —
+#: `nlp_rag.api.retrieval_status()` reports it to /api/health.
+LAST_LOAD_ERROR: str | None = None
+#: Where the encoder actually loaded, and why not where it was asked (reported by
+#: nlp_rag.api.model_devices; readiness refuses silent fallbacks).
+ENCODER_DEVICE: str | None = None
+ENCODER_FALLBACK: str | None = None
+
+
+def _wanted_device() -> str:
+    to_device = getattr(_config, "torch_device", None)
+    return to_device() if callable(to_device) else "cpu"
+
 
 class BGEM3Encoder:
     """Wraps `BAAI/bge-m3` behind the two-line `Encoder` protocol."""
@@ -42,7 +56,19 @@ class BGEM3Encoder:
     def __init__(self, model_dir: Path = MODEL_DIR) -> None:
         from sentence_transformers import SentenceTransformer  # deferred: heavy import
 
-        self._model = SentenceTransformer(str(model_dir), local_files_only=True)
+        global ENCODER_DEVICE, ENCODER_FALLBACK
+        wanted = _wanted_device()
+        try:
+            # fp32 on every device: the retrieval thresholds were calibrated in fp32.
+            self._model = SentenceTransformer(str(model_dir), local_files_only=True, device=wanted)
+            ENCODER_DEVICE = wanted
+        except Exception as exc:  # noqa: BLE001
+            if wanted == "cpu":
+                raise
+            ENCODER_FALLBACK = f"{type(exc).__name__}: {exc}"
+            logger.error("BGE-m3 failed to load on %s (%s); falling back to cpu", wanted, ENCODER_FALLBACK)
+            self._model = SentenceTransformer(str(model_dir), local_files_only=True, device="cpu")
+            ENCODER_DEVICE = "cpu"
 
     def encode(self, texts: Sequence[str]) -> np.ndarray:
         return self._model.encode(
@@ -56,14 +82,19 @@ def load_encoder(model_dir: Path = MODEL_DIR) -> BGEM3Encoder | None:
     Returning None rather than raising is deliberate: a missing checkpoint degrades the
     intent branch to markers, and C's request still completes.
     """
+    global LAST_LOAD_ERROR
     if not model_dir.exists():
+        LAST_LOAD_ERROR = f"BGE-m3 not found at {model_dir}"
         logger.warning("BGE-m3 not found at %s; intent branch runs markers-only", model_dir)
         return None
     try:
-        return BGEM3Encoder(model_dir)
+        encoder = BGEM3Encoder(model_dir)
     except Exception as exc:  # noqa: BLE001 - any load failure degrades identically
+        LAST_LOAD_ERROR = f"{type(exc).__name__}: {exc}"
         logger.warning("BGE-m3 failed to load (%s); intent branch runs markers-only", exc)
         return None
+    LAST_LOAD_ERROR = None
+    return encoder
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI smoke test

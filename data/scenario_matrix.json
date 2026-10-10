@@ -2,28 +2,33 @@
   "scenarios": [
     {
       "scenario": "1  genuine human, normal call",
-      "trust": 90.0,
+      "trust": 93.0,
       "band": "green",
       "mode": "identity_check",
+      "production_band": "verified",
       "expected": [
         "green"
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.2086,
+        "asv": 0.15,
         "cm_raw": 0.06,
-        "cm_gated": 0.0168,
+        "cm_gated": 0.0093,
         "text": 0.04,
         "intent": 0.04,
+        "risk": 0.0733,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [],
+        "production_band": "verified"
       }
     },
     {
       "scenario": "2  AI voice, legitimate IVR",
-      "trust": 81.0,
+      "trust": 86.0,
       "band": "unverified",
       "mode": "authority_check",
+      "production_band": "unverified",
       "expected": [
         "unverified"
       ],
@@ -31,11 +36,14 @@
       "breakdown": {
         "asv": 0.5,
         "cm_raw": 0.92,
-        "cm_gated": 0.2645,
+        "cm_gated": 0.1509,
         "text": 0.05,
         "intent": 0.05,
+        "risk": 0.1404,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [],
+        "production_band": "unverified"
       }
     },
     {
@@ -43,6 +51,7 @@
       "trust": 12.0,
       "band": "red",
       "mode": "authority_check",
+      "production_band": "high_risk",
       "expected": [
         "red"
       ],
@@ -50,30 +59,41 @@
       "breakdown": {
         "asv": 0.5,
         "cm_raw": 0.07,
-        "cm_gated": 0.0637,
+        "cm_gated": 0.0626,
         "text": 0.88,
         "intent": 0.88,
+        "risk": 0.88,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent"
+        ],
+        "production_band": "high_risk"
       }
     },
     {
       "scenario": "4  AI clone, family emergency",
-      "trust": 10.0,
+      "trust": 12.0,
       "band": "red",
       "mode": "identity_check",
+      "production_band": "high_risk",
       "expected": [
         "red"
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.9298,
+        "asv": 0.85,
         "cm_raw": 0.94,
-        "cm_gated": 0.8905,
+        "cm_gated": 0.8407,
         "text": 0.88,
-        "intent": 0.9298,
+        "intent": 0.88,
+        "risk": 0.88,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent"
+        ],
+        "production_band": "high_risk"
       }
     },
     {
@@ -81,6 +101,7 @@
       "trust": 20.0,
       "band": "red",
       "mode": "authority_check",
+      "production_band": "high_risk",
       "expected": [
         "red"
       ],
@@ -88,50 +109,66 @@
       "breakdown": {
         "asv": 0.5,
         "cm_raw": 0.08,
-        "cm_gated": 0.068,
+        "cm_gated": 0.0659,
         "text": 0.8,
         "intent": 0.8,
+        "risk": 0.8,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent"
+        ],
+        "production_band": "high_risk"
       }
     },
     {
       "scenario": "6  trusted number, cloned voice",
-      "trust": 18.0,
+      "trust": 25.0,
       "band": "red",
       "mode": "identity_check",
+      "production_band": "high_risk",
       "expected": [
         "red"
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.9445,
+        "asv": 0.85,
         "cm_raw": 0.9,
-        "cm_gated": 0.8625,
+        "cm_gated": 0.7812,
         "text": 0.55,
-        "intent": 0.9445,
+        "intent": 0.85,
+        "risk": 0.7509,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [],
+        "production_band": "high_risk"
       }
     },
     {
       "scenario": "7  replay of family member",
-      "trust": 45.0,
+      "trust": 65.0,
       "band": "amber",
       "mode": "identity_check",
+      "production_band": "caution",
       "expected": [
         "amber",
         "red"
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.0513,
+        "asv": 0.15,
         "cm_raw": 0.1,
-        "cm_gated": 0.0475,
+        "cm_gated": 0.0384,
         "text": 0.3,
         "intent": 0.3,
+        "risk": 0.35,
         "replay_suspected": true,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent",
+          "replay"
+        ],
+        "production_band": "caution"
       }
     },
     {
@@ -139,6 +176,7 @@
       "trust": 5.0,
       "band": "red",
       "mode": "authority_check",
+      "production_band": "high_risk",
       "expected": [
         "red"
       ],
@@ -146,11 +184,16 @@
       "breakdown": {
         "asv": 0.5,
         "cm_raw": 0.06,
-        "cm_gated": 0.0577,
+        "cm_gated": 0.0574,
         "text": 0.95,
         "intent": 0.95,
+        "risk": 0.95,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent"
+        ],
+        "production_band": "high_risk"
       }
     },
     {
@@ -158,6 +201,7 @@
       "trust": 15.0,
       "band": "red",
       "mode": "authority_check",
+      "production_band": "high_risk",
       "expected": [
         "red"
       ],
@@ -165,11 +209,16 @@
       "breakdown": {
         "asv": 0.5,
         "cm_raw": 0.09,
-        "cm_gated": 0.0799,
+        "cm_gated": 0.0781,
         "text": 0.85,
         "intent": 0.85,
+        "risk": 0.85,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent"
+        ],
+        "production_band": "high_risk"
       }
     },
     {
@@ -177,18 +226,24 @@
       "trust": 66.0,
       "band": "amber",
       "mode": "identity_check",
+      "production_band": "caution",
       "expected": [
         "amber"
       ],
       "pass": true,
       "breakdown": {
-        "asv": 0.2689,
+        "asv": 0.15,
         "cm_raw": 0.07,
-        "cm_gated": 0.0501,
+        "cm_gated": 0.0466,
         "text": 0.62,
         "intent": 0.62,
+        "risk": 0.341,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent"
+        ],
+        "production_band": "caution"
       }
     },
     {
@@ -196,6 +251,7 @@
       "trust": 10.0,
       "band": "red",
       "mode": "authority_check",
+      "production_band": "high_risk",
       "expected": [
         "red"
       ],
@@ -203,11 +259,16 @@
       "breakdown": {
         "asv": 0.5,
         "cm_raw": 0.1,
-        "cm_gated": 0.0925,
+        "cm_gated": 0.0912,
         "text": 0.9,
         "intent": 0.9,
+        "risk": 0.9,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent"
+        ],
+        "production_band": "high_risk"
       }
     },
     {
@@ -215,6 +276,7 @@
       "trust": 20.0,
       "band": "red",
       "mode": "authority_check",
+      "production_band": "high_risk",
       "expected": [
         "red"
       ],
@@ -222,24 +284,29 @@
       "breakdown": {
         "asv": 0.5,
         "cm_raw": 0.615,
-        "cm_gated": 0.5228,
+        "cm_gated": 0.5068,
         "text": 0.8,
         "intent": 0.8,
+        "risk": 0.8,
         "replay_suspected": false,
-        "flagged_voice_hits": 0
+        "flagged_voice_hits": 0,
+        "floors": [
+          "intent"
+        ],
+        "production_band": "high_risk"
       }
     }
   ],
   "escalation": [
     {
       "label": "t=0:15 pleasantries",
-      "trust": 91.0,
+      "trust": 92.0,
       "band": "unverified"
     },
     {
       "label": "t=0:45 vague problem",
       "trust": 70.0,
-      "band": "unverified"
+      "band": "amber"
     },
     {
       "label": "t=1:10 threat appears",
@@ -250,6 +317,73 @@
       "label": "t=1:40 OTP demanded",
       "trust": 10.0,
       "band": "red"
+    }
+  ],
+  "production_checks": [
+    {
+      "check": "intent alone reaches high_risk (human scammer, bank/KYC)",
+      "observed": "high_risk",
+      "pass": true
+    },
+    {
+      "check": "intent alone reaches high_risk (human, digital arrest)",
+      "observed": "high_risk",
+      "pass": true
+    },
+    {
+      "check": "a replay with mild intent is capped at caution",
+      "observed": "caution",
+      "pass": true
+    },
+    {
+      "check": "a flagged voice with benign words is high_risk",
+      "observed": "high_risk",
+      "pass": true
+    },
+    {
+      "check": "a claimed-Papa clone with a scam script is high_risk",
+      "observed": "high_risk",
+      "pass": true
+    },
+    {
+      "check": "a spoofed number on a benign call is not red",
+      "observed": "unverified",
+      "pass": true
+    },
+    {
+      "check": "a genuine grey-zone caller is not red",
+      "observed": "unverified",
+      "pass": true
+    },
+    {
+      "check": "clone stays red with speaker degraded",
+      "observed": "high_risk",
+      "pass": true
+    },
+    {
+      "check": "legit IVR never verified with speaker degraded",
+      "observed": "unverified",
+      "pass": true
+    },
+    {
+      "check": "clone stays red with spoof degraded",
+      "observed": "high_risk",
+      "pass": true
+    },
+    {
+      "check": "legit IVR never verified with spoof degraded",
+      "observed": "unverified",
+      "pass": true
+    },
+    {
+      "check": "clone stays red with text degraded",
+      "observed": "high_risk",
+      "pass": true
+    },
+    {
+      "check": "legit IVR never verified with text degraded",
+      "observed": "suspicious",
+      "pass": true
     }
   ],
   "failures": 0

@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # =====================================================================
@@ -304,6 +304,13 @@ class FusionWeights(BaseModel):
     text_weight: float = Field(..., description="Weight for script / intent risk")
 
 
+class ThreatLabel(BaseModel):
+    """Which kind of fraud the call resembles (C2, item 10). A pattern, never a verdict."""
+    sector: str = Field(..., description="e.g. 'banking', 'telecom', 'law_enforcement_impersonation'")
+    threat: str = Field(..., description="e.g. 'KYC update fraud'")
+    family: str = Field(..., description="Corpus scam_family the cited playbook belongs to")
+
+
 class TrustScoreResult(BaseModel):
     """Fused verdict representing overall caller trust and explainable evidence.
     
@@ -330,6 +337,8 @@ class TrustScoreResult(BaseModel):
     recommended_actions: List[str] = Field(default_factory=list, description="Actionable recommendations for the user/guardian")
     challenge_question: Optional[ChallengeQuestion] = Field(None, description="Challenge question if identity verification recommended")
     vernacular_warning: Optional[str] = Field(None, description="Pre-cached spoken warning text in regional language")
+    # C2 (item 10). Appended; set only for caution / suspicious / high_risk with a cited playbook.
+    threat_label: Optional[ThreatLabel] = Field(None, description="Sector and threat the call resembles")
 
     @classmethod
     def insufficient(cls, reason: str = "Audio sample insufficient or too noisy to evaluate") -> TrustScoreResult:
@@ -392,6 +401,9 @@ class EnrolledPerson(BaseModel):
     voiceprints: List[VoiceprintRecord] = Field(default_factory=list, description="Condition-matched voiceprints")
     shared_secrets: List[SharedSecret] = Field(default_factory=list, description="Configured challenge questions")
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    # C4 (item 16). A voiceprint is biometric personal data under the DPDP Act 2023.
+    consent_recorded_at: Optional[str] = Field(None, description="When the enrolled person's consent was recorded")
+    consent_version: Optional[str] = Field(None, description="Version of the consent text they agreed to")
 
 
 class EnrollmentRequest(BaseModel):
@@ -402,6 +414,7 @@ class EnrollmentRequest(BaseModel):
     audio_base64: Optional[str] = Field(None, description="Base64 encoded enrollment audio (min 30s)")
     audio_file_path: Optional[str] = Field(None, description="Local path to enrollment audio file")
     shared_secrets: List[Dict[str, str]] = Field(default_factory=list, description="List of {question, answer} pairs")
+    consent: bool = Field(False, description="The enrolled person consented to voiceprint storage (C4)")
 
 
 class FlaggedVoiceRecord(BaseModel):
@@ -426,7 +439,7 @@ class CallerMetadata(BaseModel):
     claimed_number: Optional[str] = Field(None, description="Caller ID number displayed on phone")
     claimed_name: Optional[str] = Field(None, description="Truecaller / Telco CNAM displayed name")
     claimed_identity: Optional[str] = Field(None, description="Enrolled contact ID caller claims to be")
-    channel_type: Literal["speakerphone", "voicemail", "upload", "whatsapp"] = Field("speakerphone")
+    channel_type: Literal["speakerphone", "voicemail", "upload", "whatsapp", "telephony"] = Field("speakerphone")
 
 
 class ScreeningRequest(BaseModel):
@@ -449,6 +462,11 @@ class ScreeningResponse(BaseModel):
     fusion: TrustScoreResult = Field(..., description="Final fused trust score and evidence")
     processing_time_ms: float = Field(..., description="Total server processing latency in milliseconds")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    # C3 (item 11). Appended, not inserted, so existing field order is untouched.
+    caller_context: Optional[CallerMetadata] = Field(
+        None,
+        description="Caller ID / claimed identity as received. Explanation only — never an input to fusion (FR-17).",
+    )
 
 
 # =====================================================================
@@ -468,6 +486,20 @@ class GuardianAlert(BaseModel):
     audio_sha256: str = Field(..., description="Audio fingerprint")
 
 
+class EvidenceAnchor(BaseModel):
+    """Where an alert sits in the tamper-evident evidence log (C5, item 17).
+
+    RFC 6962-style Merkle tree. Recompute the root from `leaf_hash` and `audit_path`
+    (RFC 9162 section 2.1.3.2); a match proves the alert was logged and not altered.
+    """
+    alert_id: str = Field(..., description="GuardianAlert this anchors")
+    leaf_index: int = Field(..., ge=0, description="Position in the log")
+    leaf_hash: str = Field(..., description="SHA-256(0x00 || canonical alert JSON), hex")
+    tree_size: int = Field(..., ge=1, description="Log size the proof is against")
+    root_hash: str = Field(..., description="Merkle root at tree_size, hex")
+    audit_path: List[str] = Field(default_factory=list, description="Sibling hashes, leaf to root, hex")
+
+
 class IncidentReportPacket(BaseModel):
     """Pre-filled, structured evidence packet formatted for national cybercrime portals (1930 / Chakshu)."""
     report_id: str = Field(..., description="Unique incident report ID")
@@ -481,6 +513,8 @@ class IncidentReportPacket(BaseModel):
     matched_playbooks: List[RetrievedPlaybook] = Field(default_factory=list, description="Referenced official fraud advisories")
     recommended_complaint_category: str = Field("Financial Fraud / Impersonation", description="Portal category")
     pdf_report_path: Optional[str] = Field(None, description="Path to generated downloadable PDF")
+    # C5 (item 17). Appended. None when the session raised no logged alert.
+    evidence: Optional[EvidenceAnchor] = Field(None, description="Tamper-evident log anchor for this session's latest alert")
 
 
 # =====================================================================
@@ -515,6 +549,147 @@ class StreamScreeningUpdateMessage(BaseModel):
     session_id: str = Field(...)
     chunk_index: int = Field(...)
     response: ScreeningResponse = Field(...)
+
+
+# =====================================================================
+# Transport-Agnostic Audio Frames (C1 — items 1–6)
+# =====================================================================
+
+class AudioSource(str, Enum):
+    """Where a session's audio comes from.
+
+    CRITICAL RULE:
+    Named only on `SessionOpen`, which only the runner and dispatcher read. The checks
+    (identity, authenticity, intent) receive `AudioFrame`s and must never learn the
+    transport — server/tests/test_transport_invariant.py enforces it.
+    """
+    EXOTEL = "exotel"
+    APP_WS = "app_ws"
+    UPLOAD = "upload"
+    BYSTANDER = "bystander"
+    WEBRTC = "webrtc"   # app-to-app call; the backend's agent hears each voice (acquisition/webrtc)
+
+
+class SessionOpen(BaseModel):
+    """Start of one screened call, from any source."""
+    session_id: str = Field(...)
+    source: AudioSource = Field(..., description="The only place a transport is named")
+    caller_context: Optional[CallerMetadata] = Field(None, description="Explanation only, never scored (FR-17)")
+    opened_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class AudioFrame(BaseModel):
+    """A slice of call audio as every check path receives it.
+
+    Always 16 kHz mono signed 16-bit little-endian. Adapters resample and decode before
+    constructing one; nothing downstream knows the original codec or rate. Telephony
+    audio arrives at 8 kHz — upsampling adds no information, which is why enrollment is
+    condition-matched (narrowband voiceprints).
+    """
+    # PCM is arbitrary binary; Pydantic's default UTF-8 bytes serialisation fails on it.
+    model_config = ConfigDict(ser_json_bytes="base64", val_json_bytes="base64")
+
+    session_id: str = Field(...)
+    seq: int = Field(..., ge=0, description="Monotonic per session; gaps are logged, not fatal")
+    t_start_s: float = Field(..., ge=0.0, description="Session-relative time of the first sample")
+    pcm_s16le: bytes = Field(..., description="16 kHz mono s16le samples")
+    sample_rate: Literal[16000] = Field(16000)
+    is_final: bool = Field(False)
+
+
+class SessionClose(BaseModel):
+    """End of a session, and why."""
+    session_id: str = Field(...)
+    reason: str = Field(..., description="e.g. 'stop event', 'client disconnected', 'max duration'")
+
+
+# =====================================================================
+# Live Screening Protocol v2 (upgrade plan, Phase 3) — /api/ws/v2/screen/{session_id}
+# =====================================================================
+#
+# Client -> server: one JSON `start`, then BINARY frames of 16 kHz mono s16le PCM
+# (250-500 ms each; no base64, no container, no ffmpeg), then one JSON `end`.
+# Server -> client: `ready`, then an `assessment` per scored window, an `alert` whenever
+# one is raised or resolved, the final `assessment` (is_final) and an `error` if refused.
+# v1 (StreamAudioChunkMessage) keeps working until every client has moved.
+
+class StreamV2Start(BaseModel):
+    """First message on a v2 socket: who is screening, and what is being sent."""
+    type: Literal["start"] = "start"
+    token: Optional[str] = Field(None, description="Supabase access token; optional only in AUTH_MODE=dev")
+    sample_rate: Literal[16000] = Field(16000)
+    encoding: Literal["s16le"] = Field("s16le")
+    caller_context: Optional[CallerMetadata] = Field(None, description="Claims about the caller (server/claims.py)")
+    client: Optional[str] = Field(None, description="e.g. 'web3', 'mobile' — logged, never scored")
+
+
+class StreamV2End(BaseModel):
+    """Last client message: no more audio; the server sends the final assessment."""
+    type: Literal["end"] = "end"
+
+
+class StreamV2Ready(BaseModel):
+    type: Literal["ready"] = "ready"
+    session_id: str = Field(...)
+    schema_version: int = Field(2)
+    max_frame_bytes: int = Field(..., description="Largest accepted binary frame")
+
+
+class CoverageSpan(BaseModel):
+    """A stretch of session audio and whether every check scored it."""
+    start_s: float = Field(..., ge=0.0)
+    end_s: float = Field(..., ge=0.0)
+    scored: bool = Field(..., description="False: NOT scored (not the same as 'human')")
+
+
+class SessionAuthenticity(BaseModel):
+    """The call's synthetic-voice evidence, from one de-duplicated absolute timeline."""
+    median: float = Field(0.0, ge=0.0, le=1.0)
+    peak: float = Field(0.0, ge=0.0, le=1.0)
+    max_synth_run_s: float = Field(0.0, ge=0.0)
+    scored_s: float = Field(0.0, ge=0.0, description="Seconds of audio the timeline covers")
+
+
+class StreamV2Alert(BaseModel):
+    """An append-only warning with the evidence it rested on when raised."""
+    type: Literal["alert"] = "alert"
+    alert_id: str = Field(...)
+    session_id: str = Field(...)
+    window_index: int = Field(...)
+    audio_start_s: float = Field(..., ge=0.0)
+    audio_end_s: float = Field(..., ge=0.0)
+    band: TrustBand = Field(...)
+    evidence: List[ReasonCode] = Field(default_factory=list, description="Snapshot when raised")
+    transcript_rev: int = Field(0)
+    claim_rev: int = Field(0)
+    resolved: bool = Field(False)
+    resolved_reason: Optional[str] = Field(None, description="Only when its own evidence was invalidated")
+
+
+class StreamV2Assessment(BaseModel):
+    """The current assessment, kept separate from alerts."""
+    type: Literal["assessment"] = "assessment"
+    session_id: str = Field(...)
+    window_index: int = Field(...)
+    audio_start_s: float = Field(..., ge=0.0)
+    audio_end_s: float = Field(..., ge=0.0)
+    current: ScreeningResponse = Field(..., description="This window's own verdict")
+    display_band: TrustBand = Field(..., description="Worse of `current` and every unresolved alert")
+    alerts: List[StreamV2Alert] = Field(default_factory=list)
+    transcript_committed: str = Field("", description="Text that will not change")
+    transcript_tentative: str = Field("", description="Newest text; may still change")
+    coverage: List[CoverageSpan] = Field(default_factory=list)
+    coverage_degraded: bool = Field(False, description="Some audio could not be scored in time")
+    authenticity: SessionAuthenticity = Field(default_factory=SessionAuthenticity)
+    transcript_rev: int = Field(0)
+    claim_rev: int = Field(0)
+    is_final: bool = Field(False)
+
+
+class StreamV2Error(BaseModel):
+    type: Literal["error"] = "error"
+    code: Literal["unauthorized", "busy", "bad_request", "internal"] = Field(...)
+    detail: str = Field(...)
 
 
 # =====================================================================

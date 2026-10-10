@@ -99,7 +99,13 @@ MARKERS: list[MarkerDef] = [
             r"\b(?:transfer|send|pay|deposit)\b[^.!?]{0,30}?"
             r"\b(?:\d{3,}|rupees|rs\.?|lakh|lakhs|thousand|hazaar|hazar)\b"
             r"[^.!?]{0,20}?\bnow\b",
-            r"(?:तुरंत|अभी|जल्दी)[^।!?]{0,60}?(?:भेज|ट्रांसफर|पैसे)\w*",
+            # Narrowband ASR drops aspiration and shortens words (भेज -> बेज, अभी -> अबी,
+            # तुरंत -> तुरन), so the verdict must not hinge on one decode's spelling
+            # (nlp_rag/tests/test_hindi_asr_variants.py). The unaspirated बेज counts only
+            # with a "send" ending: बेजार ("fed up") and बेजुबान ("voiceless") must not.
+            r"(?:तुरंत|तुरन्त|तुरत|तुरन|अभी|अबी|जल्दी|जलदी)[^।!?]{0,60}?"
+            r"(?:भेज|ट्रांसफर|ट्रान्सफर|पैसे"
+            r"|बेज(?:\s?दो|्दो|\s?दे|ो|ना|िए|िये|ें|ते|ती))\w*",
         ],
     ),
     MarkerDef(
@@ -124,9 +130,11 @@ MARKERS: list[MarkerDef] = [
             # Solicitation, not mention. A bare "otp" fires on every advisory that
             # warns about OTPs, including a bank saying it will never ask for one.
             r"(?:share|tell|send|read|give|provide|confirm|repeat)[^.!?]{0,40}?"
-            r"\b(?:otp|o\.t\.p|one[- ]time password|pin|cvv|card number|password"
+            # "odp" / "otb" / "o d p": how Whisper hears "OTP" on 8 kHz phone audio
+            # (seen live on an Exotel call).
+            r"\b(?:otp|o\.t\.p|o ?t ?p|o ?d ?p|o\.d\.p|o ?t ?b|o\.t\.b|one[- ]time (?:password|pin)|pin|cvv|card number|password"
             r"|six digit code|verification code)\b",
-            r"\b(?:otp|o\.t\.p|one[- ]time password|pin|cvv|card number|password)\b"
+            r"\b(?:otp|o\.t\.p|o ?t ?p|o ?d ?p|o\.d\.p|o ?t ?b|o\.t\.b|one[- ]time (?:password|pin)|pin|cvv|card number|password)\b"
             r"[^.!?]{0,40}?(?:share|batao|bta|bataiye|tell|send|read|likh|type)",
             r"\b(?:ओटीपी|पिन)\b[^।!?]{0,40}?(?:बताइए|बताओ|भेजिए|लिखिए)",
         ],

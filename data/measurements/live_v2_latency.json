@@ -1,0 +1,229 @@
+{
+  "device": "cuda",
+  "models": {
+    "ecapa": {
+      "device": "cuda",
+      "fallback": null
+    },
+    "model_a": {
+      "device": "cuda",
+      "fallback": null
+    },
+    "whisper": {
+      "device": "cuda",
+      "fallback": null
+    },
+    "bge_m3": {
+      "device": "cuda",
+      "fallback": null
+    }
+  },
+  "cold_readiness_s": 12.1,
+  "frame_s": 0.5,
+  "hop_s": 2.0,
+  "acceptance": {
+    "update_p95_s": 4.0,
+    "coverage_gap_sessions": 0,
+    "server_gpu_mb": 6144,
+    "card_headroom_mb": 512
+  },
+  "gpu_baseline_mb": 583,
+  "max_passing_voices": 4,
+  "levels": [
+    {
+      "sessions": 1,
+      "call_s": 90.0,
+      "completed": 1,
+      "errors": [],
+      "update_latency_s": {
+        "n": 45,
+        "p50": 0.166,
+        "p95": 0.294,
+        "p99": 0.3,
+        "max": 0.302
+      },
+      "commit_latency_s": {
+        "n": 5,
+        "p50": 9.921,
+        "p95": 25.481,
+        "p99": 25.807,
+        "max": 25.889
+      },
+      "sessions_with_coverage_gaps": 0,
+      "server_gpu_mb": 3191,
+      "vram": {
+        "torch_peak_mb": 3022,
+        "gpu_used_mb": 3774,
+        "gpu_total_mb": 8188
+      },
+      "models": {
+        "ecapa": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "model_a": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "whisper": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "bge_m3": {
+          "device": "cuda",
+          "fallback": null
+        }
+      },
+      "hard_failures": [],
+      "acceptance_misses": [],
+      "passed": true
+    },
+    {
+      "sessions": 2,
+      "call_s": 90.0,
+      "completed": 2,
+      "errors": [],
+      "update_latency_s": {
+        "n": 90,
+        "p50": 0.37,
+        "p95": 0.768,
+        "p99": 0.843,
+        "max": 0.853
+      },
+      "commit_latency_s": {
+        "n": 8,
+        "p50": 19.676,
+        "p95": 53.694,
+        "p99": 55.374,
+        "max": 55.794
+      },
+      "sessions_with_coverage_gaps": 0,
+      "server_gpu_mb": 3209,
+      "vram": {
+        "torch_peak_mb": 3040,
+        "gpu_used_mb": 3792,
+        "gpu_total_mb": 8188
+      },
+      "models": {
+        "ecapa": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "model_a": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "whisper": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "bge_m3": {
+          "device": "cuda",
+          "fallback": null
+        }
+      },
+      "hard_failures": [],
+      "acceptance_misses": [],
+      "passed": true
+    },
+    {
+      "sessions": 4,
+      "call_s": 90.0,
+      "completed": 4,
+      "errors": [],
+      "update_latency_s": {
+        "n": 180,
+        "p50": 1.291,
+        "p95": 2.525,
+        "p99": 2.807,
+        "max": 3.03
+      },
+      "commit_latency_s": {
+        "n": 14,
+        "p50": 31.449,
+        "p95": 52.738,
+        "p99": 53.258,
+        "max": 53.388
+      },
+      "sessions_with_coverage_gaps": 0,
+      "server_gpu_mb": 3311,
+      "vram": {
+        "torch_peak_mb": 3083,
+        "gpu_used_mb": 3894,
+        "gpu_total_mb": 8188
+      },
+      "models": {
+        "ecapa": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "model_a": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "whisper": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "bge_m3": {
+          "device": "cuda",
+          "fallback": null
+        }
+      },
+      "hard_failures": [],
+      "acceptance_misses": [],
+      "passed": true
+    },
+    {
+      "sessions": 8,
+      "call_s": 90.0,
+      "completed": 8,
+      "errors": [],
+      "update_latency_s": {
+        "n": 165,
+        "p50": 3.195,
+        "p95": 5.611,
+        "p99": 9.334,
+        "max": 10.404
+      },
+      "commit_latency_s": {
+        "n": 10,
+        "p50": 51.742,
+        "p95": 59.949,
+        "p99": 60.669,
+        "max": 60.849
+      },
+      "sessions_with_coverage_gaps": 0,
+      "server_gpu_mb": 3479,
+      "vram": {
+        "torch_peak_mb": 3150,
+        "gpu_used_mb": 4062,
+        "gpu_total_mb": 8188
+      },
+      "models": {
+        "ecapa": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "model_a": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "whisper": {
+          "device": "cuda",
+          "fallback": null
+        },
+        "bge_m3": {
+          "device": "cuda",
+          "fallback": null
+        }
+      },
+      "hard_failures": [],
+      "acceptance_misses": [
+        "update p95 5.611 s > 4.0 s"
+      ],
+      "passed": false
+    }
+  ],
+  "note": "In-process localhost; no network or telephone codec. Real models."
+}
