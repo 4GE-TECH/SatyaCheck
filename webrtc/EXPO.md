@@ -1,5 +1,10 @@
 # Building the Expo app
 
+> **Out of date.** The calls now go through usernames and connect requests
+> ([BACKEND_API.md](BACKEND_API.md)); the `App.tsx` sample below still uses the earlier
+> share-a-code endpoints, which no longer exist. The Flutter app is the maintained client
+> ([README.md](README.md), step 5). The build steps are still accurate.
+
 Validated on 2026-10-10 by following these steps in a fresh directory, up to a built debug
 APK. The versions below are the ones that worked together. Change them together, not one
 at a time.

@@ -2,51 +2,85 @@
 
 All endpoints need a **signed-in** user: `Authorization: Bearer <Supabase access token>`.
 The token comes from the email-code sign-in, the same as the other apps. Dev-mode shortcuts
-don't work here. A call needs two real, different accounts.
+don't work here. A call needs two real, different accounts that are connected.
 
 Base URL: the backend, for example `http://192.168.1.20:8000`.
 
-## Endpoints
+## The flow
 
-### `POST /api/webrtc/calls` — start a call (the caller)
+1. Each person chooses a **username** (once).
+2. A searches for B's username and taps **Connect**. B sees the request and **accepts** it.
+   Until then neither can call the other: knowing someone's username is not enough to ring
+   their phone.
+3. Either one **calls** the other. The callee's app shows the incoming call while it is open,
+   and they accept or decline. Unanswered calls are **missed** after 45 s
+   (`WEBRTC_RING_TIMEOUT_S`).
+
+## People endpoints
+
+Mounted with the call endpoints (same conditions). Profiles carry a username and display name,
+never an email address.
+
+| Endpoint | What |
+|---|---|
+| `GET /api/profile` | Your profile, or `404` before you have chosen a username |
+| `PUT /api/profile` `{"username", "display_name"}` | Choose or change it. `409` taken, `422` invalid or reserved (3–20 of `a-z 0-9 . _`; names that look official, like `satyacheck…` or `support…`, are refused) |
+| `GET /api/users/search?q=` | Up to 20 usernames starting with `q` (2+ characters; a leading `@` is fine), each with your `relation`: `none`, `outgoing`, `incoming` or `connected`. Rate-limited: `429` |
+| `GET /api/connections` | `{ "connected": [...], "incoming": [...], "outgoing": [...] }` |
+| `POST /api/connections` `{"user_id"}` | Send a connect request (`201`). If they already asked you, this connects you. `409` until you have a username; `429` when rate-limited |
+| `POST /api/connections/{user_id}/accept` | Accept their request. Only the person asked can accept |
+| `DELETE /api/connections/{user_id}` | Decline, cancel, or disconnect (`204`) |
+
+A person is `{ "user_id", "username", "display_name", "relation" }`.
+
+## Call endpoints
+
+### `POST /api/webrtc/calls` `{"callee_id"}` — ring a connection (the caller)
 
 `201` response:
 
 ```json
 {
   "call_id": "e7919c122f171720",
-  "code": "RS8FD7WT",
   "livekit_url": "ws://192.168.1.20:7880",
   "token": "<LiveKit token for this phone>",
   "agent_identity": "satyacheck-agent-e7919c122f171720",
-  "code_expires_in_s": 900
+  "other": {"user_id": "…", "username": "bob", "display_name": "Bob"},
+  "ring_timeout_s": 45
 }
 ```
 
-- Show `code` to the caller to share (read aloud, or send on WhatsApp). It works **once**.
-- Connect to `livekit_url` with `token`.
-- `503` means the server is at capacity, two calls by default. Try again later.
+- Connect to `livekit_url` with `token` straight away and wait in the room: the callee joins
+  when they answer.
+- `403` they are not a connection; `409` you or they are already in a call; `503` the server is
+  at capacity (two calls by default).
 
-### `POST /api/webrtc/calls/{code}/join` — join with a code (the callee)
+### `GET /api/webrtc/incoming` — calls ringing for you (the callee)
 
-`200` response: `{ "call_id", "livekit_url", "token", "agent_identity" }`
+`{ "calls": [ { "call_id", "caller": {person}, "rings_for_s" } ] }`
 
-| Status | Meaning |
-|---|---|
-| `404` | Unknown, expired or already-used code |
-| `400` | You tried to join your own call |
-| `429` | Too many attempts. Wait a minute. |
+Poll it every couple of seconds while the app is open. There is no push yet, so a closed app
+does not ring.
 
-Codes are case-insensitive.
+### `POST /api/webrtc/calls/{call_id}/accept` — answer (the callee)
+
+`200` response: `{ "call_id", "livekit_url", "token", "agent_identity", "other" }`. Your token
+is minted only now. `404` if it is no longer ringing (cancelled, missed, or not yours).
+
+### `POST /api/webrtc/calls/{call_id}/decline` — decline (the callee)
+
+Returns `204`.
 
 ### `GET /api/webrtc/calls/{call_id}` — state, for either party
 
-`{ "call_id", "role": "caller" | "callee", "other_joined", "ended", "screening" }`
+`{ "call_id", "role": "caller" | "callee", "status": "ringing" | "active" | "ended",
+"ended_reason": "declined" | "missed" | "cancelled" | "hung_up" | null, "other_joined", "ended",
+"screening" }`
 
-Poll this on the caller's side to show "waiting for the other person". Anyone not in the call
-gets `404`.
+Poll it during the call: it is how each side learns the other declined, missed or hung up.
+Anyone not in the call gets `404`.
 
-### `DELETE /api/webrtc/calls/{call_id}` — end the call, for either party
+### `DELETE /api/webrtc/calls/{call_id}` — cancel or hang up, for either party
 
 Returns `204`. Then disconnect from the room.
 
@@ -156,8 +190,8 @@ room.on(RoomEvent.ParticipantDisconnected, p => {
 
 ## Under the hood (for reference)
 
-- **The agent listens only once both people are in.** A caller talking before the callee joins
-  is heard by nobody, so that audio isn't screened.
+- **The agent listens only once the callee answers.** A caller talking while it rings is heard
+  by nobody, so that audio isn't screened.
 - **Each voice is a backend session:**
   - `rtc_<call_id>_caller` and `rtc_<call_id>_callee`;
   - owned by the account that *listens* to it;

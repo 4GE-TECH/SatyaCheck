@@ -189,10 +189,12 @@ def mount_webrtc(target: FastAPI) -> bool:
     if not (config.LIVEKIT_API_KEY and config.LIVEKIT_API_SECRET):
         log.error("  WebRTC calls NOT mounted: set LIVEKIT_API_KEY and LIVEKIT_API_SECRET")
         return False
+    from server.contacts import router as contacts_router
     from server.webrtc_router import router as webrtc_router
 
     target.include_router(webrtc_router)
-    log.info(f"  WebRTC calls mounted at /api/webrtc (LiveKit {config.LIVEKIT_URL}, "
+    target.include_router(contacts_router)   # usernames and connections: who may call whom
+    log.info(f"  WebRTC calls mounted at /api/webrtc, contacts at /api/profile, /api/users, /api/connections (LiveKit {config.LIVEKIT_URL}, "
              f"agent via {config.LIVEKIT_AGENT_URL}, at most {config.WEBRTC_MAX_CALLS} calls)")
     return True
 

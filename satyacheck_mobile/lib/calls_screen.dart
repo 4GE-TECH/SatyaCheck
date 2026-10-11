@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'people_screen.dart';
 import 'models.dart';
 import 'result_screen.dart';
 import 'theme.dart';
@@ -204,6 +205,8 @@ class _CallsViewState extends State<CallsView> {
           else
             for (final call in live)
               Padding(padding: const EdgeInsets.only(bottom: 12), child: _CallCard(call: call, api: widget.api)),
+          const SizedBox(height: 12),
+          _AppCallCard(api: widget.api),
           if (ended.isNotEmpty) ...[
             const SizedBox(height: 18),
             Row(children: [
@@ -216,6 +219,37 @@ class _CallsViewState extends State<CallsView> {
           ],
         ]);
       },
+    );
+  }
+}
+
+/// The way into app-to-app calls: find a SatyaCheck user by username, connect, and call,
+/// each voice screened live for the other person. Unlike Exotel calls, this works on the
+/// phone that is in the call.
+class _AppCallCard extends StatelessWidget {
+  const _AppCallCard({required this.api});
+  final ApiClient api;
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette, theme = Theme.of(context);
+    return Panel(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Icon(Icons.wifi_calling_3_rounded, color: p.voice1),
+          const SizedBox(width: 12),
+          Expanded(child: Text('Call through the app', style: theme.textTheme.titleLarge)),
+        ]),
+        const SizedBox(height: 8),
+        Text('Find another SatyaCheck user by username, connect, and call over the internet. Each of you sees a live check of the voice you hear.', style: theme.textTheme.bodyMedium),
+        const SizedBox(height: 14),
+        PillButton(
+          label: 'People and calls',
+          kind: PillKind.secondary,
+          trailing: Icons.arrow_forward_rounded,
+          expand: true,
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PeopleScreen(api: api))),
+        ),
+      ]),
     );
   }
 }

@@ -5,14 +5,17 @@ Tick each item and note the date and the phones used. The backend side is alread
 
 ## Build
 
-- [ ] On a laptop that never had this project: clone, follow [EXPO.md](EXPO.md) exactly, and
-      get a development APK. Note any step that had to be changed, and fix the doc.
+- [ ] On a laptop that never had this project: clone, follow step 5 of [README.md](README.md),
+      and get a debug APK of the Flutter app. Note any step that had to be changed, and fix the doc.
 - [ ] The APK installs on two Android phones and opens to the sign-in screen.
 
 ## Same Wi-Fi
 
 - [ ] Two different accounts sign in, one per phone, with emailed codes.
-- [ ] Phone A starts a call and shows a code; phone B joins with it.
+- [ ] Each picks a username. A finds B by search and sends a connect request; B accepts.
+- [ ] Before B accepts, A cannot call B.
+- [ ] A calls B; B's phone rings (app open) and B answers. Also: B declines, and A cancels,
+      and a call left unanswered shows as missed on both phones.
 - [ ] Each person hears the other, both ways, with no echo or one-way audio.
 - [ ] Within about 10 s of speech, each phone shows a band about the **other** person.
       Unverified (grey) is correct for a stranger.

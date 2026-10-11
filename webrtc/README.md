@@ -8,15 +8,15 @@ it, and the backend hears each voice live.
 This is a **test path**. A real scammer won't install our app. It lets us exercise the live
 pipeline on real phones, with real networks and real voices.
 
-This folder holds docs and config only. The Expo app is yours to build. The backend side is
-complete and tested.
+This folder holds docs and config only. The backend side is complete and tested. The phone
+side is built into the Flutter app (`satyacheck_mobile/`): Calls tab → **Call through the app**.
 
 ## How it fits together
 
 ```
- phone A (Expo app) ──mic──►┐                      ┌──► phone B hears A
+ phone A (app)      ──mic──►┐                      ┌──► phone B hears A
                             │   LiveKit server      │
- phone B (Expo app) ──mic──►┤  (same machine as     ├──► phone A hears B
+ phone B (app)      ──mic──►┤  (same machine as     ├──► phone A hears B
                             │   the backend)        │
                             └──► screening agent ───┘   (hears both, over localhost)
                                    │
@@ -41,7 +41,8 @@ complete and tested.
 ### 1. Two accounts
 
 Sign-in is a Supabase email code, the same as the web and Flutter apps. Make two accounts
-(two email addresses). A call needs two *different* accounts: you can't call yourself.
+(two email addresses). A call needs two *different* accounts that are **connected**: each picks a
+username, one sends a connect request, the other accepts. Then either can call the other.
 
 ### 2. LiveKit
 
@@ -100,10 +101,29 @@ This plays both phones in Python against your LiveKit server. It checks four thi
 
 It must print `WEBRTC SMOKE OK`.
 
-### 5. The Expo app
+### 5. The app
 
-Follow [EXPO.md](EXPO.md): a development build (not Expo Go) with sign-in, create/join a call,
-and the verdict banner.
+The Flutter app places the calls. It already has the email-code sign-in, so build it with the
+backend and the Supabase project:
+
+```bash
+cd satyacheck_mobile
+flutter run --dart-define=SATYACHECK_BACKEND=http://<LAN IP>:8000             --dart-define=SATYACHECK_SUPABASE_URL=https://<ref>.supabase.co             --dart-define=SATYACHECK_SUPABASE_ANON_KEY=<public anon key>
+```
+
+Then on each phone: sign in, open **Calls → People and calls**, and choose a username. Search
+for the other person's username, tap **Connect**, and have them accept. Then tap **Call**; their
+phone rings while the app is open.
+
+- **Code:** `lib/rtc_call.dart` holds the call, the incoming-call watcher, and every client
+  rule from [BACKEND_API.md](BACKEND_API.md), tested in `test/rtc_call_test.dart`.
+  `lib/people_screen.dart` is search and connections; `lib/app_call_screen.dart` the call and
+  incoming-call screens.
+- **No setup needed:** the LiveKit URL comes from the backend with each call. The app already
+  allows `http://` and `ws://` LAN addresses.
+- **Ringing needs the app open.** There is no push notification yet: a closed app doesn't ring.
+- **Alternative client:** [EXPO.md](EXPO.md) describes a standalone React Native client. Its sample
+  uses the earlier share-a-code flow and needs updating to the endpoints above before use.
 
 ### 6. Acceptance
 
@@ -115,7 +135,7 @@ call between two phones on **mobile data**.
 | File | What |
 |---|---|
 | [BACKEND_API.md](BACKEND_API.md) | Endpoints, tokens, the verdict message, the rules a client must follow |
-| [EXPO.md](EXPO.md) | Building the Expo app and the APK |
+| [EXPO.md](EXPO.md) | Alternative standalone React Native client (the Flutter app is the main one) |
 | [NETWORK.md](NETWORK.md) | Making the server reachable from phones, TURN, LiveKit Cloud |
 | [ACCEPTANCE.md](ACCEPTANCE.md) | The checklist that says it works |
 | `livekit.yaml`, `docker-compose.livekit.yml` | The LiveKit server |
@@ -123,7 +143,8 @@ call between two phones on **mobile data**.
 **Backend code:**
 
 - `server/webrtc_router.py` — the endpoints;
-- `server/webrtc_calls.py` — calls and codes;
+- `server/webrtc_calls.py` — calls: ringing, answering, missed, busy;
+- `server/contacts.py` — usernames, search and connections;
 - `server/webrtc_screening.py` — tokens, the agent manager, what a listener is sent;
 - `acquisition/webrtc/` — the agent and audio framing;
 - `server/live_presenter.py` — alert and band rules shared with the web app's live stream.

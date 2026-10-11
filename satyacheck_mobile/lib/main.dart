@@ -4,11 +4,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api_client.dart';
+import 'app_call_screen.dart';
 import 'calls_screen.dart';
 import 'models.dart';
 import 'native_bridge.dart';
 import 'enroll_screen.dart';
 import 'result_screen.dart';
+import 'rtc_call.dart';
 import 'sign_in_screen.dart';
 import 'theme.dart';
 import 'voice_capture.dart';
@@ -69,6 +71,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   /// Created the first time the Calls tab opens, then kept running so calls are not missed
   /// while another tab is showing. The feed is live only: nothing is replayed later.
   LiveFeedController? _feed;
+
+  /// Rings this phone when a connection calls it through the app. Only with sign-in, and
+  /// only while the app is in the foreground (there is no push).
+  IncomingCallWatcher? _incoming;
   final _bridge = NativeBridge.instance;
   final List<CallRecord> _history = [];
   int _destination = 0, _refreshId = 0;
@@ -89,18 +95,33 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _bridge.listen();
     unawaited(_refresh());
+    if (_api.auth.enabled) _incoming = IncomingCallWatcher(_api, onRing: _ring)..start();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _feed?.dispose();
+    _incoming?.stop();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_refresh());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refresh());
+      _incoming?.start();
+    } else if (state == AppLifecycleState.paused) {
+      _incoming?.stop();
+    }
+  }
+
+  void _ring(IncomingCall call) {
+    if (!mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => IncomingCallScreen(api: _api, call: call, watcher: _incoming!),
+    ));
   }
 
   Future<void> _refresh() async {

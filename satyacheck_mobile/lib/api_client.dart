@@ -367,6 +367,279 @@ class ApiClient {
       return null;
     }
   }
+
+  // --- people and app-to-app calls (webrtc/BACKEND_API.md) ----------------------------
+
+  /// Why the last people or call request failed, in words for the person holding the phone.
+  String? rtcError;
+
+  /// Your username, or null before you have chosen one. Throws nothing; on a failure
+  /// [rtcError] is set and the result is [ProfileLookup.failed].
+  Future<ProfileLookup> myProfile() async {
+    final reply = await _rtc('GET', '/api/profile', allow: const {404});
+    if (reply == null) return const ProfileLookup.failed();
+    if (reply.status == 404) return const ProfileLookup.none();
+    return ProfileLookup.found(RtcPerson.fromJson(reply.map));
+  }
+
+  /// Choose or change your username. Null on failure, with [rtcError] set.
+  Future<RtcPerson?> saveProfile(String username, String displayName) async {
+    final reply = await _rtc('PUT', '/api/profile', body: {'username': username, 'display_name': displayName},
+        statusText: const {409: 'That username is taken. Choose another.'});
+    return reply == null ? null : RtcPerson.fromJson(reply.map);
+  }
+
+  /// Usernames starting with [query], with your relation to each. Null on failure.
+  Future<List<RtcPerson>?> searchPeople(String query) async {
+    final reply = await _rtc('GET', '/api/users/search?q=${Uri.encodeQueryComponent(query.trim())}',
+        statusText: const {429: 'Too many searches. Wait a minute, then try again.'});
+    if (reply == null) return null;
+    return [for (final p in reply.list) if (p is Map) RtcPerson.fromJson(p.cast<String, dynamic>())];
+  }
+
+  /// Connected people, requests to you, and your requests. Null on failure.
+  Future<RtcConnections?> connections() async {
+    final reply = await _rtc('GET', '/api/connections');
+    return reply == null ? null : RtcConnections.fromJson(reply.map);
+  }
+
+  /// Ask to connect. If they already asked you, this connects you. Null on failure.
+  Future<RtcPerson?> requestConnection(String userId) async {
+    final reply = await _rtc('POST', '/api/connections', body: {'user_id': userId}, expect: 201, statusText: const {
+      409: 'Choose your username first.',
+      429: 'Too many connect requests. Try again later.',
+    });
+    return reply == null ? null : RtcPerson.fromJson(reply.map);
+  }
+
+  Future<RtcPerson?> acceptConnection(String userId) async {
+    final reply = await _rtc('POST', '/api/connections/${Uri.encodeComponent(userId)}/accept',
+        statusText: const {404: 'That request is no longer there.'});
+    return reply == null ? null : RtcPerson.fromJson(reply.map);
+  }
+
+  /// Decline their request, cancel yours, or disconnect.
+  Future<bool> removeConnection(String userId) async =>
+      await _rtc('DELETE', '/api/connections/${Uri.encodeComponent(userId)}', expect: 204) != null;
+
+  /// Ring a connection. Null on failure, with [rtcError] set.
+  Future<RtcCallTicket?> placeCall(String calleeId) async {
+    final reply = await _rtc('POST', '/api/webrtc/calls', body: {'callee_id': calleeId}, expect: 201, statusText: const {
+      403: 'You can call only people you are connected with.',
+      503: 'The screening service is at capacity. Try again in a minute.',
+    });
+    return reply == null ? null : RtcCallTicket.fromJson(reply.map);
+  }
+
+  /// Calls ringing for you right now. Null when the service cannot be asked, and
+  /// [IncomingCalls.unavailable] when this service has no app calls.
+  Future<IncomingCalls?> incomingCalls() async {
+    final reply = await _rtc('GET', '/api/webrtc/incoming', quiet: true, allow: const {404});
+    if (reply == null) return null;
+    if (reply.status == 404) return const IncomingCalls.unavailable();
+    return IncomingCalls.fromJson(reply.map);
+  }
+
+  /// Answer a ringing call. Null on failure, with [rtcError] set.
+  Future<RtcCallTicket?> acceptCall(String callId) async {
+    final reply = await _rtc('POST', '/api/webrtc/calls/${Uri.encodeComponent(callId)}/accept',
+        statusText: const {404: 'This call is no longer ringing.'});
+    return reply == null ? null : RtcCallTicket.fromJson(reply.map);
+  }
+
+  Future<void> declineCall(String callId) async {
+    await _rtc('POST', '/api/webrtc/calls/${Uri.encodeComponent(callId)}/decline', expect: 204, quiet: true);
+  }
+
+  /// The call's state, for either party. Null when it cannot be read right now.
+  Future<RtcCallState?> rtcCallState(String callId) async {
+    final reply = await _rtc('GET', '/api/webrtc/calls/${Uri.encodeComponent(callId)}', quiet: true);
+    return reply == null ? null : RtcCallState.fromJson(reply.map);
+  }
+
+  /// Cancel or hang up, for both people. Best effort: hanging up locally never waits on this.
+  Future<void> endRtcCall(String callId) async {
+    await _rtc('DELETE', '/api/webrtc/calls/${Uri.encodeComponent(callId)}', expect: 204, quiet: true);
+  }
+
+  /// One request. Null on failure (with [rtcError] set unless [quiet]); otherwise the
+  /// status, which is [expect] or one of [allow], and the decoded body.
+  Future<_Reply?> _rtc(String method, String path,
+      {Object? body, int expect = 200, Set<int> allow = const {}, Map<int, String> statusText = const {}, bool quiet = false}) async {
+    if (!quiet) rtcError = null;
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    try {
+      final request = await client.openUrl(method, Uri.parse('$_baseUrl$path'));
+      await _authorize(request);
+      if (body != null) {
+        request.headers.contentType = ContentType.json;
+        request.add(utf8.encode(jsonEncode(body)));
+      }
+      final response = await request.close().timeout(const Duration(seconds: 15));
+      final text = await response.transform(utf8.decoder).join().timeout(const Duration(seconds: 15));
+      final status = response.statusCode;
+      if (status == expect || allow.contains(status)) {
+        return _Reply(status, text.isEmpty || status == 204 ? null : jsonDecode(text));
+      }
+      debugPrint('SatyaCheck people/call $method $path: HTTP $status');
+      if (!quiet) {
+        rtcError = _expired(status)
+            ? signedOutMessage
+            : statusText[status] ??
+                (status == 404 && (path.startsWith('/api/webrtc') || path.startsWith('/api/profile'))
+                    ? 'App calls are not switched on for this service.'
+                    : _detail(text) ?? 'Something went wrong (HTTP $status). Please try again.');
+      }
+      return null;
+    } catch (error) {
+      debugPrint('SatyaCheck people/call $method $path unavailable: $error');
+      if (!quiet) rtcError = 'The service could not be reached. Check your connection and try again.';
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  static String? _detail(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return decoded is Map && decoded['detail'] is String ? decoded['detail'] as String : null;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _Reply {
+  const _Reply(this.status, this.json);
+  final int status;
+  final Object? json;
+  Map<String, dynamic> get map => json is Map ? (json as Map).cast<String, dynamic>() : const {};
+  List<Object?> get list => json is List ? json as List<Object?> : const [];
+}
+
+/// Another SatyaCheck user, as search and connections show them. Never an email address.
+class RtcPerson {
+  const RtcPerson({required this.userId, required this.username, required this.displayName, this.relation = 'none'});
+
+  final String userId, username, displayName;
+
+  /// none | outgoing | incoming | connected, from your side.
+  final String relation;
+
+  bool get connected => relation == 'connected';
+
+  factory RtcPerson.fromJson(Map<String, dynamic> json) => RtcPerson(
+        userId: json['user_id'] as String? ?? '',
+        username: json['username'] as String? ?? '',
+        displayName: json['display_name'] as String? ?? '',
+        relation: json['relation'] as String? ?? 'none',
+      );
+
+  RtcPerson withRelation(String relation) => RtcPerson(userId: userId, username: username, displayName: displayName, relation: relation);
+
+  /// What to call them on screen.
+  String get name => displayName.isNotEmpty ? displayName : username.isNotEmpty ? '@$username' : 'Unknown';
+}
+
+/// `GET /api/profile`: found, not chosen yet, or could not be asked.
+class ProfileLookup {
+  const ProfileLookup.found(RtcPerson this.profile) : failed = false;
+  const ProfileLookup.none()
+      : profile = null,
+        failed = false;
+  const ProfileLookup.failed()
+      : profile = null,
+        failed = true;
+  final RtcPerson? profile;
+  final bool failed;
+}
+
+class RtcConnections {
+  const RtcConnections({this.connected = const [], this.incoming = const [], this.outgoing = const []});
+  final List<RtcPerson> connected, incoming, outgoing;
+
+  factory RtcConnections.fromJson(Map<String, dynamic> json) {
+    List<RtcPerson> people(String key) => [
+          for (final p in (json[key] as List? ?? const []))
+            if (p is Map) RtcPerson.fromJson(p.cast<String, dynamic>())
+        ];
+    return RtcConnections(connected: people('connected'), incoming: people('incoming'), outgoing: people('outgoing'));
+  }
+}
+
+/// A call ringing for you.
+class IncomingCall {
+  const IncomingCall({required this.callId, required this.caller, required this.ringsForS});
+  final String callId;
+  final RtcPerson caller;
+  final int ringsForS;
+
+  factory IncomingCall.fromJson(Map<String, dynamic> json) => IncomingCall(
+        callId: json['call_id'] as String? ?? '',
+        caller: RtcPerson.fromJson((json['caller'] as Map? ?? const {}).cast<String, dynamic>()).withRelation('connected'),
+        ringsForS: (json['rings_for_s'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class IncomingCalls {
+  const IncomingCalls(this.calls) : available = true;
+  const IncomingCalls.unavailable()
+      : calls = const [],
+        available = false;
+  final List<IncomingCall> calls;
+
+  /// False when this service does not offer app calls at all.
+  final bool available;
+
+  factory IncomingCalls.fromJson(Map<String, dynamic> json) => IncomingCalls([
+        for (final c in (json['calls'] as List? ?? const []))
+          if (c is Map) IncomingCall.fromJson(c.cast<String, dynamic>())
+      ]);
+}
+
+/// What the backend hands a phone to enter a call: the room, its token, who the screening
+/// agent is, and who is on the other end.
+class RtcCallTicket {
+  const RtcCallTicket({required this.callId, required this.livekitUrl, required this.token, required this.agentIdentity, this.other, this.ringTimeoutS});
+
+  final String callId, livekitUrl, token, agentIdentity;
+  final RtcPerson? other;
+
+  /// Set for the caller: how long the call rings before it counts as missed.
+  final int? ringTimeoutS;
+
+  factory RtcCallTicket.fromJson(Map<String, dynamic> json) => RtcCallTicket(
+        callId: json['call_id'] as String? ?? '',
+        livekitUrl: json['livekit_url'] as String? ?? '',
+        token: json['token'] as String? ?? '',
+        agentIdentity: json['agent_identity'] as String? ?? '',
+        other: json['other'] is Map ? RtcPerson.fromJson((json['other'] as Map).cast<String, dynamic>()) : null,
+        ringTimeoutS: (json['ring_timeout_s'] as num?)?.toInt(),
+      );
+
+  bool get valid => callId.isNotEmpty && livekitUrl.isNotEmpty && token.isNotEmpty && agentIdentity.isNotEmpty;
+}
+
+/// `GET /api/webrtc/calls/{call_id}`.
+class RtcCallState {
+  const RtcCallState({required this.status, this.endedReason, required this.screening});
+
+  /// ringing | active | ended
+  final String status;
+
+  /// declined | missed | cancelled | hung_up, once ended.
+  final String? endedReason;
+  final bool screening;
+
+  bool get ended => status == 'ended';
+  bool get answered => status == 'active';
+
+  factory RtcCallState.fromJson(Map<String, dynamic> json) => RtcCallState(
+        status: json['status'] as String? ?? (json['ended'] == true ? 'ended' : 'ringing'),
+        endedReason: json['ended_reason'] as String?,
+        screening: json['screening'] == true,
+      );
 }
 
 /// A live screening session. One per call.

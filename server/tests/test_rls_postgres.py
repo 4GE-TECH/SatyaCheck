@@ -179,6 +179,50 @@ def test_llm_shadow_rows_are_owner_scoped(pg):
         assert db.query(LlmShadowRecord).filter_by(record_id=rid).count() == 1
 
 
+def test_profiles_are_readable_by_all_and_writable_by_their_owner(pg):
+    """Migration 0003: search needs every username; only the owner changes theirs."""
+    from server.database import Profile
+
+    tag = uuid.uuid4().hex[:6]
+    for owner in (A, B):
+        with _session(pg, owner) as db:
+            db.execute(text("DELETE FROM profiles WHERE owner_id = :o"), {"o": owner})
+            db.add(Profile(owner_id=owner, username=f"{owner}_{tag}"[:20], display_name=owner))
+            db.commit()
+    with _session(pg, B) as db:
+        assert db.query(Profile).filter_by(owner_id=A).count() == 1
+        assert db.execute(text("UPDATE profiles SET display_name = 'pwned' WHERE owner_id = :o"), {"o": A}).rowcount == 0
+        assert db.execute(text("DELETE FROM profiles WHERE owner_id = :o"), {"o": A}).rowcount == 0
+        db.commit()
+
+
+def test_connections_are_private_and_only_the_addressee_accepts(pg):
+    """Migration 0003: a request is filed only by its requester, as pending, and only its
+    addressee can accept it. A third account sees nothing."""
+    from sqlalchemy.exc import DBAPIError
+
+    from server.database import Connection
+
+    cid = f"c_{uuid.uuid4().hex[:8]}"
+    with _session(pg, A) as db:
+        db.add(Connection(connection_id=cid, requester_id=A, addressee_id=B, status="pending"))
+        db.commit()
+    with _session(pg, "account-c") as db:
+        assert db.query(Connection).filter_by(connection_id=cid).count() == 0
+    with _session(pg, A) as db:   # the requester cannot accept their own request
+        assert db.execute(text("UPDATE connections SET status = 'accepted' WHERE connection_id = :c"),
+                          {"c": cid}).rowcount == 0
+        db.commit()
+    with _session(pg, B) as db:   # nor file one, already accepted, in A's name
+        db.add(Connection(connection_id=f"{cid}_x", requester_id=A, addressee_id=B, status="accepted"))
+        with pytest.raises(DBAPIError):
+            db.commit()
+    with _session(pg, B) as db:
+        assert db.execute(text("UPDATE connections SET status = 'accepted' WHERE connection_id = :c"),
+                          {"c": cid}).rowcount == 1
+        db.commit()
+
+
 def test_pgvector_round_trips_through_the_store(pg, seeded):
     from server import voiceprint_store
 

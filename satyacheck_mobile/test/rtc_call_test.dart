@@ -1,0 +1,196 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:satyacheck/api_client.dart';
+import 'package:satyacheck/people_screen.dart';
+import 'package:satyacheck/auth.dart';
+import 'package:satyacheck/models.dart';
+import 'package:satyacheck/rtc_call.dart';
+import 'package:satyacheck/theme.dart';
+
+const agent = 'satyacheck-agent-e7919c122f171720';
+
+/// A packet as server/live_presenter.py `compact()` builds it.
+List<int> packet({int rev = 1, String band = 'suspicious', double? score = 41.0, bool available = true,
+    List<Map<String, dynamic>> alerts = const [], Map<String, dynamic>? coverage, String type = 'satyacheck.verdict'}) {
+  return utf8.encode(jsonEncode({
+    'type': type,
+    'schema_version': 1,
+    'rev': rev,
+    'session_id': 'rtc_e7919c122f171720_caller',
+    'screening_available': available,
+    'reason': available ? null : 'the screening service is restarting',
+    'display_band': band,
+    'trust_score': score,
+    'mode': 'authority_check',
+    'reasons': [
+      {'code': 'RC_RISK_MARKERS_PRESENT', 'explanation': 'Asks for money to be sent immediately.'}
+    ],
+    'alerts': alerts,
+    'coverage': coverage ?? {'screened_s': 48.0, 'unscreened_s': 0.0, 'degraded': false},
+    'transcript_tail': 'Papa ko mat batana',
+    'transcript_rev': 5,
+    'is_final': false,
+  }));
+}
+
+void main() {
+  group('VerdictGate', () {
+    test('accepts a verdict from the agent on the verdict topic', () {
+      final gate = VerdictGate(agent);
+      expect(gate.offer(topic: verdictTopic, sender: agent, data: packet()), isTrue);
+      expect(gate.current!.band, TrustBand.suspicious);
+      expect(gate.current!.trustScore, 41.0);
+      expect(gate.current!.reasons.single.code, 'RC_RISK_MARKERS_PRESENT');
+    });
+
+    test('refuses a verdict from anyone but the agent (rule 1)', () {
+      final gate = VerdictGate(agent);
+      expect(gate.offer(topic: verdictTopic, sender: 'the-other-phone', data: packet(band: 'verified')), isFalse);
+      expect(gate.offer(topic: verdictTopic, sender: null, data: packet(band: 'verified')), isFalse);
+      expect(gate.current, isNull);
+    });
+
+    test('ignores other topics and malformed payloads', () {
+      final gate = VerdictGate(agent);
+      expect(gate.offer(topic: 'chat', sender: agent, data: packet()), isFalse);
+      expect(gate.offer(topic: verdictTopic, sender: agent, data: utf8.encode('not json')), isFalse);
+      expect(gate.offer(topic: verdictTopic, sender: agent, data: packet(type: 'something.else')), isFalse);
+      expect(gate.current, isNull);
+    });
+
+    test('keeps the highest rev (rule 2)', () {
+      final gate = VerdictGate(agent);
+      gate.offer(topic: verdictTopic, sender: agent, data: packet(rev: 7, band: 'high_risk'));
+      expect(gate.offer(topic: verdictTopic, sender: agent, data: packet(rev: 5, band: 'unverified')), isFalse);
+      expect(gate.current!.band, TrustBand.highRisk);
+      expect(gate.offer(topic: verdictTopic, sender: agent, data: packet(rev: 8, band: 'high_risk')), isTrue);
+      expect(gate.current!.rev, 8);
+    });
+  });
+
+  group('RtcVerdict', () {
+    test('insufficient carries no score, even if one is sent', () {
+      final v = RtcVerdict.tryParse(packet(band: 'insufficient', score: 50))!;
+      expect(v.band, TrustBand.insufficient);
+      expect(v.trustScore, isNull);
+    });
+
+    test('keeps unresolved alerts and drops resolved ones from the open list (rule 6)', () {
+      final v = RtcVerdict.tryParse(packet(alerts: [
+        {'alert_id': 'a1', 'band': 'high_risk', 'at_s': 22.5, 'resolved': false, 'evidence': 'Asks you not to tell anyone.'},
+        {'alert_id': 'a2', 'band': 'caution', 'at_s': 30.0, 'resolved': true, 'evidence': null},
+      ]))!;
+      expect(v.alerts, hasLength(2));
+      expect(v.openAlerts.single.alertId, 'a1');
+      expect(v.openAlerts.single.band, TrustBand.highRisk);
+    });
+
+    test('reports unscreened time and degraded coverage (rule 7)', () {
+      expect(RtcVerdict.tryParse(packet())!.partlyUnchecked, isFalse);
+      expect(RtcVerdict.tryParse(packet(coverage: {'screened_s': 10.0, 'unscreened_s': 4.0, 'degraded': false}))!.partlyUnchecked, isTrue);
+      expect(RtcVerdict.tryParse(packet(coverage: {'screened_s': 10.0, 'unscreened_s': 0.0, 'degraded': true}))!.partlyUnchecked, isTrue);
+    });
+
+    test('reads screening paused (rule 4)', () {
+      final v = RtcVerdict.tryParse(packet(available: false))!;
+      expect(v.screeningAvailable, isFalse);
+      expect(v.reason, isNotNull);
+    });
+
+    test('a packet before any assessment parses as listening', () {
+      final data = utf8.encode(jsonEncode({
+        'type': 'satyacheck.verdict', 'schema_version': 1, 'rev': 0, 'session_id': 's', 'screening_available': true,
+        'reason': null, 'alerts': [], 'display_band': 'insufficient', 'trust_score': null, 'mode': null, 'reasons': [],
+        'coverage': null, 'transcript_tail': '', 'transcript_rev': -1, 'is_final': false,
+      }));
+      final v = RtcVerdict.tryParse(data)!;
+      expect(v.band, TrustBand.insufficient);
+      expect(v.partlyUnchecked, isFalse);
+    });
+  });
+
+  test('RtcCallTicket reads place and accept responses, with who is on the other end', () {
+    final placed = RtcCallTicket.fromJson({
+      'call_id': 'e7919c122f171720', 'livekit_url': 'ws://192.168.1.20:7880', 'token': 'jwt', 'agent_identity': agent,
+      'other': {'user_id': 'bob', 'username': 'bob', 'display_name': 'Bob'}, 'ring_timeout_s': 45,
+    });
+    expect(placed.valid, isTrue);
+    expect(placed.other!.name, 'Bob');
+    expect(placed.ringTimeoutS, 45);
+    expect(RtcCallTicket.fromJson({'call_id': 'x'}).valid, isFalse);
+  });
+
+  test('people, connections and call state parse from the API', () {
+    final c = RtcConnections.fromJson({
+      'connected': [{'user_id': 'b', 'username': 'bob', 'display_name': 'Bob', 'relation': 'connected'}],
+      'incoming': [{'user_id': 'c', 'username': 'carol', 'display_name': '', 'relation': 'incoming'}],
+      'outgoing': [],
+    });
+    expect(c.connected.single.connected, isTrue);
+    expect(c.incoming.single.name, '@carol');
+    final state = RtcCallState.fromJson({'status': 'ended', 'ended_reason': 'declined', 'screening': false});
+    expect((state.ended, state.answered, state.endedReason), (true, false, 'declined'));
+    final ringing = IncomingCalls.fromJson({'calls': [{'call_id': 'k1', 'caller': {'user_id': 'a', 'username': 'alice', 'display_name': 'Alice'}, 'rings_for_s': 40}]});
+    expect(ringing.calls.single.caller.name, 'Alice');
+    expect(ringing.calls.single.caller.connected, isTrue);
+  });
+
+  test('how a call ended is said plainly, from each side', () {
+    expect(endedText('declined', 'Bob', caller: true), 'Bob declined the call.');
+    expect(endedText('missed', 'Bob', caller: true), 'Bob didn’t answer.');
+    expect(endedText('missed', 'Alice', caller: false), 'You missed the call.');
+    expect(endedText('cancelled', 'Alice', caller: false), 'Alice hung up before you answered.');
+    expect(endedText('hung_up', 'Bob', caller: true), 'Bob ended the call.');
+  });
+
+  group('IncomingCallWatcher', () {
+    test('rings once per call and notices when it stops ringing', () async {
+      final api = _ScriptedApi([
+        IncomingCalls([_incoming('k1')]),
+        IncomingCalls([_incoming('k1')]),
+        const IncomingCalls([]),
+      ]);
+      final rung = <String>[];
+      final watcher = IncomingCallWatcher(api, onRing: (c) => rung.add(c.callId));
+      await watcher.check();
+      await watcher.check();
+      expect(rung, ['k1']);
+      expect(watcher.stillRinging('k1'), isTrue);
+      await watcher.check();
+      expect(watcher.stillRinging('k1'), isFalse);
+    });
+
+    test('keeps the last picture while offline, and backs off when calls are not offered', () async {
+      final api = _ScriptedApi([IncomingCalls([_incoming('k1')]), null, const IncomingCalls.unavailable(), IncomingCalls([_incoming('k2')])]);
+      final watcher = IncomingCallWatcher(api, onRing: (_) {});
+      await watcher.check();
+      await watcher.check();
+      expect(watcher.stillRinging('k1'), isTrue);
+      await watcher.check();
+      expect(watcher.available, isFalse);
+      await watcher.check();                       // within the back-off: not asked
+      expect(api.asked, 3);
+    });
+  });
+
+  testWidgets('without sign-in, People explains why calls are unavailable', (tester) async {
+    final api = ApiClient(baseUrl: 'http://127.0.0.1:9', auth: AuthSession(url: '', anonKey: ''));
+    await tester.pumpWidget(MaterialApp(theme: satyaTheme(Brightness.light), home: PeopleScreen(api: api)));
+    await tester.pump();
+    expect(find.textContaining('App calls need sign-in'), findsOneWidget);
+  });
+}
+
+IncomingCall _incoming(String id) =>
+    IncomingCall(callId: id, caller: const RtcPerson(userId: 'a', username: 'alice', displayName: 'Alice', relation: 'connected'), ringsForS: 40);
+
+class _ScriptedApi extends ApiClient {
+  _ScriptedApi(this.replies) : super(baseUrl: 'http://127.0.0.1:9', auth: AuthSession(url: '', anonKey: ''));
+  final List<IncomingCalls?> replies;
+  int asked = 0;
+
+  @override
+  Future<IncomingCalls?> incomingCalls() async => replies[asked++];
+}

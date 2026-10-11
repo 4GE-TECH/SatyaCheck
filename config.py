@@ -548,10 +548,12 @@ LIVEKIT_AGENT_URL: str = os.getenv("LIVEKIT_AGENT_URL", "") or LIVEKIT_URL
 LIVEKIT_API_KEY: str = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_API_SECRET: str = os.getenv("LIVEKIT_API_SECRET", "")
 WEBRTC_TOKEN_TTL_S: int = int(os.getenv("WEBRTC_TOKEN_TTL_S", "600"))     # a phone's room token
-WEBRTC_CALL_TTL_S: int = int(os.getenv("WEBRTC_CALL_TTL_S", "900"))       # an unjoined call code
+WEBRTC_RING_TIMEOUT_S: int = int(os.getenv("WEBRTC_RING_TIMEOUT_S", "45"))  # unanswered -> missed
+WEBRTC_CALL_TTL_S: int = int(os.getenv("WEBRTC_CALL_TTL_S", "900"))       # an agent outlives its call by this
 WEBRTC_MAX_CALLS: int = int(os.getenv("WEBRTC_MAX_CALLS", "2"))           # each call screens 2 voices, and
                                                                           # takes 2 admission slots
-WEBRTC_JOIN_ATTEMPTS_PER_MIN: int = int(os.getenv("WEBRTC_JOIN_ATTEMPTS_PER_MIN", "10"))  # per account
+WEBRTC_SEARCH_PER_MIN: int = int(os.getenv("WEBRTC_SEARCH_PER_MIN", "30"))           # username searches, per account
+WEBRTC_CONNECT_REQUESTS_PER_HOUR: int = int(os.getenv("WEBRTC_CONNECT_REQUESTS_PER_HOUR", "20"))  # per account
 WEBRTC_HEARTBEAT_S: float = float(os.getenv("WEBRTC_HEARTBEAT_S", "5"))   # full-state resend interval
 
 # Tamper-evident evidence log of guardian alerts (item 17, server/evidence.py)

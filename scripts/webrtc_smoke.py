@@ -4,7 +4,8 @@ Starts the real backend in this process (uvicorn on a free port, real models, a 
 SQLite file), then plays both phones with the LiveKit Python SDK against a running LiveKit
 server. For each clip:
 
-  1. "alice" creates a call over HTTP and joins the room; "bob" joins with the code;
+  1. "alice" and "bob" choose usernames; alice finds bob by search and sends a connect
+     request, bob accepts; alice rings bob, bob sees the call ringing and answers;
   2. alice publishes the clip as her microphone, in real time;
   3. bob must receive verdict packets on `satyacheck.verdict` from the agent identity only;
   4. alice tries to publish a fake verdict: LiveKit must refuse it (no data grant);
@@ -79,13 +80,26 @@ def _start_backend(port: int):
     return server, make_token
 
 
-def _http(port, method, path, owner, make_token):
+def _http(port, method, path, owner, make_token, body=None):
     import urllib.request
 
-    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", method=method,
-                                 headers={"Authorization": f"Bearer {make_token(owner)}"})
+    headers = {"Authorization": f"Bearer {make_token(owner)}"}
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", method=method, headers=headers,
+                                 data=None if body is None else json.dumps(body).encode())
     with urllib.request.urlopen(req, timeout=15) as r:
         return json.loads(r.read() or b"{}")
+
+
+def _connect(port, make_token) -> None:
+    """The real flow: usernames, search, request, accept. Idempotent across clips."""
+    for who in ("alice", "bob"):
+        _http(port, "PUT", "/api/profile", who, make_token, {"username": f"smoke_{who}", "display_name": who.title()})
+    found = _http(port, "GET", "/api/users/search?q=smoke_b", "alice", make_token)
+    bob = next(p for p in found if p["username"] == "smoke_bob")
+    _http(port, "POST", "/api/connections", "alice", make_token, {"user_id": bob["user_id"]})
+    _http(port, "POST", "/api/connections/alice/accept", "bob", make_token)
 
 
 def _pcm(clip: str) -> bytes:
@@ -98,8 +112,12 @@ async def _call(port, make_token, clip: str, kind: str) -> list[str]:
     from livekit import rtc
 
     failures: list[str] = []
-    created = _http(port, "POST", "/api/webrtc/calls", "alice", make_token)
-    joined = _http(port, "POST", f"/api/webrtc/calls/{created['code']}/join", "bob", make_token)
+    _connect(port, make_token)
+    created = _http(port, "POST", "/api/webrtc/calls", "alice", make_token, {"callee_id": "bob"})
+    ringing = _http(port, "GET", "/api/webrtc/incoming", "bob", make_token)["calls"]
+    if [c["call_id"] for c in ringing] != [created["call_id"]]:
+        failures.append(f"{clip}: the call did not ring for bob ({ringing})")
+    joined = _http(port, "POST", f"/api/webrtc/calls/{created['call_id']}/accept", "bob", make_token)
     agent = created["agent_identity"]
     url = created["livekit_url"]
     packets, foreign = [], []

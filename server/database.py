@@ -338,6 +338,34 @@ class LlmShadowRecord(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class Profile(Base):
+    """A signed-in account's public handle, for finding people to call (server/contacts.py).
+    Readable by every account (that is what search is); written only by its owner. Never
+    holds an email address."""
+    __tablename__ = "profiles"
+
+    owner_id = Column(String, primary_key=True)
+    username = Column(String, nullable=False, unique=True)     # lower-case, see contacts.USERNAME
+    display_name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class Connection(Base):
+    """A connect request between two accounts, and once accepted, permission for either to
+    call the other. Visible only to the two accounts in it."""
+    __tablename__ = "connections"
+
+    connection_id = Column(String, primary_key=True)
+    requester_id = Column(String, nullable=False, index=True)
+    addressee_id = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False, default="pending")   # pending | accepted
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    responded_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (Index("uq_connections_pair", "requester_id", "addressee_id", unique=True),)
+
+
 class EvidenceLeaf(Base):
     """One guardian alert in the evidence log (server/evidence.py). No audio, no transcript.
 
