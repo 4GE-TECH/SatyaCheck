@@ -41,6 +41,47 @@ class AuthSession extends ChangeNotifier {
 
   String? get email => _email;
 
+  /// Email and password. Returns an error message, or null when signed in. A wrong password
+  /// and an unknown address get the same answer, so the screen cannot tell who has an account.
+  Future<String?> signInWithPassword(String email, String password) async {
+    final (status, body) =
+        await _post('/auth/v1/token?grant_type=password', {'email': email, 'password': password});
+    if (status == 200 && _take(body)) {
+      _email = email;
+      notifyListeners();
+      return null;
+    }
+    debugPrint('SatyaCheck sign-in: password sign-in HTTP $status');
+    if (status == 0) return 'The sign-in service could not be reached. Check your connection.';
+    return 'That email and password did not work.';
+  }
+
+  /// A new account with email and password, signed in straight away. Needs "Confirm email"
+  /// off in Supabase (Authentication -> Providers -> Email): with it on, Supabase sends a
+  /// confirmation link instead of a session, and that link is not something this app can open.
+  Future<String?> signUp(String email, String password) async {
+    final (status, body) = await _post('/auth/v1/signup', {'email': email, 'password': password});
+    if ((status == 200 || status == 201) && _take(body)) {
+      _email = email;
+      notifyListeners();
+      return null;
+    }
+    debugPrint('SatyaCheck sign-in: sign-up HTTP $status');
+    if (status == 200 || status == 201) {
+      return 'The account was created but needs email confirmation. Ask the team to turn off '
+          '"Confirm email" in Supabase, then sign in.';
+    }
+    final message = body is Map ? '${body['msg'] ?? body['message'] ?? body['error_description'] ?? ''}' : '';
+    if (status == 422 && message.toLowerCase().contains('registered')) {
+      return 'An account with this email already exists. Sign in instead.';
+    }
+    if (status == 422 && message.toLowerCase().contains('password')) {
+      return 'Choose a longer password (at least 6 characters).';
+    }
+    if (status == 0) return 'The sign-in service could not be reached. Check your connection.';
+    return 'The account could not be created. Check the email address and try again.';
+  }
+
   /// Emails a 6-digit code. Returns an error message, or null when sent.
   Future<String?> sendCode(String email) async {
     final (status, _) = await _post('/auth/v1/otp', {'email': email, 'create_user': true});

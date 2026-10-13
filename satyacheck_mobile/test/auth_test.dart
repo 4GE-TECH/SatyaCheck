@@ -159,4 +159,48 @@ void main() {
     }
   });
 
+
+  test('password sign-in works with the right password and refuses a wrong one', () async {
+    final supabase = await FakeSupabase.start();
+    try {
+      final auth = AuthSession(url: supabase.url, anonKey: 'anon');
+      supabase.routes['/auth/v1/token?grant_type=password'] = (400, {'error': 'invalid_grant'});
+      expect(await auth.signInWithPassword('asha@example.com', 'wrong'), 'That email and password did not work.');
+      expect(auth.ready, isFalse);
+      supabase.routes['/auth/v1/token?grant_type=password'] = (200, session('t1'));
+      expect(await auth.signInWithPassword('asha@example.com', 'right-password'), isNull);
+      expect(auth.ready, isTrue);
+      expect(await auth.accessToken(), 't1');
+      expect(supabase.requests.last.$2, {'email': 'asha@example.com', 'password': 'right-password'});
+    } finally {
+      await supabase.close();
+    }
+  });
+
+  test('creating an account signs in straight away when confirmation is off', () async {
+    final supabase = await FakeSupabase.start();
+    try {
+      final auth = AuthSession(url: supabase.url, anonKey: 'anon');
+      supabase.routes['/auth/v1/signup'] = (200, session('t-new'));
+      expect(await auth.signUp('ravi@example.com', 'secret-pass'), isNull);
+      expect(auth.ready, isTrue);
+      expect(await auth.accessToken(), 't-new');
+    } finally {
+      await supabase.close();
+    }
+  });
+
+  test('sign-up says exactly what to change when Supabase still wants email confirmation', () async {
+    final supabase = await FakeSupabase.start();
+    try {
+      final auth = AuthSession(url: supabase.url, anonKey: 'anon');
+      supabase.routes['/auth/v1/signup'] = (200, {'id': 'u1', 'email': 'ravi@example.com'});   // a user, no session
+      expect(await auth.signUp('ravi@example.com', 'secret-pass'), contains('Confirm email'));
+      expect(auth.ready, isFalse);
+      supabase.routes['/auth/v1/signup'] = (422, {'msg': 'User already registered'});
+      expect(await auth.signUp('ravi@example.com', 'secret-pass'), contains('Sign in instead'));
+    } finally {
+      await supabase.close();
+    }
+  });
 }

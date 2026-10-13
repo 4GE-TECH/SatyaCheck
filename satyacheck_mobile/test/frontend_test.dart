@@ -111,7 +111,8 @@ void main() {
     await tester.pumpWidget(SatyaCheckApp(api: api));
     await tester.pump();
     expect(find.text('Sign in to SatyaCheck'), findsOneWidget);
-    expect(find.text('Email me a code'), findsOneWidget);
+    expect(find.text('Create an account'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
     expect(find.text('Check this recording'), findsNothing);
   });
 }

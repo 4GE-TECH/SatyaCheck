@@ -82,3 +82,5 @@ admin-credentials.local.txt
 # Local env files (scripts/create_admin.py writes web3/.env.local)
 .env.local
 .env.*.local
+# Local build settings for the phone app (flutter --dart-define-from-file)
+*.local.json
