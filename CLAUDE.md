@@ -135,6 +135,12 @@ item answers **404**, never 403, so its existence is not leaked. Postgres row-le
 sits behind the filters as defence in depth. It is not a reason to skip them: SQLite has none.
 Sockets sign in with their first message, never the URL. Production forces `AUTH_MODE=jwt`.
 
+The one exception is the admin console (`server/admin_router.py`). It is for accounts in
+`ADMIN_USER_IDS` only, with a verified sign-in, and never the dev account. It reads every
+account but writes nothing: `database.admin_session` uses a transaction Postgres itself makes
+read-only. Every view is logged with the admin's id. Add nothing that writes there, and route
+no other cross-account read through it.
+
 ### Live alerts never quietly disappear
 In the v2 stream the display band only escalates within a call. An alert is append-only. It is
 withdrawn only when the claim it rested on is superseded, and then it is marked, not deleted.

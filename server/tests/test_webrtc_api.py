@@ -67,7 +67,8 @@ def _connect(*pairs) -> None:
         for who in names:
             db.add(database.Profile(owner_id=who, username=who, display_name=who.title()))
         for i, (a, b) in enumerate(pairs):
-            db.add(database.Connection(connection_id=f"c{i}", requester_id=a, addressee_id=b, status="accepted"))
+            db.add(database.Connection(connection_id=f"c{i}", requester_id=a, addressee_id=b,
+                                       pair_key=database.pair_key(a, b), status="accepted"))
         db.commit()
 
 
@@ -218,3 +219,54 @@ def test_cancelling_and_hanging_up_stop_the_agent(api):
     api.post(f"/api/webrtc/calls/{call_id}/accept", headers=api.headers_for("bob"))
     assert api.delete(f"/api/webrtc/calls/{call_id}", headers=api.headers_for("bob")).status_code == 204
     assert api.get(f"/api/webrtc/calls/{call_id}", headers=api.headers_for("alice")).json()["ended_reason"] == "hung_up"
+
+
+def test_an_answered_call_that_nobody_ends_times_out_and_frees_both_people(monkeypatch):
+    """The backstop when the agent itself died: nothing else would end the call, and both
+    people would stay busy for good."""
+    from server.webrtc_calls import CallRegistry
+
+    now = [0.0]
+    r = CallRegistry(clock=lambda: now[0])
+    call = r.create("alice", "bob")
+    r.accept(call.call_id, "bob")
+    now[0] += config.WEBRTC_MAX_CALL_S + 1
+    assert r.get_for(call.call_id, "alice").ended_reason == "timed_out"
+    assert r.drain_ended() == [call.call_id]               # its agent gets stopped
+    assert r.create("alice", "carol").status == "ringing"  # alice is free again
+    assert r.end_unattended(call.call_id, "dropped") is None   # already over: a no-op
+
+
+def test_the_agent_can_end_an_answered_call_nobody_hung_up():
+    from server.webrtc_calls import CallRegistry
+
+    r = CallRegistry()
+    call = r.create("alice", "bob")
+    r.accept(call.call_id, "bob")
+    assert r.end_unattended(call.call_id, "dropped").ended_reason == "dropped"
+    assert r.end_unattended(call.call_id, "dropped") is None
+    assert r.create("bob", "alice").status == "ringing"
+
+
+def test_a_party_can_rejoin_a_live_call_with_a_fresh_token(api):
+    """Room tokens are short-lived; a phone that dropped for good on a long call gets a new
+    one for the same room, as itself, while the call is live, and only then."""
+    _connect(("alice", "bob"))
+    placed = _ring(api)
+    call_id = placed["call_id"]
+    rejoin = lambda who: api.post(f"/api/webrtc/calls/{call_id}/rejoin", headers=api.headers_for(who))   # noqa: E731
+
+    assert rejoin("alice").status_code == 200                     # the caller, while it rings
+    assert rejoin("bob").status_code == 404                       # the callee must answer, not rejoin
+    api.post(f"/api/webrtc/calls/{call_id}/accept", headers=api.headers_for("bob"))
+    for who, other in (("alice", "bob"), ("bob", "alice")):
+        r = rejoin(who)
+        assert r.status_code == 200, r.text
+        ticket = r.json()
+        grant = _grants(ticket["token"])
+        assert grant["sub"] == who and grant["video"]["room"] == f"satyacheck-{call_id}"
+        assert grant["video"]["canPublishData"] is False
+        assert ticket["agent_identity"] == placed["agent_identity"] and ticket["other"]["user_id"] == other
+    assert rejoin("mallory").status_code == 404                   # not a party: same as no call
+    api.delete(f"/api/webrtc/calls/{call_id}", headers=api.headers_for("alice"))
+    assert rejoin("alice").status_code == 404                     # over: no way back in

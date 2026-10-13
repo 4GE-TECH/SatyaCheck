@@ -150,6 +150,31 @@ def test_deleting_an_account_removes_everything_of_it_and_nothing_else(isolated_
     assert not (files / "reports" / "RPT_CALL-A.pdf").exists() and (files / "reports" / "RPT_CALL-B.pdf").is_file()
 
 
+def test_deleting_an_account_removes_its_username_and_every_connection_it_is_in(isolated_db):
+    """A deleted account must not stay findable or callable: its profile goes, and so does
+    every connection it was in, whichever side asked. Other people's rows stay."""
+    from server import retention
+    from server.database import Connection, Profile, pair_key
+
+    with isolated_db() as db:
+        for owner in (A, B, "carol"):
+            db.add(Profile(owner_id=owner, username=f"user_{owner}"[:20].lower(), display_name=owner))
+        db.add(Connection(connection_id="ab", requester_id=A, addressee_id=B, pair_key=pair_key(A, B),
+                          status="accepted"))
+        db.add(Connection(connection_id="ca", requester_id="carol", addressee_id=A, pair_key=pair_key("carol", A),
+                          status="pending"))
+        db.add(Connection(connection_id="bc", requester_id=B, addressee_id="carol", pair_key=pair_key(B, "carol"),
+                          status="accepted"))
+        db.commit()
+
+    counts = retention.delete_account(A)
+
+    with isolated_db() as db:
+        assert {p.owner_id for p in db.query(Profile)} == {B, "carol"}
+        assert {c.connection_id for c in db.query(Connection)} == {"bc"}
+    assert counts["profiles"] == 1 and counts["connections"] == 2
+
+
 def test_account_deletion_requires_sign_in(isolated_db, signed_in):
     from server.main import app
 

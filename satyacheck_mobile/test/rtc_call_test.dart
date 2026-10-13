@@ -36,6 +36,7 @@ List<int> packet({int rev = 1, String band = 'suspicious', double? score = 41.0,
 }
 
 void main() {
+  group('rejoining a call after the connection drops', rejoinTests);
   group('VerdictGate', () {
     test('accepts a verdict from the agent on the verdict topic', () {
       final gate = VerdictGate(agent);
@@ -143,6 +144,9 @@ void main() {
     expect(endedText('missed', 'Alice', caller: false), 'You missed the call.');
     expect(endedText('cancelled', 'Alice', caller: false), 'Alice hung up before you answered.');
     expect(endedText('hung_up', 'Bob', caller: true), 'Bob ended the call.');
+    // Ended by the service, not by a person: never says someone hung up.
+    expect(endedText('dropped', 'Bob', caller: true), 'The call dropped: one phone lost its connection.');
+    expect(endedText('timed_out', 'Bob', caller: false), 'The call reached its time limit and was ended.');
   });
 
   group('IncomingCallWatcher', () {
@@ -193,4 +197,46 @@ class _ScriptedApi extends ApiClient {
 
   @override
   Future<IncomingCalls?> incomingCalls() async => replies[asked++];
+}
+
+/// Answers rejoin and state requests from scripts, for [obtainRejoinTicket].
+class _RejoinApi extends ApiClient {
+  _RejoinApi({required this.tickets, this.ended = false})
+      : super(baseUrl: 'http://127.0.0.1:9', auth: AuthSession(url: '', anonKey: ''));
+  final List<RtcCallTicket?> tickets;
+  final bool ended;
+  int asked = 0;
+
+  @override
+  Future<RtcCallTicket?> rejoinCall(String callId) async => asked < tickets.length ? tickets[asked++] : null;
+
+  @override
+  Future<RtcCallState?> rtcCallState(String callId) async =>
+      RtcCallState.fromJson({'status': ended ? 'ended' : 'active', 'ended_reason': ended ? 'dropped' : null, 'screening': true});
+}
+
+void rejoinTests() {
+  final fresh = RtcCallTicket.fromJson({
+    'call_id': 'c1', 'livekit_url': 'ws://lk', 'token': 'new-token', 'agent_identity': 'satyacheck-agent-c1'});
+  final soon = DateTime.now().add(const Duration(seconds: 2));
+
+  test('a dropped phone keeps asking until the service gives it a fresh ticket', () async {
+    final api = _RejoinApi(tickets: [null, null, fresh]);
+    final got = await obtainRejoinTicket(api, 'c1', until: soon, every: const Duration(milliseconds: 10));
+    expect(got?.token, 'new-token');
+    expect(api.asked, 3);
+  });
+
+  test('it stops at once when the call has ended, instead of retrying', () async {
+    final api = _RejoinApi(tickets: [null, null, fresh], ended: true);
+    expect(await obtainRejoinTicket(api, 'c1', until: soon, every: const Duration(milliseconds: 10)), isNull);
+    expect(api.asked, 1);
+  });
+
+  test('it gives up at the deadline', () async {
+    final api = _RejoinApi(tickets: List.filled(1000, null));
+    final until = DateTime.now().add(const Duration(milliseconds: 80));
+    expect(await obtainRejoinTicket(api, 'c1', until: until, every: const Duration(milliseconds: 10)), isNull);
+    expect(DateTime.now().isBefore(until.add(const Duration(milliseconds: 200))), isTrue);
+  });
 }

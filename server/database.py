@@ -106,6 +106,10 @@ def _scope_transaction(session: Session, transaction, connection) -> None:
     one owner's scope into the next transaction."""
     if connection.dialect.name != "postgresql":
         return
+    if session.info.get("admin_read"):
+        # The admin console reads every account through the owner connection. It may read,
+        # never write: Postgres refuses any write in this transaction. Must come first.
+        connection.execute(text("SET TRANSACTION READ ONLY"))
     schema = config.DB_SCHEMA
     search_path = "public, extensions" if schema == "public" else f'"{schema}", public, extensions'
     connection.execute(
@@ -121,6 +125,37 @@ def owner_session(owner_id: str) -> Session:
         raise ValueError("owner_session needs an owner_id")
     db = SessionLocal()
     db.info["owner_id"] = owner_id
+    return db
+
+
+class AdminUnavailable(RuntimeError):
+    """The admin console cannot read across accounts on this deployment."""
+
+
+_admin_factory: Optional[sessionmaker] = None
+
+
+def admin_session() -> Session:
+    """A READ-ONLY session that sees every account, for the admin console only
+    (server/admin_router.py, behind `admin_principal`).
+
+    SQLite has no row-level security, so it is the normal session. On Postgres the app role
+    is boxed in by RLS to one account per transaction, and that stays true: admin reads go
+    through DATABASE_ADMIN_URL (the owner, which RLS does not force) in a transaction that
+    Postgres itself makes read-only. Raises AdminUnavailable when that URL is not set."""
+    global _admin_factory
+    bind = SessionLocal.kw.get("bind")
+    if not is_postgres(bind):
+        db = SessionLocal()
+        db.info["admin_read"] = True
+        return db
+    if not config.DATABASE_ADMIN_URL:
+        raise AdminUnavailable("DATABASE_ADMIN_URL is not set: the admin console cannot read across accounts")
+    if _admin_factory is None:
+        _admin_factory = sessionmaker(bind=make_engine(config.DATABASE_ADMIN_URL), autoflush=False,
+                                      autocommit=False)
+    db = _admin_factory()
+    db.info["admin_read"] = True
     return db
 
 
@@ -359,11 +394,23 @@ class Connection(Base):
     connection_id = Column(String, primary_key=True)
     requester_id = Column(String, nullable=False, index=True)
     addressee_id = Column(String, nullable=False, index=True)
+    # The two accounts in sorted order (`pair_key()`), unique: one row per pair whoever asked,
+    # so two people requesting each other at the same instant cannot leave two rows.
+    pair_key = Column(String, nullable=False)
     status = Column(String, nullable=False, default="pending")   # pending | accepted
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     responded_at = Column(DateTime(timezone=True), nullable=True)
 
-    __table_args__ = (Index("uq_connections_pair", "requester_id", "addressee_id", unique=True),)
+    __table_args__ = (Index("uq_connections_pair", "requester_id", "addressee_id", unique=True),
+                      # Same name as migration 0004 and the SQLite upgrade, so neither duplicates it.
+                      Index("uq_connections_pair_key", "pair_key", unique=True))
+
+
+def pair_key(a: str, b: str) -> str:
+    """The unordered pair of two accounts. Byte order, matching Postgres COLLATE "C"
+    (server/migrations/versions/0004_connection_pairs.py)."""
+    first, second = sorted((a, b))
+    return f"{first}|{second}"
 
 
 class EvidenceLeaf(Base):
@@ -464,6 +511,27 @@ def migrate(target_engine=None) -> None:
                 log.info(f"DB migration: removed {dropped} superseded voiceprint row(s)")
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_voiceprints_person_condition_model "
                               "ON voiceprints (person_id, condition, model_version)"))
+
+        if inspector.has_table("connections"):
+            # One row per pair of accounts: fill pair_key, keep the accepted (else the oldest)
+            # row of any duplicated pair, then let the database enforce it.
+            cols = {c["name"] for c in inspector.get_columns("connections")}
+            if "pair_key" not in cols:
+                conn.execute(text("ALTER TABLE connections ADD COLUMN pair_key VARCHAR"))
+            rows = conn.execute(text("SELECT connection_id, requester_id, addressee_id, status, created_at "
+                                     "FROM connections")).fetchall()
+            keep: dict = {}
+            for r in sorted(rows, key=lambda r: (r.status != "accepted", str(r.created_at or ""))):
+                keep.setdefault(pair_key(r.requester_id, r.addressee_id), r.connection_id)
+            for r in rows:
+                key = pair_key(r.requester_id, r.addressee_id)
+                if keep[key] == r.connection_id:
+                    conn.execute(text("UPDATE connections SET pair_key = :k WHERE connection_id = :c"),
+                                 {"k": key, "c": r.connection_id})
+                else:
+                    conn.execute(text("DELETE FROM connections WHERE connection_id = :c"), {"c": r.connection_id})
+                    log.info(f"DB migration: removed duplicate connection {r.connection_id}")
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_connections_pair_key ON connections (pair_key)"))
     Base.metadata.create_all(bind=target_engine)   # tables dropped or new above
 
 

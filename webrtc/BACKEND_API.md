@@ -74,11 +74,36 @@ Returns `204`.
 ### `GET /api/webrtc/calls/{call_id}` — state, for either party
 
 `{ "call_id", "role": "caller" | "callee", "status": "ringing" | "active" | "ended",
-"ended_reason": "declined" | "missed" | "cancelled" | "hung_up" | null, "other_joined", "ended",
-"screening" }`
+"ended_reason": "declined" | "missed" | "cancelled" | "hung_up" | "dropped" | "timed_out" | null,
+"other_joined", "ended", "screening" }`
 
 Poll it during the call: it is how each side learns the other declined, missed or hung up.
 Anyone not in the call gets `404`.
+
+Two endings come from the service, not from a person, so never word them as someone
+hanging up:
+
+| Reason | Meaning |
+|---|---|
+| `dropped` | One phone left the room and didn't come back within 60 s (`WEBRTC_ABANDON_AFTER_S`). |
+| `timed_out` | The call reached its limit of 2 hours (`WEBRTC_MAX_CALL_S`). |
+
+### `POST /api/webrtc/calls/{call_id}/rejoin` — re-enter a live call, for either party
+
+Returns a fresh ticket (`{ "call_id", "livekit_url", "token", "agent_identity", "other" }`). It
+is for re-entering the same call after the connection dropped for good. Room tokens are
+short-lived, so on a long call the original one may no longer let a phone back in.
+
+Who may rejoin:
+
+- the caller, while the call rings;
+- either party, once it is answered;
+- nobody else. The callee of a ringing call must answer instead; anyone else, and anyone
+  after the call has ended, gets `404`.
+
+Rejoin within 60 s. After that the service ends the call as `dropped`. The Flutter app does
+this automatically: it keeps the last verdict on screen while rejoining, and the agent
+resends the full state when the phone arrives.
 
 ### `DELETE /api/webrtc/calls/{call_id}` — cancel or hang up, for either party
 
@@ -94,7 +119,8 @@ Returns `204`. Then disconnect from the room.
 | Subscribe | yes | yes |
 
 Tokens last 10 minutes and allow one room. They are for joining: an established call keeps
-running after the token expires.
+running after the token expires, and LiveKit's own quick reconnects keep working. A phone
+whose connection dropped for good asks `/rejoin` for a fresh token.
 
 ## The verdict message
 

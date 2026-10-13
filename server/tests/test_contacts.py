@@ -116,3 +116,59 @@ def test_requests_need_your_own_username_a_real_target_and_are_rate_limited(api,
         _name(api, who, f"user_{who}")
     assert api.post("/api/connections", json={"user_id": "b1"}, headers=api.as_("alice")).status_code == 201
     assert api.post("/api/connections", json={"user_id": "b2"}, headers=api.as_("alice")).status_code == 429
+
+
+def test_the_database_keeps_one_row_per_pair_whoever_asked(api):
+    """Both directions share one pair_key, so a second row for the same two people is refused
+    by the database itself, not only by the request code."""
+    from sqlalchemy.exc import IntegrityError
+
+    from server import database
+
+    with database.owner_session("alice") as db:
+        db.add(database.Connection(connection_id="c1", requester_id="alice", addressee_id="bob",
+                                   pair_key=database.pair_key("alice", "bob"), status="pending"))
+        db.commit()
+        db.add(database.Connection(connection_id="c2", requester_id="bob", addressee_id="alice",
+                                   pair_key=database.pair_key("bob", "alice"), status="pending"))
+        with pytest.raises(IntegrityError):
+            db.commit()
+
+
+def test_two_people_asking_each_other_at_the_same_instant_end_up_connected(api, monkeypatch):
+    """The race: bob's request is in flight while alice's lands. Bob's insert hits the
+    one-row-per-pair index, and asking back accepts, as if alice's had arrived first."""
+    from server import contacts
+
+    _name(api, "alice", "alice")
+    _name(api, "bob", "bobby")
+    assert api.post("/api/connections", json={"user_id": "bob"}, headers=api.as_("alice")).json()["relation"] == "outgoing"
+    real, calls = contacts._between, []
+
+    def late(db, a, b):   # bob's first look happens before alice's row is visible
+        calls.append(1)
+        return None if len(calls) == 1 else real(db, a, b)
+
+    monkeypatch.setattr(contacts, "_between", late)
+    r = api.post("/api/connections", json={"user_id": "alice"}, headers=api.as_("bob"))
+    assert r.status_code == 201 and r.json()["relation"] == "connected"
+    assert api.get("/api/connections", headers=api.as_("alice")).json()["connected"][0]["user_id"] == "bob"
+
+
+def test_an_older_database_with_duplicate_pairs_keeps_the_accepted_row(tmp_path):
+    from sqlalchemy import create_engine, text
+
+    from server import database
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'old.db'}")
+    with engine.begin() as conn:   # the 0003 shape: no pair_key, and a duplicated pair
+        conn.execute(text("CREATE TABLE connections (connection_id VARCHAR PRIMARY KEY, requester_id VARCHAR NOT NULL, "
+                          "addressee_id VARCHAR NOT NULL, status VARCHAR NOT NULL, created_at DATETIME, "
+                          "responded_at DATETIME)"))
+        conn.execute(text("INSERT INTO connections VALUES ('old', 'a', 'b', 'pending', '2026-10-01', NULL), "
+                          "('acc', 'b', 'a', 'accepted', '2026-10-02', '2026-10-02'), "
+                          "('other', 'a', 'c', 'pending', '2026-10-03', NULL)"))
+    database.migrate(engine)
+    with engine.connect() as conn:
+        rows = dict(conn.execute(text("SELECT connection_id, pair_key FROM connections")).fetchall())
+    assert rows == {"acc": "a|b", "other": "a|c"}

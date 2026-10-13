@@ -116,6 +116,22 @@ async def verified_principal(request: Request) -> Principal:
     return principal
 
 
+def is_admin(principal: Principal) -> bool:
+    """A verified account listed in ADMIN_USER_IDS. Never the dev account."""
+    return principal.via == "jwt" and principal.owner_id in config.ADMIN_USER_IDS
+
+
+async def admin_principal(request: Request) -> Principal:
+    """FastAPI dependency: an admin (verified sign-in, listed in ADMIN_USER_IDS), or 401/403.
+    Every refusal is logged: someone tried to reach every account's calls."""
+    principal = await verified_principal(request)
+    if not is_admin(principal):
+        log.warning(f"admin refused {request.method} {request.url.path}: account {principal.owner_id} "
+                    f"is not in ADMIN_USER_IDS")
+        raise HTTPException(status_code=403, detail="This console is for administrators.")
+    return principal
+
+
 async def current_owner(request: Request) -> str:
     """FastAPI dependency: the owner id every repository call is scoped to."""
     return (await current_principal(request)).owner_id

@@ -27,13 +27,17 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
+from sqlalchemy import or_
+
 import config
 from server.database import (
+    Connection,
     ConsentRecord,
     FlaggedVoice,
     GuardianSubscription,
     LlmShadowRecord,
     Person,
+    Profile,
     ScreeningResult,
     ScreeningSession,
     owner_session,
@@ -107,7 +111,8 @@ def sweep(db_factory: Callable, now: Optional[datetime] = None) -> dict:
 
 def delete_account(owner_id: str) -> dict:
     """Erase one account: contacts with their voiceprints, secrets, consents and
-    subscriptions; sessions with their results; flagged voices; call audio and reports.
+    subscriptions; sessions with their results; flagged voices; its username and every
+    connection it is in; call audio and reports.
     Rows go in one transaction; files only after it commits."""
     if not owner_id:
         raise ValueError("an owner_id is required")
@@ -129,6 +134,12 @@ def delete_account(owner_id: str) -> dict:
                           .delete(synchronize_session=False),
             "llm_shadow": db.query(LlmShadowRecord).filter(LlmShadowRecord.owner_id == owner_id)
                             .delete(synchronize_session=False),
+            # The username and every connection the account is in, on either side: a
+            # deleted account must not stay findable or callable.
+            "connections": db.query(Connection).filter(or_(Connection.requester_id == owner_id,
+                                                           Connection.addressee_id == owner_id))
+                             .delete(synchronize_session=False),
+            "profiles": db.query(Profile).filter(Profile.owner_id == owner_id).delete(synchronize_session=False),
         }
         persons = db.query(Person).filter(Person.owner_id == owner_id).all()
         for person in persons:   # ORM cascade: voiceprints, secrets, idempotency keys

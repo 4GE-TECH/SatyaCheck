@@ -10,20 +10,21 @@ import './styles/shell.css';
 import './styles/pages.css';
 import './styles/report.css';
 import './styles/calls.css';
+import './styles/admin.css';
 import './lib/motion';
 import { WorkspaceProvider } from './app/workspace';
 import { CallFeedProvider } from './app/callFeed';
 import Shell from './app/Shell';
-import AuthGate from './app/AuthGate';
-import CheckPage from './features/check/CheckPage';
+import AdminGate from './app/AdminGate';
+import OverviewPage from './features/admin/OverviewPage';
 import { ButtonLink } from './components/ui';
 
-const ReportPage = lazy(() => import('./features/report/ReportPage'));
-const ReportsPage = lazy(() => import('./features/report/ReportsPage'));
-const LivePage = lazy(() => import('./features/live/LivePage'));
-const CallsPage = lazy(() => import('./features/calls/CallsPage'));
-const VoicesPage = lazy(() => import('./features/voices/VoicesPage'));
-const HelpPage = lazy(() => import('./features/help/HelpPage'));
+// The admin console. The earlier user pages are still in src/features (unrouted) and on the
+// archive/web3-user-dashboard branch: see web3/ARCHIVE.md to bring them back.
+const LiveCallsPage = lazy(() => import('./features/admin/LiveCallsPage'));
+const CallHistoryPage = lazy(() => import('./features/admin/CallHistoryPage'));
+const CallDetailPage = lazy(() => import('./features/admin/CallDetailPage'));
+const UsersPage = lazy(() => import('./features/admin/UsersPage'));
 
 class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -46,7 +47,7 @@ function NotFound() {
     <div className="page fallback">
       <h1>This page doesn’t exist.</h1>
       <p>The address may be mistyped, or the page may have moved.</p>
-      <ButtonLink to="/" variant="primary">Check a recording</ButtonLink>
+      <ButtonLink to="/" variant="primary">Go to the overview</ButtonLink>
     </div>
   );
 }
@@ -57,22 +58,20 @@ createRoot(document.getElementById('root')!).render(
         <WorkspaceProvider>
           <CallFeedProvider>
           <BrowserRouter>
-            <AuthGate>
+            <AdminGate>
             <Shell>
               <Suspense fallback={<div className="page-loading" role="status">Loading…</div>}>
                 <Routes>
-                  <Route path="/" element={<CheckPage />} />
-                  <Route path="/live" element={<LivePage />} />
-                  <Route path="/calls" element={<CallsPage />} />
-                  <Route path="/voices" element={<VoicesPage />} />
-                  <Route path="/reports" element={<ReportsPage />} />
-                  <Route path="/report/:id" element={<ReportPage />} />
-                  <Route path="/help" element={<HelpPage />} />
+                  <Route path="/" element={<OverviewPage />} />
+                  <Route path="/live" element={<LiveCallsPage />} />
+                  <Route path="/calls" element={<CallHistoryPage />} />
+                  <Route path="/calls/:id" element={<CallDetailPage />} />
+                  <Route path="/users" element={<UsersPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
             </Shell>
-            </AuthGate>
+            </AdminGate>
           </BrowserRouter>
           </CallFeedProvider>
         </WorkspaceProvider>

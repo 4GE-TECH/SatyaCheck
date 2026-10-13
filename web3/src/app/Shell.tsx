@@ -1,21 +1,23 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Broadcast, Files, PhoneCall, Lifebuoy, MagnifyingGlass, Moon, Phone, Sun, UsersThree, Waveform, ArrowClockwise } from '@phosphor-icons/react';
+import { Broadcast, Files, SquaresFour, MagnifyingGlass, Moon, Phone, Sun, UsersThree, ArrowClockwise, SignOut } from '@phosphor-icons/react';
+import { signOut } from '../lib/auth';
 import { useWorkspace } from './workspace';
 import CommandPalette from './CommandPalette';
 import AmbientField from '../components/AmbientField';
 import { EASE, gsap, reducedMotion } from '../lib/motion';
 
+// The admin console (server/admin_router.py). The earlier user pages (check a recording,
+// listen live, known voices, reports, help) are kept in src/features and on the
+// archive/web3-user-dashboard branch; see web3/ARCHIVE.md to bring them back.
 export const NAV = [
-  { to: '/', label: 'Check', icon: Waveform },
-  { to: '/live', label: 'Live', icon: Broadcast },
-  { to: '/calls', label: 'Calls', icon: PhoneCall },
-  { to: '/voices', label: 'Voices', icon: UsersThree },
-  { to: '/reports', label: 'Reports', icon: Files },
-  { to: '/help', label: 'Help', icon: Lifebuoy },
+  { to: '/', label: 'Overview', icon: SquaresFour },
+  { to: '/live', label: 'Live calls', icon: Broadcast },
+  { to: '/calls', label: 'All calls', icon: Files },
+  { to: '/users', label: 'Accounts', icon: UsersThree },
 ] as const;
 
-const PAGE_TITLE: Record<string, string> = { '/live': 'Listen live', '/calls': 'Phone calls', '/voices': 'Known voices', '/reports': 'Reports', '/help': 'Help' };
+const PAGE_TITLE: Record<string, string> = { '/live': 'Live calls', '/calls': 'All calls', '/users': 'Accounts' };
 const HEALTH_LABEL = { checking: 'Connecting', online: 'Service online', offline: 'Service offline' } as const;
 const PROXIMITY = 110;
 
@@ -101,9 +103,9 @@ export default function Shell({ children }: { children: ReactNode }) {
 
       <header className="island-wrap">
         <div className="island">
-          <Link to="/" className="brand" aria-label="SatyaCheck, go to Check">
+          <Link to="/" className="brand" aria-label="SatyaCheck admin, go to the overview">
             <img src="/brand/satyacheck-logo.jpg" alt="" width="30" height="30" />
-            <span>SatyaCheck</span>
+            <span>SatyaCheck <span className="brand-tag">admin</span></span>
           </Link>
           <nav ref={nav} className="nav" aria-label="Main">
             {NAV.map(({ to, label }) => {
@@ -111,7 +113,7 @@ export default function Shell({ children }: { children: ReactNode }) {
               return (
                 <NavLink key={to} to={to} viewTransition className={`nav-link${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined}>
                   {active && <span className="nav-pill" aria-hidden="true" />}
-                  <span className="nav-label">{label === 'Live' ? 'Listen live' : label}</span>
+                  <span className="nav-label">{label}</span>
                 </NavLink>
               );
             })}
@@ -135,6 +137,9 @@ export default function Shell({ children }: { children: ReactNode }) {
             </button>
             <button type="button" className="tool-btn" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
               {theme === 'dark' ? <Sun size={18} weight="light" /> : <Moon size={18} weight="light" />}
+            </button>
+            <button type="button" className="tool-btn" onClick={() => void signOut()} aria-label="Sign out of the admin console" title="Sign out">
+              <SignOut size={18} weight="light" />
             </button>
           </div>
         </div>

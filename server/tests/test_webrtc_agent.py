@@ -87,7 +87,7 @@ def _person(identity):
     return SimpleNamespace(identity=identity, track_publications={})
 
 
-async def _start(stream_bytes=(SECOND,), fail=False):
+async def _start(stream_bytes=(SECOND,), fail=False, abandon_after_s=60.0, on_abandoned=None):
     room = FakeRoom()
     voices = {}
 
@@ -103,7 +103,8 @@ async def _start(stream_bytes=(SECOND,), fail=False):
             await asyncio.sleep(0)
 
     agent = CallAgent(url="ws://lk", token="t", call_id="c1", caller_id="alice", voice_factory=factory,
-                      heartbeat_s=0.05, room_factory=lambda: room, stream_factory=stream)
+                      heartbeat_s=0.05, room_factory=lambda: room, stream_factory=stream,
+                      abandon_after_s=abandon_after_s, on_abandoned=on_abandoned)
     task = asyncio.create_task(agent.run())
     await asyncio.sleep(0.01)
     return agent, room, voices, task
@@ -256,3 +257,70 @@ async def test_the_listener_gets_bounded_packets_and_only_the_listener():
 
 def test_the_topic_clients_must_filter_on():
     assert VERDICT_TOPIC == "satyacheck.verdict"
+
+
+@_sync
+async def test_a_phone_that_leaves_and_does_not_return_ends_the_call():
+    ended = []
+
+    async def on_abandoned(reason):
+        ended.append(reason)
+
+    agent, room, voices, task = await _start(abandon_after_s=0.15, on_abandoned=on_abandoned)
+    room.emit("participant_connected", _person("alice"))
+    room.emit("participant_connected", _person("bob"))
+    agent.bind_listener("bob")
+    await _settle()
+    room.emit("participant_disconnected", _person("bob"))
+    await asyncio.wait_for(task, timeout=3)               # the agent stops by itself
+    assert ended == ["dropped"]
+
+
+@_sync
+async def test_a_phone_that_rejoins_in_time_keeps_the_call():
+    ended = []
+
+    async def on_abandoned(reason):
+        ended.append(reason)
+
+    agent, room, voices, task = await _start(abandon_after_s=0.3, on_abandoned=on_abandoned)
+    room.emit("participant_connected", _person("alice"))
+    room.emit("participant_connected", _person("bob"))
+    agent.bind_listener("bob")
+    room.emit("participant_disconnected", _person("bob"))
+    await asyncio.sleep(0.1)
+    room.emit("participant_connected", _person("bob"))     # back within the grace period
+    await asyncio.sleep(0.5)
+    assert ended == [] and not task.done()
+    await agent.stop()
+    await task
+
+
+@_sync
+async def test_a_callee_who_answers_but_never_arrives_ends_the_call():
+    ended = []
+
+    async def on_abandoned(reason):
+        ended.append(reason)
+
+    agent, room, voices, task = await _start(abandon_after_s=0.15, on_abandoned=on_abandoned)
+    room.emit("participant_connected", _person("alice"))
+    agent.bind_listener("bob")                             # answered, then the phone died
+    await asyncio.wait_for(task, timeout=3)
+    assert ended == ["dropped"]
+
+
+@_sync
+async def test_ringing_is_not_abandonment():
+    """Before the callee answers, only the caller is expected in the room."""
+    ended = []
+
+    async def on_abandoned(reason):
+        ended.append(reason)
+
+    agent, room, voices, task = await _start(abandon_after_s=0.1, on_abandoned=on_abandoned)
+    room.emit("participant_connected", _person("alice"))
+    await asyncio.sleep(0.4)
+    assert ended == [] and not task.done()
+    await agent.stop()
+    await task

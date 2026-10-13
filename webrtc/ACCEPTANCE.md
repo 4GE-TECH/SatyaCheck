@@ -30,6 +30,9 @@ Tick each item and note the date and the phones used. The backend side is alread
 - [ ] The screening agent never appears as a person in the call UI.
 - [ ] Phone B turns airplane mode on for 10 s, then off. B's call resumes, and the banner
       comes back with the same or a worse band, never reset to green.
+- [ ] Phone B turns airplane mode on for **40 s**, longer than LiveKit's own reconnect, then off.
+      B rejoins the same call by itself (a fresh token from `/rejoin`), and the band is the same
+      or worse. Off for more than 60 s, the call ends on both phones as "The call dropped".
 - [ ] Stop the backend mid-call. Both phones show "Screening unavailable" and the call itself
       continues.
 - [ ] `insufficient` shows "Listening…" with no number.

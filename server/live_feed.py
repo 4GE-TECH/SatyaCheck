@@ -27,18 +27,27 @@ SCHEMA_VERSION = 1
 
 _subscribers: dict[str, WebSocket] = {}
 _owners: dict[str, Optional[str]] = {}   # each subscriber sees one account's calls only
+_admins: set[str] = set()                # ...except the admin console, which sees every account
+ADMIN = object()                         # subscribe(ws, ADMIN): every account's verdicts
 
 
-def subscribe(ws: WebSocket, owner_id: Optional[str] = None) -> str:
+def subscribe(ws: WebSocket, owner_id=None) -> str:
+    """`owner_id`: the one account this subscriber sees, or ADMIN for every account (the
+    admin console only; server/admin_router.py checks the caller is an admin first)."""
     conn_id = uuid.uuid4().hex[:8]
     _subscribers[conn_id] = ws
-    _owners[conn_id] = owner_id
+    if owner_id is ADMIN:
+        _admins.add(conn_id)
+        _owners[conn_id] = None
+    else:
+        _owners[conn_id] = owner_id
     log.info(f"live feed: subscriber {conn_id} connected ({len(_subscribers)} total)")
     return conn_id
 
 
 def unsubscribe(conn_id: str) -> None:
     _owners.pop(conn_id, None)
+    _admins.discard(conn_id)
     if _subscribers.pop(conn_id, None) is not None:
         log.info(f"live feed: subscriber {conn_id} left ({len(_subscribers)} total)")
 
@@ -49,11 +58,17 @@ async def publish(message: dict, owner_id: Optional[str] = None) -> None:
     if not _subscribers:
         return
     text = json.dumps(message, ensure_ascii=False)
+    # The admin console gets every account's verdicts, labelled with the account.
+    admin_text = json.dumps({**message, "owner_id": owner_id}, ensure_ascii=False) if _admins else None
     for conn_id, ws in list(_subscribers.items()):
-        if _owners.get(conn_id) != owner_id:
+        if conn_id in _admins:
+            payload = admin_text
+        elif _owners.get(conn_id) != owner_id:
             continue
+        else:
+            payload = text
         try:
-            await ws.send_text(text)
+            await ws.send_text(payload)
         except Exception as e:  # noqa: BLE001 — one dead dashboard must not stop the others
             from server.ws_util import is_client_gone
 
@@ -63,6 +78,7 @@ async def publish(message: dict, owner_id: Optional[str] = None) -> None:
                 log.warning(f"live feed: dropping subscriber {conn_id}: {type(e).__name__}: {e}")
             _subscribers.pop(conn_id, None)
             _owners.pop(conn_id, None)
+            _admins.discard(conn_id)
 
 
 def hello_message() -> dict:

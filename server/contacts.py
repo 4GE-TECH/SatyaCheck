@@ -251,9 +251,20 @@ async def request_connection(body: ConnectIn, principal: Principal = Depends(ver
             if not request_limiter.allow(me, config.WEBRTC_CONNECT_REQUESTS_PER_HOUR):
                 raise HTTPException(status_code=429, detail="Too many connect requests. Try again later.")
             row = database.Connection(connection_id=secrets.token_hex(8), requester_id=me, addressee_id=them,
-                                      status="pending")
+                                      pair_key=database.pair_key(me, them), status="pending")
             db.add(row)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # They asked at the same instant: the database kept one row for the pair (the
+            # unique pair_key). Asking back is accepting, exactly as if theirs arrived first.
+            db.rollback()
+            row = _between(db, me, them)
+            if row is None:
+                raise HTTPException(status_code=409, detail="Please try again.") from None
+            if row.status == "pending" and row.addressee_id == me:
+                row.status, row.responded_at = "accepted", datetime.now(timezone.utc)
+                db.commit()
         log.info(f"connection {row.connection_id}: {relation(row, me)}")
         return Person(**_public(profile), relation=relation(row, me))
 

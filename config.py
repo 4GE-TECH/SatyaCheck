@@ -499,6 +499,11 @@ DISPATCH_SINKS: list[str] = ["app_overlay", "guardian", "report", "live_feed"]  
 # to the dashboard/app (they connect with ?token=...). Empty = no token required.
 LIVE_FEED_TOKEN: str = os.getenv("LIVE_FEED_TOKEN", "")
 
+# Admin console (web3, server/admin_router.py): these Supabase account ids may see every
+# account's calls, transcripts and verdicts, read-only. Ids, not emails: an id never changes
+# and cannot be re-registered by someone else. Empty means no admins (the console refuses).
+ADMIN_USER_IDS: frozenset[str] = frozenset(x.strip() for x in os.getenv("ADMIN_USER_IDS", "").split(",") if x.strip())
+
 # Prometheus scrape endpoint (/metrics, upgrade plan Phase 6): aggregate counts and timings
 # only, never an account, transcript or score of one call. When set, a scrape must send
 # "Authorization: Bearer <token>". Production refuses to serve it without one.
@@ -555,6 +560,11 @@ WEBRTC_MAX_CALLS: int = int(os.getenv("WEBRTC_MAX_CALLS", "2"))           # each
 WEBRTC_SEARCH_PER_MIN: int = int(os.getenv("WEBRTC_SEARCH_PER_MIN", "30"))           # username searches, per account
 WEBRTC_CONNECT_REQUESTS_PER_HOUR: int = int(os.getenv("WEBRTC_CONNECT_REQUESTS_PER_HOUR", "20"))  # per account
 WEBRTC_HEARTBEAT_S: float = float(os.getenv("WEBRTC_HEARTBEAT_S", "5"))   # full-state resend interval
+# Calls whose phones vanish (app killed, network gone) must still end, or both people stay
+# "busy" and the call keeps two screening slots. The agent ends an answered call once either
+# phone has been out of the room this long; the registry ends any call older than the cap.
+WEBRTC_ABANDON_AFTER_S: float = float(os.getenv("WEBRTC_ABANDON_AFTER_S", "60"))
+WEBRTC_MAX_CALL_S: int = int(os.getenv("WEBRTC_MAX_CALL_S", "7200"))
 
 # Tamper-evident evidence log of guardian alerts (item 17, server/evidence.py)
 ENABLE_EVIDENCE_LOG: bool = os.getenv("ENABLE_EVIDENCE_LOG", "false").lower() == "true"

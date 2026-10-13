@@ -134,8 +134,17 @@ class AgentManager:
             return self._agent_factory(call)
         from acquisition.api import CallAgent
 
+        async def abandoned(reason: str) -> None:
+            # Nobody hung up: a phone left and did not come back. End it so both people are
+            # free again and the call's screening slots are released.
+            from server.webrtc_calls import registry
+
+            if registry.end_unattended(call.call_id, reason) is not None:
+                log.info(f"[{call.call_id}] ended by the agent: {reason}")
+
         return CallAgent(url=config.LIVEKIT_AGENT_URL, token=agent_token(call), call_id=call.call_id,
                          caller_id=call.caller_id, heartbeat_s=config.WEBRTC_HEARTBEAT_S,
+                         on_abandoned=abandoned, abandon_after_s=config.WEBRTC_ABANDON_AFTER_S,
                          voice_factory=lambda sid, owner, listener, publish: ScreenedVoice(sid, owner, listener,
                                                                                             publish))
 
@@ -190,6 +199,21 @@ class AgentManager:
     async def stop_all(self) -> None:
         for call_id in list(self._agents):
             await self.stop(call_id, "server shutting down")
+
+    def voice_states(self, call_id: str) -> list[dict]:
+        """For the admin console: each screened voice of a call and what its listener is
+        being shown right now (the same bounded packet). Empty before anyone is screened."""
+        agent = self._agents.get(call_id)
+        out = []
+        for speaker, voice in list(getattr(agent, "voices", {}).items()):
+            try:
+                packet = voice.hooks.packet()
+            except Exception as e:  # noqa: BLE001 — a view must never disturb the call
+                log.warning(f"[{call_id}] could not read {voice.session_id} for the admin view: {e}")
+                packet = None
+            out.append({"session_id": voice.session_id, "speaker_id": speaker, "listener_id": voice.listener,
+                        "state": packet})
+        return out
 
     def running(self, call_id: str) -> bool:
         task = self._tasks.get(call_id)

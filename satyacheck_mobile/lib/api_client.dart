@@ -447,6 +447,13 @@ class ApiClient {
     return reply == null ? null : RtcCallTicket.fromJson(reply.map);
   }
 
+  /// A fresh room ticket for a call this phone is already in, after its connection dropped
+  /// for good (room tokens are short-lived). Null when the call is over or unreachable.
+  Future<RtcCallTicket?> rejoinCall(String callId) async {
+    final reply = await _rtc('POST', '/api/webrtc/calls/${Uri.encodeComponent(callId)}/rejoin', quiet: true);
+    return reply == null ? null : RtcCallTicket.fromJson(reply.map);
+  }
+
   Future<void> declineCall(String callId) async {
     await _rtc('POST', '/api/webrtc/calls/${Uri.encodeComponent(callId)}/decline', expect: 204, quiet: true);
   }

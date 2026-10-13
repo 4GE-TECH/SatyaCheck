@@ -74,3 +74,11 @@ test-results/
 
 # EXCEPT: the browser tests' audio fixtures (a synthetic tone plus the app's consented demo clips).
 !web3/tests/fixtures/*.wav
+
+# Admin console credentials written by scripts/create_admin.py: never commit them.
+admin-credentials.local.txt
+*.local.txt
+
+# Local env files (scripts/create_admin.py writes web3/.env.local)
+.env.local
+.env.*.local

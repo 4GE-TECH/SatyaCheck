@@ -151,6 +151,30 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build  # NVI
 - **Device parity:** `python -m scripts.device_parity` checks that moving the models between
   CPU and GPU changes no verdict. It compares against a frozen CPU baseline.
 
+## Admin console (web)
+
+The web app (`web3/`) is the team's admin console:
+
+- **Live calls:** both voices of every app call in progress, with what each person is shown
+  and the running transcript.
+- **Every account's screened calls:** each with its transcript and how the verdict moved.
+- **Accounts.**
+
+Access rules:
+
+- Only accounts in `ADMIN_USER_IDS` get in, with a verified sign-in (`AUTH_MODE=jwt`).
+- It is read-only: on Postgres it reads through a transaction the database itself keeps
+  read-only.
+- Every view is logged with the admin's account id.
+
+To set it up:
+
+1. Add `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` to `.env`.
+2. Run `python -m scripts.create_admin`. It creates the shared admin account, writes its
+   credentials to the git-ignored `admin-credentials.local.txt`, and sets `ADMIN_USER_IDS`.
+
+The earlier user pages are kept: see [`web3/ARCHIVE.md`](web3/ARCHIVE.md).
+
 ## App-to-app calls (WebRTC)
 
 Two people who both have the app can call each other through it, and the backend screens each

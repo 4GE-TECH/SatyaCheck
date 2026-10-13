@@ -38,6 +38,12 @@ export async function verifyCode(email: string, token: string): Promise<string |
   return error ? 'That code did not work. Check it, or send a new one.' : null;
 }
 
+/** Email and password, for the shared admin account. Resolves to an error message, or null. */
+export async function signInWithPassword(email: string, password: string): Promise<string | null> {
+  const { error } = await supabase().auth.signInWithPassword({ email, password });
+  return error ? 'That email and password did not work.' : null;
+}
+
 /** The current access token, refreshed when needed; null when signed out or sign-in is off. */
 export async function accessToken(): Promise<string | null> {
   if (!authEnabled) return null;

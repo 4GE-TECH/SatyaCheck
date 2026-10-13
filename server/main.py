@@ -57,6 +57,13 @@ async def lifespan(app: FastAPI):
 
     from server.auth import log_mode
     log_mode()
+    if not config.ADMIN_USER_IDS:
+        log.info("  admin console: no ADMIN_USER_IDS set, so every /api/admin request is refused")
+    elif config.AUTH_MODE != "jwt":
+        log.warning(f"  admin console: {len(config.ADMIN_USER_IDS)} admin(s) set, but AUTH_MODE={config.AUTH_MODE}; "
+                    f"admins need a verified sign-in, so set AUTH_MODE=jwt")
+    else:
+        log.info(f"  admin console: {len(config.ADMIN_USER_IDS)} admin account(s); every view is logged")
     if config.WARM_MODELS:
         import threading
 
@@ -147,6 +154,11 @@ app.include_router(live_router)
 app.include_router(evidence_router)
 app.include_router(account_router)
 app.include_router(ws_v2_router)
+
+# Admin console (web3): every account's calls, read-only, for ADMIN_USER_IDS only.
+from server.admin_router import router as admin_router  # noqa: E402
+
+app.include_router(admin_router)
 
 
 from server.transport_runner import _RetainingRunner, make_retaining_runner  # noqa: E402,F401

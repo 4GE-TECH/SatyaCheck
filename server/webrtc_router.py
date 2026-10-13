@@ -5,6 +5,8 @@ and AUTH_MODE=jwt (server/main.py::mount_webrtc), together with server/contacts.
     GET    /api/webrtc/incoming                 callee: calls ringing for me (polled while the app is open)
     POST   /api/webrtc/calls/{call_id}/accept   callee: answer; returns the room token
     POST   /api/webrtc/calls/{call_id}/decline  callee: decline
+    POST   /api/webrtc/calls/{call_id}/rejoin   either party: a fresh room token, to re-enter the
+                                                same call after a dropped connection
     GET    /api/webrtc/calls/{call_id}          either party: the call's state
     DELETE /api/webrtc/calls/{call_id}          either party: cancel or hang up
 
@@ -134,6 +136,25 @@ async def accept_call(call_id: str, principal: Principal = Depends(verified_prin
     log.info(f"[{call.call_id}] answered; both voices can now be screened")
     return CallTicket(call_id=call.call_id, livekit_url=config.LIVEKIT_URL, token=phone_token(call, me),
                       agent_identity=call.agent_identity, other=_party(me, call.caller_id))
+
+
+@router.post("/calls/{call_id}/rejoin", response_model=CallTicket)
+async def rejoin_call(call_id: str, principal: Principal = Depends(verified_principal)) -> CallTicket:
+    """A fresh room token for someone already in this call. Room tokens are short-lived, so
+    a phone whose connection dropped for good on a long call could not get back in with the
+    one it was given; it asks here instead (within WEBRTC_ABANDON_AFTER_S, after which the
+    agent ends the call)."""
+    from server.webrtc_screening import phone_token
+
+    await _reap()
+    me = principal.owner_id
+    try:
+        call = registry.rejoinable(call_id, me)
+    except CallError as e:
+        raise _http(e) from None
+    log.info(f"[{call.call_id}] {'caller' if me == call.caller_id else 'callee'} rejoining with a fresh token")
+    return CallTicket(call_id=call.call_id, livekit_url=config.LIVEKIT_URL, token=phone_token(call, me),
+                      agent_identity=call.agent_identity, other=_party(me, call.other(me)))
 
 
 @router.post("/calls/{call_id}/decline", status_code=204, response_class=Response)

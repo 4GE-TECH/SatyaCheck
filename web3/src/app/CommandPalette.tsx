@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EASE, gsap, reducedMotion } from '../lib/motion';
-import { Broadcast, FileText, Files, Flask, Lifebuoy, MagnifyingGlass, MoonStars, PhoneCall, UsersThree, Waveform, type IconProps } from '@phosphor-icons/react';
+import { Broadcast, Files, MagnifyingGlass, MoonStars, SquaresFour, UsersThree, type IconProps } from '@phosphor-icons/react';
 import { useWorkspace } from './workspace';
-import { BANDS, displayBand } from '../lib/verdict';
-import { SAMPLES } from '../features/check/samples';
 import { Kbd } from '../components/ui';
 
 interface Command {
@@ -17,7 +15,7 @@ interface Command {
 }
 
 export default function CommandPalette() {
-  const { paletteOpen, setPaletteOpen, records, toggleTheme, addRecord } = useWorkspace();
+  const { paletteOpen, setPaletteOpen, toggleTheme } = useWorkspace();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
@@ -27,36 +25,13 @@ export default function CommandPalette() {
   const commands = useMemo<Command[]>(() => {
     const go = (to: string) => () => navigate(to);
     return [
-      { id: 'check', label: 'Check a recording', group: 'Go to', icon: Waveform, run: go('/') },
-      { id: 'live', label: 'Listen live', group: 'Go to', icon: Broadcast, run: go('/live') },
-      { id: 'calls', label: 'Phone calls', hint: 'Exotel calls as they happen', group: 'Go to', icon: PhoneCall, run: go('/calls') },
-      { id: 'voices', label: 'Known voices', group: 'Go to', icon: UsersThree, run: go('/voices') },
-      { id: 'reports', label: 'Reports', group: 'Go to', icon: Files, run: go('/reports') },
-      { id: 'help', label: 'How to read a report', group: 'Go to', icon: Lifebuoy, run: go('/help') },
+      { id: 'overview', label: 'Overview', group: 'Go to', icon: SquaresFour, run: go('/') },
+      { id: 'live', label: 'Live calls', hint: 'every account, as it happens', group: 'Go to', icon: Broadcast, run: go('/live') },
+      { id: 'calls', label: 'All calls', group: 'Go to', icon: Files, run: go('/calls') },
+      { id: 'users', label: 'Accounts', group: 'Go to', icon: UsersThree, run: go('/users') },
       { id: 'theme', label: 'Switch theme', group: 'Settings', icon: MoonStars, run: toggleTheme },
-      ...records.slice(0, 6).map(record => ({
-        id: `r-${record.data.session_id}`,
-        label: record.name,
-        hint: BANDS[displayBand(record.data)].label,
-        group: 'Reports this session',
-        icon: FileText,
-        run: go(`/report/${encodeURIComponent(record.data.session_id)}`),
-      })),
-      ...SAMPLES.map(sample => ({
-        id: `s-${sample.scenario}`,
-        label: `Sample: ${sample.label}`,
-        hint: sample.story,
-        group: 'Labelled samples',
-        icon: Flask,
-        run: () => {
-          void sample.load().then(data => {
-            addRecord({ data, name: `Sample · ${sample.label}`, source: 'sample' });
-            navigate(`/report/${encodeURIComponent(data.session_id)}`);
-          });
-        },
-      })),
     ];
-  }, [records, navigate, toggleTheme, addRecord]);
+  }, [navigate, toggleTheme]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();

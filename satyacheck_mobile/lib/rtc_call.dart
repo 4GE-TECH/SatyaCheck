@@ -165,6 +165,9 @@ String endedText(String? reason, String name, {required bool caller}) => switch 
       'declined' => caller ? '$name declined the call.' : 'You declined the call.',
       'missed' => caller ? '$name didn’t answer.' : 'You missed the call.',
       'cancelled' => caller ? 'You cancelled the call.' : '$name hung up before you answered.',
+      // Ended by the service: a phone left and did not come back, or the call hit its time limit.
+      'dropped' => 'The call dropped: one phone lost its connection.',
+      'timed_out' => 'The call reached its time limit and was ended.',
       _ => '$name ended the call.',
     };
 
@@ -201,7 +204,12 @@ class RtcCallController extends ChangeNotifier {
   Room? _room;
   EventsListener<RoomEvent>? _events;
   Timer? _poll, _agentGrace;
-  bool _agentSeen = false, _otherSeen = false, _closing = false, _disposed = false;
+  bool _agentSeen = false, _otherSeen = false, _closing = false, _disposed = false, _rejoining = false;
+
+  /// How long to keep trying to re-enter a call after the connection drops for good. Below
+  /// the service's WEBRTC_ABANDON_AFTER_S (60 s), after which it ends the call.
+  static Duration rejoinWithin = const Duration(seconds: 45);
+  static Duration rejoinEvery = const Duration(seconds: 3);
 
   RtcVerdict? get verdict => _gate?.current;
   bool get busy => phase == RtcPhase.connecting;
@@ -243,17 +251,8 @@ class RtcCallController extends ChangeNotifier {
     other = got.other ?? other;
     _gate = VerdictGate(got.agentIdentity);
 
-    final room = Room(roomOptions: const RoomOptions(adaptiveStream: false, dynacast: false));
+    final room = _newRoom();
     _room = room;
-    _events = room.createListener()
-      ..on<DataReceivedEvent>(_onData)
-      ..on<ParticipantConnectedEvent>((e) => _onArrived(e.participant.identity))
-      ..on<ParticipantDisconnectedEvent>((e) => _onLeft(e.participant.identity))
-      ..on<RoomReconnectingEvent>((_) => _set(() => reconnecting = true))
-      ..on<RoomReconnectedEvent>((_) => _set(() => reconnecting = false))
-      ..on<RoomDisconnectedEvent>((e) {
-        if (!_closing) _finish('The connection to the call was lost (${e.reason?.name ?? 'unknown reason'}).', endOnServer: false);
-      });
 
     try {
       await room.connect(got.livekitUrl, got.token);
@@ -292,6 +291,71 @@ class RtcCallController extends ChangeNotifier {
     });
     _poll = Timer.periodic(const Duration(seconds: 2), (_) => _checkState());
     notifyListeners();
+  }
+
+  /// A room with this call's listeners. Used to enter the call and to re-enter it.
+  Room _newRoom() {
+    final room = Room(roomOptions: const RoomOptions(adaptiveStream: false, dynacast: false));
+    _events = room.createListener()
+      ..on<DataReceivedEvent>(_onData)
+      ..on<ParticipantConnectedEvent>((e) => _onArrived(e.participant.identity))
+      ..on<ParticipantDisconnectedEvent>((e) => _onLeft(e.participant.identity))
+      ..on<RoomReconnectingEvent>((_) => _set(() => reconnecting = true))
+      ..on<RoomReconnectedEvent>((_) => _set(() => reconnecting = false))
+      ..on<RoomDisconnectedEvent>((e) {
+        if (!_closing && _room == room) unawaited(_rejoin(e.reason?.name ?? 'unknown reason'));
+      });
+    return room;
+  }
+
+  /// The connection dropped for good (LiveKit's own reconnects gave up). Room tokens are
+  /// short-lived, so the old one may not let this phone back in on a long call: ask the
+  /// service for a fresh one and re-enter the same call. The verdict on screen stays as it
+  /// was; the agent resends the full state when this phone arrives (rule 3). Gives up after
+  /// [rejoinWithin], inside the service's window before it ends a call a phone left.
+  Future<void> _rejoin(String why) async {
+    final id = ticket?.callId;
+    if (_rejoining || _closing || id == null) return;
+    _rejoining = true;
+    _set(() => reconnecting = true);
+    final old = _room, oldEvents = _events;
+    _room = null;
+    _events = null;
+    await oldEvents?.dispose();
+    try {
+      await old?.dispose();
+    } catch (_) {}
+
+    final deadline = DateTime.now().add(rejoinWithin);
+    while (!_closing && !_disposed && DateTime.now().isBefore(deadline)) {
+      final fresh = await obtainRejoinTicket(_api, id, until: deadline);
+      if (fresh == null || _closing || _disposed) break;
+      final room = _newRoom();
+      try {
+        await room.connect(fresh.livekitUrl, fresh.token);
+        await room.localParticipant?.setMicrophoneEnabled(!muted);
+        _room = room;
+        ticket = fresh;
+        for (final identity in room.remoteParticipants.keys) {
+          _onArrived(identity, notify: false);
+        }
+        debugPrint('SatyaCheck call: rejoined the call after the connection dropped ($why)');
+        _rejoining = false;
+        _set(() => reconnecting = false);
+        return;
+      } catch (e) {
+        debugPrint('SatyaCheck call: rejoin attempt failed: $e');
+        await _events?.dispose();
+        _events = null;
+        try {
+          await room.dispose();
+        } catch (_) {}
+        await Future<void>.delayed(rejoinEvery);
+      }
+    }
+    _rejoining = false;
+    reconnecting = false;
+    _finish('The connection to the call was lost ($why).', endOnServer: false);
   }
 
   void _onData(DataReceivedEvent e) {
@@ -412,7 +476,7 @@ class RtcCallController extends ChangeNotifier {
     _gate = null;
     error = endedReason = null;
     otherAway = reconnecting = screeningLost = muted = false;
-    _agentSeen = _otherSeen = _closing = false;
+    _agentSeen = _otherSeen = _closing = _rejoining = false;
   }
 
   void _set(void Function() change) {
@@ -427,6 +491,20 @@ class RtcCallController extends ChangeNotifier {
     if (live) unawaited(_close(endOnServer: true));
     super.dispose();
   }
+}
+
+/// A fresh ticket to re-enter call [callId], asking every [every] until [until]. Null as
+/// soon as the service says the call has ended (no point retrying), or at the deadline.
+Future<RtcCallTicket?> obtainRejoinTicket(ApiClient api, String callId,
+    {required DateTime until, Duration every = const Duration(seconds: 3)}) async {
+  while (DateTime.now().isBefore(until)) {
+    final fresh = await api.rejoinCall(callId);
+    if (fresh != null && fresh.valid) return fresh;
+    final state = await api.rtcCallState(callId);
+    if (state != null && state.ended) return null;
+    await Future<void>.delayed(every);
+  }
+  return null;
 }
 
 /// Asks the service every two seconds, while the app is open, whether a call is ringing

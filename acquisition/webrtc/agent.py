@@ -83,6 +83,13 @@ class CallAgent:
     _stopped: asyncio.Event = field(default_factory=asyncio.Event)
     _outage_started: Optional[float] = None
     room: object = None
+    # A phone that leaves and does not come back must still end the call (both people would
+    # otherwise stay "busy" and the call would hold its screening slots). Once the call is
+    # answered, a party absent for `abandon_after_s` ends it through `on_abandoned`.
+    on_abandoned: Optional[Callable[[str], Awaitable[None]]] = None
+    abandon_after_s: float = 60.0
+    _present: set = field(default_factory=set)
+    _absent_since: dict = field(default_factory=dict)
 
     # --- lifecycle -----------------------------------------------------------------------
 
@@ -94,6 +101,7 @@ class CallAgent:
             await self.room.connect(self.url, self.token)
             log.info(f"[{self.call_id}] screening agent joined the room")
             for participant in list(getattr(self.room, "remote_participants", {}).values()):
+                self._arrived(getattr(participant, "identity", ""))
                 for pub in list(getattr(participant, "track_publications", {}).values()):
                     if getattr(pub, "track", None) is not None:
                         self._on_track(pub.track, participant)
@@ -102,6 +110,7 @@ class CallAgent:
                     await asyncio.wait_for(self._stopped.wait(), timeout=self.heartbeat_s)
                 except asyncio.TimeoutError:
                     await self._each_voice("heartbeat")
+                    await self._check_abandoned()
         except Exception as e:  # noqa: BLE001 — the call itself must never depend on the agent
             log.error(f"[{self.call_id}] screening agent failed: {type(e).__name__}: {e}")
             await self._each_voice("unavailable", f"screening agent failed: {type(e).__name__}")
@@ -122,6 +131,10 @@ class CallAgent:
         if self.callee_id is not None:
             return                              # immutable once bound
         self.callee_id = callee_id
+        now = time.monotonic()
+        for party in (self.caller_id, callee_id):   # absent until seen; the clock starts now
+            if party not in self._present:
+                self._absent_since.setdefault(party, now)
         for identity, (track, participant) in list(self._pending_tracks.items()):
             self._on_track(track, participant)
 
@@ -130,11 +143,40 @@ class CallAgent:
     def _wire(self, room) -> None:
         room.on("track_subscribed", lambda track, pub, participant: self._on_track(track, participant))
         room.on("track_unsubscribed", lambda track, pub, participant: self._pause(participant.identity))
-        room.on("participant_disconnected", lambda participant: self._pause(participant.identity))
-        room.on("participant_connected", lambda participant: self._spawn(self._listener_joined(participant.identity)))
+        room.on("participant_disconnected", lambda participant: self._left(participant.identity))
+        room.on("participant_connected", lambda participant: self._joined(participant.identity))
         room.on("reconnecting", lambda *a: self._agent_lost())
         room.on("reconnected", lambda *a: self._spawn(self._agent_back()))
         room.on("disconnected", lambda *a: self._spawn(self.stop("agent disconnected from the room")))
+
+    def _arrived(self, identity: str) -> None:
+        self._present.add(identity)
+        self._absent_since.pop(identity, None)
+
+    def _joined(self, identity: str) -> None:
+        self._arrived(identity)
+        self._spawn(self._listener_joined(identity))
+
+    def _left(self, identity: str) -> None:
+        self._present.discard(identity)
+        if identity in (self.caller_id, self.callee_id):
+            self._absent_since[identity] = time.monotonic()
+        self._pause(identity)
+
+    async def _check_abandoned(self) -> None:
+        """End an answered call that a phone left and did not rejoin within abandon_after_s."""
+        if self.callee_id is None or self._stopped.is_set():
+            return
+        now = time.monotonic()
+        for party in (self.caller_id, self.callee_id):
+            since = self._absent_since.get(party)
+            if party not in self._present and since is not None and now - since > self.abandon_after_s:
+                log.warning(f"[{self.call_id}] {_who(party, self.caller_id)} left {now - since:.0f}s ago and "
+                            f"did not come back; ending the call")
+                if self.on_abandoned is not None:
+                    await _safe(self.on_abandoned("dropped"))
+                await self.stop("a phone left the call and did not come back")
+                return
 
     def _listener_of(self, speaker: str) -> Optional[str]:
         if speaker == self.caller_id:
@@ -145,6 +187,7 @@ class CallAgent:
 
     def _on_track(self, track, participant) -> None:
         identity = getattr(participant, "identity", "")
+        self._arrived(identity)
         if getattr(track, "kind", None) not in (1, "audio") and not _is_audio(track):
             return
         if identity not in (self.caller_id, self.callee_id):

@@ -5,6 +5,8 @@ connections (server/contacts.py), and only that person can answer. So a verdict 
 voice can only ever reach the other person in the call.
 
     ringing --accept--> active --hang up--> ended
+       |                     |--a phone gone WEBRTC_ABANDON_AFTER_S (agent) --> ended "dropped"
+       |                     |--longer than WEBRTC_MAX_CALL_S --> ended "timed_out"
        |--decline / cancel / no answer in WEBRTC_RING_TIMEOUT_S--> ended
 
   * only the callee can accept or decline, and only while it rings; the callee's room
@@ -50,7 +52,7 @@ class Call:
     status: str = "ringing"                 # ringing | active | ended
     accepted_at: Optional[float] = None
     ended_at: Optional[float] = None
-    ended_reason: Optional[str] = None      # declined | missed | cancelled | hung_up
+    ended_reason: Optional[str] = None      # declined | missed | cancelled | hung_up | dropped | timed_out
 
     @property
     def room(self) -> str:
@@ -85,6 +87,10 @@ class CallRegistry:
         for call in self._calls.values():
             if call.status == "ringing" and now - call.created_at > config.WEBRTC_RING_TIMEOUT_S:
                 self._end(call, "missed", now)
+                self._ended.append(call.call_id)
+            elif call.status == "active" and now - call.created_at > config.WEBRTC_MAX_CALL_S:
+                # Backstop for an agent that died: nothing else would ever end this call.
+                self._end(call, "timed_out", now)
                 self._ended.append(call.call_id)
         # Forget ended calls once nobody can still be polling them.
         for call_id in [c.call_id for c in self._calls.values()
@@ -158,6 +164,29 @@ class CallRegistry:
             call = self._calls.get(call_id)
             if call is None or not call.has(user_id):
                 raise CallError(404, "Call not found.")
+            return call
+
+    def rejoinable(self, call_id: str, user_id: str) -> Call:
+        """A call this user may (re)enter the room of with a fresh token: either party of an
+        active call, or the caller of one still ringing. The callee of a ringing call must
+        answer instead. Anything else is the same 404 as a call that never existed."""
+        with self._lock:
+            self._expire(self.clock())
+            call = self._calls.get(call_id)
+            ok = call is not None and call.has(user_id) and (
+                call.status == "active" or (call.status == "ringing" and user_id == call.caller_id))
+            if not ok:
+                raise CallError(404, "This call has ended.")
+            return call
+
+    def end_unattended(self, call_id: str, reason: str) -> Optional[Call]:
+        """End a call nobody hung up (the agent saw a phone leave and not come back).
+        None if it is unknown or already over."""
+        with self._lock:
+            call = self._calls.get(call_id)
+            if call is None or call.status == "ended":
+                return None
+            self._end(call, reason, self.clock())
             return call
 
     def end(self, call_id: str, user_id: str) -> Call:
