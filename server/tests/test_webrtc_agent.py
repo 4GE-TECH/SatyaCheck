@@ -324,3 +324,30 @@ async def test_ringing_is_not_abandonment():
     assert ended == [] and not task.done()
     await agent.stop()
     await task
+
+
+@_sync
+async def test_a_party_whose_audio_never_arrives_is_logged_once():
+    """The field failure: both phones in the room, one phone's audio never reaches the agent.
+    Without this, only the voice that does arrive shows up in the backend log."""
+    import logging
+
+    seen = []
+    handler = logging.Handler()
+    handler.emit = lambda record: seen.append(record.getMessage())
+    logger = logging.getLogger("satyacheck.acquisition.webrtc")
+    logger.addHandler(handler)
+    try:
+        agent, room, voices, task = await _start()
+        agent.no_audio_after_s = 0.1
+        room.emit("participant_connected", _person("alice"))
+        room.emit("participant_connected", _person("bob"))
+        agent.bind_listener("bob")
+        room.emit("track_subscribed", _track(), None, _person("bob"))     # only bob's audio arrives
+        await asyncio.sleep(0.5)                                         # several heartbeats
+        silent = [m for m in seen if "no audio track from" in m]
+        assert len(silent) == 1 and silent[0].startswith("[c1] no audio track from the caller")
+        await agent.stop()
+        await task
+    finally:
+        logger.removeHandler(handler)

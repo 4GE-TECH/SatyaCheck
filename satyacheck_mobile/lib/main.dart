@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:livekit_client/livekit_client.dart' show LiveKitClient;
 import 'api_client.dart';
 import 'app_call_screen.dart';
 import 'calls_screen.dart';
@@ -16,7 +17,18 @@ import 'theme.dart';
 import 'voice_capture.dart';
 import 'widgets.dart';
 
-void main() => runApp(const SatyaCheckApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // App calls (rtc_call.dart): LiveKit sets up WebRTC's audio device for two-way voice here,
+  // before any room connects. Skipped, capture and playout run on whatever the handset
+  // defaults to, and a call can connect while carrying no audio.
+  try {
+    await LiveKitClient.initialize();
+  } catch (error) {
+    debugPrint('SatyaCheck call: LiveKit audio setup failed ($error); app calls may carry no audio');
+  }
+  runApp(const SatyaCheckApp());
+}
 
 class SatyaCheckApp extends StatefulWidget {
   const SatyaCheckApp({super.key, this.api});

@@ -143,6 +143,89 @@ class VerdictGate {
   }
 }
 
+/// Whether a connected call is actually carrying anything. A LiveKit room can be joined, and
+/// the microphone "published", while no audio leaves the phone or arrives at it: every layer
+/// reports success and nothing is heard (CLAUDE.md, "Silent failure"). These checks say so.
+///
+/// Pure timing rules, fed events by [RtcCallController], so they are testable without a room.
+class MediaHealth {
+  /// The server should report us speaking within this long of the call starting.
+  static const heardWithin = Duration(seconds: 15);
+
+  /// Their audio track should be subscribed within this long of them joining.
+  static const themWithin = Duration(seconds: 10);
+
+  /// The agent resends the full verdict every 5 s; three missed is a broken data path.
+  static const verdictsWithin = Duration(seconds: 15);
+
+  DateTime? _inCallAt, _otherJoinedAt, _listeningSince;
+  bool _heard = false, _remoteAudio = false, _subscriptionFailed = false, _verdict = false;
+
+  /// The service has not heard this phone's voice (not muted, in the call [heardWithin]).
+  bool notHeardByServer = false;
+
+  /// No audio track from the other person has arrived, or subscribing to it failed.
+  bool notHearingThem = false;
+
+  /// No verdict packet has arrived although the screening agent is in the call.
+  bool noVerdicts = false;
+
+  bool get anyProblem => notHeardByServer || notHearingThem || noVerdicts;
+
+  /// When this phone was first seen in the call, if it has been.
+  DateTime? get inCallAt => _inCallAt;
+
+  void onInCall(DateTime now) {
+    _inCallAt ??= now;
+    _listeningSince ??= now;
+  }
+
+  void onOtherJoined(DateTime now) => _otherJoinedAt ??= now;
+
+  /// The server reported this phone speaking: our audio reaches it.
+  void onLocalSpeaking() => _heard = true;
+
+  /// Unmuting restarts the wait for the server to hear us.
+  void onUnmuted(DateTime now) => _listeningSince = now;
+
+  void onRemoteAudio() {
+    _remoteAudio = true;
+    _subscriptionFailed = false;
+  }
+
+  void onSubscriptionFailed() => _subscriptionFailed = true;
+
+  void onVerdict() => _verdict = true;
+
+  /// Back to "nothing known yet", e.g. after re-entering the call with a new connection.
+  void reset() {
+    _inCallAt = _otherJoinedAt = _listeningSince = null;
+    _heard = _remoteAudio = _subscriptionFailed = _verdict = false;
+    notHeardByServer = notHearingThem = noVerdicts = false;
+  }
+
+  /// Re-evaluate. Returns the names of the flags that changed, for logging.
+  List<String> evaluate(DateTime now, {required bool agentPresent, required bool muted}) {
+    final inCall = _inCallAt;
+    if (inCall == null) return const [];
+    final listening = _listeningSince ?? inCall;
+    final heardNow = !_heard && !muted && now.difference(listening) >= heardWithin;
+    final joined = _otherJoinedAt;
+    final themNow = _subscriptionFailed || (!_remoteAudio && joined != null && now.difference(joined) >= themWithin);
+    final verdictsNow = !_verdict && agentPresent && now.difference(inCall) >= verdictsWithin;
+
+    final changed = <String>[
+      if (heardNow != notHeardByServer) 'notHeardByServer',
+      if (themNow != notHearingThem) 'notHearingThem',
+      if (verdictsNow != noVerdicts) 'noVerdicts',
+    ];
+    notHeardByServer = heardNow;
+    notHearingThem = themNow;
+    noVerdicts = verdictsNow;
+    return changed;
+  }
+}
+
 enum RtcPhase {
   /// No call yet.
   idle,
@@ -201,9 +284,13 @@ class RtcCallController extends ChangeNotifier {
 
   bool muted = false, speaker = false;
 
+  /// Is the call carrying audio both ways, and verdicts to this phone?
+  final media = MediaHealth();
+
   Room? _room;
   EventsListener<RoomEvent>? _events;
-  Timer? _poll, _agentGrace;
+  Timer? _poll, _agentGrace, _mediaCheck;
+  bool _statsLogged = false;
   bool _agentSeen = false, _otherSeen = false, _closing = false, _disposed = false, _rejoining = false;
 
   /// How long to keep trying to re-enter a call after the connection drops for good. Below
@@ -290,7 +377,53 @@ class RtcCallController extends ChangeNotifier {
       }
     });
     _poll = Timer.periodic(const Duration(seconds: 2), (_) => _checkState());
+    _mediaCheck = Timer.periodic(const Duration(seconds: 1), (_) => _checkMedia());
     notifyListeners();
+  }
+
+  /// Once a second in the call: is anything actually flowing? Logs each change, both ways.
+  void _checkMedia() {
+    if (phase != RtcPhase.inCall || _rejoining || _closing) return;
+    final now = DateTime.now();
+    media.onInCall(now);
+    final changed = media.evaluate(now, agentPresent: _agentSeen && !screeningLost, muted: muted);
+    for (final flag in changed) {
+      final on = switch (flag) {
+        'notHeardByServer' => media.notHeardByServer,
+        'notHearingThem' => media.notHearingThem,
+        _ => media.noVerdicts,
+      };
+      debugPrint('SatyaCheck call: media check $flag is now ${on ? 'FAILING' : 'ok'}');
+    }
+    if (changed.isNotEmpty) notifyListeners();
+    // Once, a little into the call: what actually crossed the network, for whoever has to
+    // explain a silent call later.
+    final started = media.inCallAt;
+    if (!_statsLogged && started != null && now.difference(started) >= const Duration(seconds: 12)) {
+      _statsLogged = true;
+      unawaited(_logAudioStats());
+    }
+  }
+
+  Future<void> _logAudioStats() async {
+    final room = _room;
+    if (room == null) return;
+    try {
+      final local = room.localParticipant?.audioTrackPublications.map((p) => p.track).whereType<LocalAudioTrack>().firstOrNull;
+      final sent = await local?.getSenderStats();
+      debugPrint('SatyaCheck call: microphone ${local == null ? 'NOT published' : 'published'}; '
+          'packets sent ${sent?.packetsSent ?? 'unknown'}, bytes sent ${sent?.bytesSent ?? 'unknown'}');
+      for (final participant in room.remoteParticipants.values) {
+        if (participant.identity == ticket?.agentIdentity) continue;
+        final track = participant.audioTrackPublications.map((p) => p.track).whereType<RemoteAudioTrack>().firstOrNull;
+        final got = await track?.getReceiverStats();
+        debugPrint('SatyaCheck call: audio from the other person ${track == null ? 'NOT subscribed' : 'subscribed'}; '
+            'packets received ${got?.packetsReceived ?? 'unknown'}, lost ${got?.packetsLost ?? 'unknown'}, '
+            'audio energy ${got?.totalAudioEnergy ?? 'unknown'}');
+      }
+    } catch (e) {
+      debugPrint('SatyaCheck call: could not read audio stats: $e');
+    }
   }
 
   /// A room with this call's listeners. Used to enter the call and to re-enter it.
@@ -300,6 +433,22 @@ class RtcCallController extends ChangeNotifier {
       ..on<DataReceivedEvent>(_onData)
       ..on<ParticipantConnectedEvent>((e) => _onArrived(e.participant.identity))
       ..on<ParticipantDisconnectedEvent>((e) => _onLeft(e.participant.identity))
+      ..on<ActiveSpeakersChangedEvent>((e) {
+        // Speaking is measured by the server, so this is proof our audio reaches it.
+        final me = room.localParticipant?.identity;
+        if (me != null && e.speakers.any((p) => p.identity == me)) media.onLocalSpeaking();
+      })
+      ..on<LocalTrackPublishedEvent>((e) => debugPrint('SatyaCheck call: microphone published (${e.publication.sid})'))
+      ..on<TrackSubscribedEvent>((e) {
+        if (e.participant.identity != ticket?.agentIdentity && e.track is RemoteAudioTrack) {
+          debugPrint('SatyaCheck call: receiving audio from the other person');
+          media.onRemoteAudio();
+        }
+      })
+      ..on<TrackSubscriptionExceptionEvent>((e) {
+        debugPrint('SatyaCheck call: could not receive a track from ${e.participant?.identity ?? 'someone'}: ${e.reason}');
+        if (e.participant?.identity != ticket?.agentIdentity) media.onSubscriptionFailed();
+      })
       ..on<RoomReconnectingEvent>((_) => _set(() => reconnecting = true))
       ..on<RoomReconnectedEvent>((_) => _set(() => reconnecting = false))
       ..on<RoomDisconnectedEvent>((e) {
@@ -336,6 +485,9 @@ class RtcCallController extends ChangeNotifier {
         await room.localParticipant?.setMicrophoneEnabled(!muted);
         _room = room;
         ticket = fresh;
+        // A new connection: what flowed over the old one says nothing about this one.
+        media.reset();
+        _statsLogged = false;
         for (final identity in room.remoteParticipants.keys) {
           _onArrived(identity, notify: false);
         }
@@ -361,6 +513,8 @@ class RtcCallController extends ChangeNotifier {
   void _onData(DataReceivedEvent e) {
     final gate = _gate;
     if (gate == null) return;
+    // Any packet from the agent proves the data path, even one an older rev makes us ignore.
+    if (e.topic == verdictTopic && e.participant?.identity == gate.agentIdentity) media.onVerdict();
     if (gate.offer(topic: e.topic, sender: e.participant?.identity, data: e.data)) notifyListeners();
   }
 
@@ -372,6 +526,7 @@ class RtcCallController extends ChangeNotifier {
     } else {
       _otherSeen = true;
       otherAway = false;
+      media.onOtherJoined(DateTime.now());
       if (phase == RtcPhase.ringing) phase = RtcPhase.inCall;
     }
     if (notify) notifyListeners();
@@ -409,6 +564,7 @@ class RtcCallController extends ChangeNotifier {
     if (local == null) return;
     try {
       await local.setMicrophoneEnabled(muted);
+      if (muted) media.onUnmuted(DateTime.now());
       _set(() => muted = !muted);
     } catch (e) {
       debugPrint('SatyaCheck call: could not ${muted ? 'unmute' : 'mute'}: $e');
@@ -454,6 +610,7 @@ class RtcCallController extends ChangeNotifier {
     _closing = true;
     _poll?.cancel();
     _agentGrace?.cancel();
+    _mediaCheck?.cancel();
     final id = ticket?.callId;
     if (endOnServer && id != null) {
       // Best effort and bounded: hanging up never waits on the network.
@@ -476,6 +633,8 @@ class RtcCallController extends ChangeNotifier {
     _gate = null;
     error = endedReason = null;
     otherAway = reconnecting = screeningLost = muted = false;
+    media.reset();
+    _statsLogged = false;
     _agentSeen = _otherSeen = _closing = _rejoining = false;
   }
 

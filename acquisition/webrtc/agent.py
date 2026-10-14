@@ -90,6 +90,11 @@ class CallAgent:
     abandon_after_s: float = 60.0
     _present: set = field(default_factory=set)
     _absent_since: dict = field(default_factory=dict)
+    # A party in the room whose audio never reaches the agent is otherwise invisible here:
+    # only the success path ("screening the caller's voice") is logged.
+    no_audio_after_s: float = 15.0
+    _present_since: dict = field(default_factory=dict)
+    _silence_reported: set = field(default_factory=set)
 
     # --- lifecycle -----------------------------------------------------------------------
 
@@ -111,6 +116,7 @@ class CallAgent:
                 except asyncio.TimeoutError:
                     await self._each_voice("heartbeat")
                     await self._check_abandoned()
+                    self._check_no_audio()
         except Exception as e:  # noqa: BLE001 — the call itself must never depend on the agent
             log.error(f"[{self.call_id}] screening agent failed: {type(e).__name__}: {e}")
             await self._each_voice("unavailable", f"screening agent failed: {type(e).__name__}")
@@ -152,6 +158,7 @@ class CallAgent:
     def _arrived(self, identity: str) -> None:
         self._present.add(identity)
         self._absent_since.pop(identity, None)
+        self._present_since.setdefault(identity, time.monotonic())
 
     def _joined(self, identity: str) -> None:
         self._arrived(identity)
@@ -177,6 +184,22 @@ class CallAgent:
                     await _safe(self.on_abandoned("dropped"))
                 await self.stop("a phone left the call and did not come back")
                 return
+
+    def _check_no_audio(self) -> None:
+        """Log, once per party, a party in the answered call whose audio has not reached the
+        agent after no_audio_after_s. Usually its phone's media path: it joined the room, but
+        no audio track arrived (webrtc/NETWORK.md)."""
+        if self.callee_id is None:
+            return
+        now = time.monotonic()
+        for party in (self.caller_id, self.callee_id):
+            since = self._present_since.get(party)
+            if (party in self._present and since is not None and now - since > self.no_audio_after_s
+                    and party not in self.voices and party not in self._pending_tracks
+                    and party not in self._silence_reported):
+                self._silence_reported.add(party)
+                log.warning(f"[{self.call_id}] no audio track from {_who(party, self.caller_id)} after "
+                            f"{now - since:.0f}s in the room; their voice is not being screened")
 
     def _listener_of(self, speaker: str) -> Optional[str]:
         if speaker == self.caller_id:

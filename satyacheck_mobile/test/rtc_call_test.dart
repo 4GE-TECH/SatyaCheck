@@ -185,6 +185,83 @@ void main() {
     await tester.pump();
     expect(find.textContaining('App calls need sign-in'), findsOneWidget);
   });
+
+  group('MediaHealth', () {
+    final t0 = DateTime(2026, 10, 14, 12);
+    DateTime at(int s) => t0.add(Duration(seconds: s));
+
+    test('nothing is flagged before the call starts, or while each wait is still running', () {
+      final m = MediaHealth();
+      expect(m.evaluate(at(60), agentPresent: true, muted: false), isEmpty);
+      m
+        ..onInCall(at(0))
+        ..onOtherJoined(at(0));
+      expect(m.evaluate(at(9), agentPresent: true, muted: false), isEmpty);
+      expect(m.anyProblem, isFalse);
+    });
+
+    test('a call that carries nothing says so: the failing call from the field', () {
+      final m = MediaHealth()
+        ..onInCall(at(0))
+        ..onOtherJoined(at(0));
+      expect(m.evaluate(at(10), agentPresent: true, muted: false), ['notHearingThem']);
+      expect(m.evaluate(at(15), agentPresent: true, muted: false), ['notHeardByServer', 'noVerdicts']);
+      expect((m.notHeardByServer, m.notHearingThem, m.noVerdicts), (true, true, true));
+    });
+
+    test('each flag clears as soon as its evidence arrives', () {
+      final m = MediaHealth()
+        ..onInCall(at(0))
+        ..onOtherJoined(at(0));
+      m.evaluate(at(20), agentPresent: true, muted: false);
+      m
+        ..onLocalSpeaking()
+        ..onRemoteAudio()
+        ..onVerdict();
+      expect(m.evaluate(at(21), agentPresent: true, muted: false).toSet(), {'notHeardByServer', 'notHearingThem', 'noVerdicts'});
+      expect(m.anyProblem, isFalse);
+    });
+
+    test('a healthy call is never flagged', () {
+      final m = MediaHealth()
+        ..onInCall(at(0))
+        ..onOtherJoined(at(1))
+        ..onRemoteAudio()
+        ..onVerdict()
+        ..onLocalSpeaking();
+      expect(m.evaluate(at(120), agentPresent: true, muted: false), isEmpty);
+    });
+
+    test('muted is not "not heard", and unmuting restarts the wait', () {
+      final m = MediaHealth()..onInCall(at(0));
+      m.evaluate(at(40), agentPresent: false, muted: true);
+      expect(m.notHeardByServer, isFalse);
+      m.onUnmuted(at(40));
+      m.evaluate(at(50), agentPresent: false, muted: false);
+      expect(m.notHeardByServer, isFalse);
+      m.evaluate(at(55), agentPresent: false, muted: false);
+      expect(m.notHeardByServer, isTrue);
+    });
+
+    test('missing verdicts count only while the agent is in the call, and a failed subscription shows at once', () {
+      final m = MediaHealth()..onInCall(at(0));
+      m.evaluate(at(30), agentPresent: false, muted: false);
+      expect(m.noVerdicts, isFalse);
+      m.onSubscriptionFailed();
+      m.evaluate(at(31), agentPresent: false, muted: false);
+      expect(m.notHearingThem, isTrue);
+    });
+
+    test('reset forgets everything, as after re-entering the call', () {
+      final m = MediaHealth()
+        ..onInCall(at(0))
+        ..onOtherJoined(at(0));
+      m.evaluate(at(30), agentPresent: true, muted: false);
+      m.reset();
+      expect(m.anyProblem, isFalse);
+      expect(m.inCallAt, isNull);
+    });
+  });
 }
 
 IncomingCall _incoming(String id) =>

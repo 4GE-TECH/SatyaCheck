@@ -168,6 +168,17 @@ class _AppCallScreenState extends State<AppCallScreen> {
       if (verdict != null && verdict.partlyUnchecked) InfoMessage('Part of this call couldn’t be checked.', tone: p.caution),
       if (_call.reconnecting) InfoMessage('Reconnecting… The last result stays shown.', tone: p.neutral),
       if (_call.otherAway) InfoMessage('${_call.otherName}’s connection dropped. Waiting for them to come back…', tone: p.neutral),
+      // The connection is up but nothing is flowing (rtc_call.dart, MediaHealth). Said only
+      // while it lasts; each clears itself as soon as audio or results arrive.
+      if (!_call.reconnecting && !_call.otherAway) ...[
+        if (_call.media.notHeardByServer)
+          InfoMessage('The call hasn’t heard your voice yet. If you are talking, check the microphone permission or try a better connection.',
+              tone: p.caution),
+        if (_call.media.notHearingThem)
+          InfoMessage('No audio is arriving from ${_call.otherName}. The connection on one side may be blocking it.', tone: p.caution),
+        if (_call.media.noVerdicts && !_call.screeningLost)
+          InfoMessage('Results aren’t reaching this phone, so the check above can’t update.', tone: p.caution),
+      ],
     ];
     return [for (final n in notices) Padding(padding: const EdgeInsets.only(top: 14), child: n)];
   }
